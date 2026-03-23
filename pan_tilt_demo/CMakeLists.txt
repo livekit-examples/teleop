@@ -23,6 +23,7 @@ else()
   )
 endif()
 find_package(LiveKit CONFIG REQUIRED)
+find_package(realsense2 REQUIRED)
 
 include(Dependencies)
 
@@ -35,18 +36,23 @@ add_executable(PanTiltRobot
   src/pan_tilt_main.cpp
   src/pan_tilt_livekit.cpp
   src/pan_tilt_controller.cpp
+  src/realsense_camera.cpp
 )
 target_include_directories(PanTiltRobot PRIVATE include)
 target_link_libraries(PanTiltRobot PRIVATE
   LiveKit::livekit_bridge
   SCServo
   nlohmann_json::nlohmann_json
+  ${realsense2_LIBRARY}
 )
 
 add_executable(TeleopController
   src/teleop_main.cpp
 )
-target_include_directories(TeleopController PRIVATE include)
+target_include_directories(TeleopController PRIVATE
+  include
+  ${realsense2_INCLUDE_DIR}
+)
 target_link_libraries(TeleopController PRIVATE
   LiveKit::livekit_bridge
   SDL3::SDL3

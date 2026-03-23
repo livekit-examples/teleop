@@ -68,7 +68,7 @@ void printUsage(const char *prog_name) {
   LK_LOG_INFO(
       "Usage: {} --serial-port <device> [--url <ws-url>] [--token <token>] "
       "[--gyro-bus <int>] [--gyro-address <addr>] [--pan-id <id>] "
-      "[--tilt-id <id>] [--calibrate-ofs]",
+      "[--tilt-id <id>] [--calibrate-ofs] [--no-realsense]",
       prog_name);
   LK_LOG_INFO("Env fallbacks: LIVEKIT_URL, LIVEKIT_TOKEN");
 }
@@ -160,6 +160,10 @@ std::optional<PtLiveKitConfig> parseArgs(int argc, char *argv[]) {
     }
     if (arg == "--calibrate-ofs") {
       cfg.run_calibration_ofs = true;
+      continue;
+    }
+    if (arg == "--no-realsense") {
+      cfg.enable_realsense = false;
       continue;
     }
     positional.push_back(arg);

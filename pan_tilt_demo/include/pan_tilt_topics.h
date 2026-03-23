@@ -19,10 +19,13 @@
 
 namespace pan_tilt_topics {
 constexpr char kControlCmdTrack[] = "control_cmd";
-constexpr char kGyroStateTrack[] = "gyro.state";
-constexpr char kPanStateTrack[] = "pan.state";
-constexpr char kTiltStateTrack[] = "tilt.state";
+constexpr char kGyroStateTrack[] = "state.gyro";
+constexpr char kPanStateTrack[] = "state.pan";
+constexpr char kTiltStateTrack[] = "state.tilt";
 constexpr char kAcquireControlRpc[] = "acquire_control";
+constexpr char kCameraColorTrack[] = "camera.color";
+constexpr char kCameraDepthTrack[] = "camera.depth";
+constexpr char kCameraDepthVisTrack[] = "camera.depth_vis";
 } // namespace pan_tilt_topics
 
 #endif // PAN_TILT_TOPICS_H

@@ -20,9 +20,11 @@
 #include "l3g4200d_gyro.h"
 #include "livekit_bridge/livekit_bridge.h"
 #include "pan_tilt_controller.h"
+#include "realsense_camera.h"
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -41,6 +43,9 @@ struct PtLiveKitConfig {
   std::array<u8, PanTiltController::kMotorCount> motor_ids{1, 2};
   bool run_calibration_ofs{false};
   int publish_rate_hz{20};
+  bool enable_realsense{true};
+  RealsenseCamera::Config realsense_cfg;
+  int depth_publish_rate_hz{10};
 };
 
 /**
@@ -53,9 +58,14 @@ struct PtLiveKitConfig {
  * - `L3G4200D_GYRO` for gyroscope polling
  *
  * Published DataTracks:
- * - `gyro.state` with GYRO fields from `GYROData`
- * - `pan.state` from `PanTiltController::ServoState` index `0`
- * - `tilt.state` from `PanTiltController::ServoState` index `1`
+ * - `state.gyro` with GYRO fields from `GYROData`
+ * - `state.pan` from `PanTiltController::ServoState` index `0`
+ * - `state.tilt` from `PanTiltController::ServoState` index `1`
+ * - `camera.depth` raw 16-bit depth frames (when RealSense is enabled)
+ *
+ * Published VideoTracks:
+ * - `camera.color` RGBA video from the RealSense (when enabled)
+ * - `camera.depth_vis` grayscale depth visualization (when enabled)
  *
  * Incoming control DataTrack:
  * - `control_cmd` payload JSON:
@@ -94,6 +104,9 @@ private:
     std::shared_ptr<livekit_bridge::BridgeDataTrack> gyro_state;
     std::shared_ptr<livekit_bridge::BridgeDataTrack> pan_state;
     std::shared_ptr<livekit_bridge::BridgeDataTrack> tilt_state;
+    std::shared_ptr<livekit_bridge::BridgeVideoTrack> camera_color;
+    std::shared_ptr<livekit_bridge::BridgeDataTrack> camera_depth;
+    std::shared_ptr<livekit_bridge::BridgeVideoTrack> camera_depth_vis;
   };
 
   bool initializeHardware();
@@ -104,6 +117,7 @@ private:
   handleAcquireControlRpc(const livekit::RpcInvocationData &data);
   void onControlCmdPayload(const std::vector<std::uint8_t> &payload);
   void publishStateTick();
+  void publishCameraTick();
   void shutdown();
 
   static std::atomic<bool> g_running_;
@@ -113,6 +127,8 @@ private:
   L3G4200D_GYRO gyro_;
   PanTiltController pan_tilt_;
   PublishedTracks tracks_;
+  std::unique_ptr<RealsenseCamera> camera_;
+  std::chrono::steady_clock::time_point last_depth_publish_;
 
   std::mutex controller_mutex_;
   std::string controller_identity_;

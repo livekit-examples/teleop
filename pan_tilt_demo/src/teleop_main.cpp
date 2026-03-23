@@ -14,9 +14,38 @@
  * limitations under the License.
  */
 
+/*
+ * TeleopController — LiveKit participant that teleoperates the PanTiltRobot.
+ *
+ * Connects to the same LiveKit room as PanTiltRobot, acquires motor control
+ * via the "acquire_control" RPC, and sends pan/tilt velocity commands as a
+ * DataTrack.
+ *
+ * Subscribes to:
+ *   - state.gyro, state.pan, state.tilt  (DataTracks — sensor JSON)
+ *   - camera.color   (VideoTrack, SOURCE_CAMERA — RGB from RealSense)
+ *   - camera.depth   (DataTrack — raw Z16 depth with binary header)
+ *   - camera.depth_vis (VideoTrack, SOURCE_SCREENSHARE — grayscale depth)
+ *
+ * An SDL window renders the live camera feed and accepts keyboard input.
+ *
+ * Keyboard controls (SDL window must have focus):
+ *   A / D       — pan left / right
+ *   W / X       — tilt up / down
+ *   S           — stop all motors
+ *   Space       — toggle between RGB and depth visualisation
+ *   Q           — quit
+ *
+ * Usage:
+ *   TeleopController --url <ws-url> --token <token> [--robot <identity>]
+ *   LIVEKIT_URL=... LIVEKIT_TOKEN=... TeleopController
+ */
+
 #include "livekit_bridge/livekit_bridge.h"
 #include "pan_tilt_topics.h"
 #include "livekit/lk_log.h"
+#include "livekit/track.h"
+#include "livekit/video_frame.h"
 
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
@@ -165,6 +194,8 @@ void printUsage(const char *prog) {
               "[--robot <identity>]",
               prog);
   LK_LOG_INFO("Env fallbacks: LIVEKIT_URL, LIVEKIT_TOKEN");
+  LK_LOG_INFO("Keyboard (SDL window): A/D pan, W/X tilt, S stop, "
+              "Space toggle RGB/depth, Q quit");
 }
 
 bool parseArgs(int argc, char *argv[], Args &args) {
@@ -259,8 +290,8 @@ public:
       return 1;
     }
 
-    LK_LOG_INFO("[pt_controller] Controls (SDL window): a/d pan, w/x tilt, "
-                "space or s stop, q quit");
+    LK_LOG_INFO("[pt_controller] Controls: a/d pan, w/x tilt, "
+                "s stop, space toggle RGB/depth, q quit");
 
     auto next_tick = Clock::now();
     auto next_print = Clock::now();
@@ -269,6 +300,8 @@ public:
       if (control_acquired_) {
         publishControlCmdIfNeeded(motion_active);
       }
+
+      renderVideoFrame();
 
       const auto now = Clock::now();
       if (now >= next_print) {
@@ -281,6 +314,14 @@ public:
     }
 
     releaseControl();
+    if (video_texture_ != nullptr) {
+      SDL_DestroyTexture(video_texture_);
+      video_texture_ = nullptr;
+    }
+    if (renderer_ != nullptr) {
+      SDL_DestroyRenderer(renderer_);
+      renderer_ = nullptr;
+    }
     if (input_window_ != nullptr) {
       SDL_DestroyWindow(input_window_);
       input_window_ = nullptr;
@@ -297,17 +338,45 @@ private:
       return false;
     }
 
-    input_window_ = SDL_CreateWindow("PT Controller Input", 420, 120, 0);
+    input_window_ = SDL_CreateWindow(
+        "PT Controller - RGB (Space to switch)",
+        kVideoWidth, kVideoHeight, SDL_WINDOW_RESIZABLE);
     if (input_window_ == nullptr) {
       LK_LOG_ERROR("[pt_controller] SDL_CreateWindow failed: {}",
                    SDL_GetError());
       SDL_Quit();
       return false;
     }
+
+    renderer_ = SDL_CreateRenderer(input_window_, nullptr);
+    if (renderer_ == nullptr) {
+      LK_LOG_ERROR("[pt_controller] SDL_CreateRenderer failed: {}",
+                   SDL_GetError());
+      SDL_DestroyWindow(input_window_);
+      input_window_ = nullptr;
+      SDL_Quit();
+      return false;
+    }
+
+    video_texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ABGR8888,
+                                       SDL_TEXTUREACCESS_STREAMING,
+                                       kVideoWidth, kVideoHeight);
+    if (video_texture_ == nullptr) {
+      LK_LOG_ERROR("[pt_controller] SDL_CreateTexture failed: {}",
+                   SDL_GetError());
+      SDL_DestroyRenderer(renderer_);
+      renderer_ = nullptr;
+      SDL_DestroyWindow(input_window_);
+      input_window_ = nullptr;
+      SDL_Quit();
+      return false;
+    }
+
     SDL_RaiseWindow(input_window_);
     SDL_PumpEvents();
     LK_LOG_INFO(
-        "[pt_controller] SDL input window ready. Keep it focused for controls.");
+        "[pt_controller] SDL window ready ({}x{}). Keep it focused for controls.",
+        kVideoWidth, kVideoHeight);
     return true;
   }
 
@@ -322,7 +391,7 @@ private:
             std::lock_guard<std::mutex> lock(mu_);
             latest_gyro_ = parsed;
           } catch (const std::exception &e) {
-            LK_LOG_WARN("[pt_controller] Bad gyro.state JSON: {}", e.what());
+            LK_LOG_WARN("[pt_controller] Bad state.gyro JSON: {}", e.what());
           }
         });
 
@@ -336,7 +405,7 @@ private:
             std::lock_guard<std::mutex> lock(mu_);
             latest_pan_ = parsed;
           } catch (const std::exception &e) {
-            LK_LOG_WARN("[pt_controller] Bad pan.state JSON: {}", e.what());
+            LK_LOG_WARN("[pt_controller] Bad state.pan JSON: {}", e.what());
           }
         });
 
@@ -350,9 +419,155 @@ private:
             std::lock_guard<std::mutex> lock(mu_);
             latest_tilt_ = parsed;
           } catch (const std::exception &e) {
-            LK_LOG_WARN("[pt_controller] Bad tilt.state JSON: {}", e.what());
+            LK_LOG_WARN("[pt_controller] Bad state.tilt JSON: {}", e.what());
           }
         });
+
+    LK_LOG_INFO("[pt_controller] Setting up camera.color video subscriber");
+    bridge_.setOnVideoFrameCallback(
+        args_.robot_identity, livekit::TrackSource::SOURCE_CAMERA,
+        [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
+          onVideoFrame(frame, timestamp_us);
+        });
+
+    LK_LOG_INFO("[pt_controller] Setting up camera.depth data subscriber");
+    bridge_.setOnDataFrameCallback(
+        args_.robot_identity, pan_tilt_topics::kCameraDepthTrack,
+        [this](const std::vector<std::uint8_t> &payload,
+               std::optional<std::uint64_t> user_timestamp) {
+          onDepthFrame(payload, user_timestamp);
+        });
+
+    LK_LOG_INFO("[pt_controller] Setting up camera.depth_vis video subscriber");
+    bridge_.setOnVideoFrameCallback(
+        args_.robot_identity, livekit::TrackSource::SOURCE_SCREENSHARE,
+        [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
+          onDepthVisFrame(frame, timestamp_us);
+        });
+  }
+
+  void onVideoFrame(const livekit::VideoFrame &frame,
+                     std::int64_t timestamp_us) {
+    const std::size_t expected =
+        static_cast<std::size_t>(frame.width()) * frame.height() * 4;
+    if (frame.dataSize() != expected) {
+      LK_LOG_DEBUG(
+          "[pt_controller] RGB frame size mismatch: {} vs expected {} ({}x{})",
+          frame.dataSize(), expected, frame.width(), frame.height());
+      return;
+    }
+    std::lock_guard<std::mutex> lock(video_mu_);
+    if (video_frame_count_ == 0) {
+      LK_LOG_INFO("[pt_controller] First RGB frame received ({}x{})",
+                  frame.width(), frame.height());
+    }
+    video_buffer_.assign(frame.data(), frame.data() + frame.dataSize());
+    video_width_ = frame.width();
+    video_height_ = frame.height();
+    video_frame_count_++;
+    (void)timestamp_us;
+  }
+
+  void onDepthVisFrame(const livekit::VideoFrame &frame,
+                       std::int64_t timestamp_us) {
+    const std::size_t expected =
+        static_cast<std::size_t>(frame.width()) * frame.height() * 4;
+    if (frame.dataSize() != expected) {
+      LK_LOG_DEBUG(
+          "[pt_controller] Depth vis frame size mismatch: {} vs expected {}",
+          frame.dataSize(), expected);
+      return;
+    }
+    std::lock_guard<std::mutex> lock(depth_vis_mu_);
+    if (depth_vis_frame_count_ == 0) {
+      LK_LOG_INFO("[pt_controller] First depth_vis frame received ({}x{})",
+                  frame.width(), frame.height());
+    }
+    depth_vis_buffer_.assign(frame.data(), frame.data() + frame.dataSize());
+    depth_vis_width_ = frame.width();
+    depth_vis_height_ = frame.height();
+    depth_vis_frame_count_++;
+    (void)timestamp_us;
+  }
+
+  void onDepthFrame(const std::vector<std::uint8_t> &payload,
+                    std::optional<std::uint64_t> user_timestamp) {
+    constexpr std::size_t kHeaderSize = 16;
+    if (payload.size() < kHeaderSize) {
+      LK_LOG_WARN("[pt_controller] Depth frame too small ({} bytes)",
+                  payload.size());
+      return;
+    }
+    std::uint32_t w = 0;
+    std::uint32_t h = 0;
+    std::memcpy(&w, payload.data(), sizeof(w));
+    std::memcpy(&h, payload.data() + 4, sizeof(h));
+    const std::size_t expected_size =
+        kHeaderSize + static_cast<std::size_t>(w) * h * 2;
+    if (payload.size() != expected_size) {
+      LK_LOG_WARN("[pt_controller] Depth frame size mismatch: {} vs expected {}",
+                  payload.size(), expected_size);
+      return;
+    }
+    {
+      std::lock_guard<std::mutex> lock(depth_mu_);
+      depth_buffer_.assign(payload.begin() + kHeaderSize, payload.end());
+      depth_width_ = static_cast<int>(w);
+      depth_height_ = static_cast<int>(h);
+      depth_frame_count_++;
+    }
+    (void)user_timestamp;
+  }
+
+  void renderVideoFrame() {
+    std::vector<std::uint8_t> frame_copy;
+    int w = 0;
+    int h = 0;
+    bool have_new_frame = false;
+
+    if (show_depth_) {
+      std::lock_guard<std::mutex> lock(depth_vis_mu_);
+      if (!depth_vis_buffer_.empty() &&
+          last_rendered_depth_vis_count_ != depth_vis_frame_count_) {
+        frame_copy = depth_vis_buffer_;
+        w = depth_vis_width_;
+        h = depth_vis_height_;
+        last_rendered_depth_vis_count_ = depth_vis_frame_count_;
+        have_new_frame = true;
+      }
+    } else {
+      std::lock_guard<std::mutex> lock(video_mu_);
+      if (!video_buffer_.empty() &&
+          last_rendered_frame_count_ != video_frame_count_) {
+        frame_copy = video_buffer_;
+        w = video_width_;
+        h = video_height_;
+        last_rendered_frame_count_ = video_frame_count_;
+        have_new_frame = true;
+      }
+    }
+
+    if (!have_new_frame || video_texture_ == nullptr || renderer_ == nullptr) {
+      return;
+    }
+
+    if (w != texture_width_ || h != texture_height_) {
+      SDL_DestroyTexture(video_texture_);
+      video_texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ABGR8888,
+                                         SDL_TEXTUREACCESS_STREAMING, w, h);
+      if (video_texture_ == nullptr) {
+        LK_LOG_ERROR("[pt_controller] Failed to recreate texture: {}",
+                     SDL_GetError());
+        return;
+      }
+      texture_width_ = w;
+      texture_height_ = h;
+    }
+
+    SDL_UpdateTexture(video_texture_, nullptr, frame_copy.data(), w * 4);
+    SDL_RenderClear(renderer_);
+    SDL_RenderTexture(renderer_, video_texture_, nullptr, nullptr);
+    SDL_RenderPresent(renderer_);
   }
 
   void acquireControl() {
@@ -398,6 +613,18 @@ private:
       if (ev.type == SDL_EVENT_QUIT) {
         g_running.store(false);
       }
+      if (ev.type == SDL_EVENT_KEY_DOWN && !ev.key.repeat &&
+          ev.key.scancode == SDL_SCANCODE_SPACE) {
+        show_depth_ = !show_depth_;
+        const char *title = show_depth_
+            ? "PT Controller - Depth (Space to switch)"
+            : "PT Controller - RGB (Space to switch)";
+        if (input_window_ != nullptr) {
+          SDL_SetWindowTitle(input_window_, title);
+        }
+        LK_LOG_INFO("[pt_controller] View: {}",
+                    show_depth_ ? "depth" : "RGB");
+      }
     }
     SDL_PumpEvents();
     const bool *keys = SDL_GetKeyboardState(nullptr);
@@ -424,7 +651,7 @@ private:
     if (keys[SDL_SCANCODE_X]) {
       tilt_vel -= kTeleopVelRadPerSec;
     }
-    if (keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_SPACE]) {
+    if (keys[SDL_SCANCODE_S]) {
       pan_vel = 0.0;
       tilt_vel = 0.0;
     }
@@ -486,6 +713,26 @@ private:
       tilt_vel_rad_s = tilt_vel_rad_s_;
     }
 
+    std::uint64_t vframes = 0;
+    std::uint64_t dframes = 0;
+    std::uint64_t dvframes = 0;
+    int dw = 0;
+    int dh = 0;
+    {
+      std::lock_guard<std::mutex> lock(video_mu_);
+      vframes = video_frame_count_;
+    }
+    {
+      std::lock_guard<std::mutex> lock(depth_mu_);
+      dframes = depth_frame_count_;
+      dw = depth_width_;
+      dh = depth_height_;
+    }
+    {
+      std::lock_guard<std::mutex> lock(depth_vis_mu_);
+      dvframes = depth_vis_frame_count_;
+    }
+
     LK_LOG_INFO("[pt_controller] cmd pan={:.2f}rad/s tilt={:.2f}rad/s",
                 pan_vel_rad_s, tilt_vel_rad_s);
     LK_LOG_INFO("[pt_controller] latest gyro: {}",
@@ -494,17 +741,50 @@ private:
                 pan.has_value() ? pan->dump() : "n/a");
     LK_LOG_INFO("[pt_controller] latest tilt: {}",
                 tilt.has_value() ? tilt->dump() : "n/a");
+    LK_LOG_INFO(
+        "[pt_controller] video={}, depth={} ({}x{}), depth_vis={}, view={}",
+        vframes, dframes, dw, dh, dvframes,
+        show_depth_ ? "depth" : "RGB");
   }
+
+  static constexpr int kVideoWidth = 640;
+  static constexpr int kVideoHeight = 480;
 
   Args args_;
   livekit_bridge::LiveKitBridge bridge_;
   std::shared_ptr<livekit_bridge::BridgeDataTrack> control_track_;
   SDL_Window *input_window_{nullptr};
+  SDL_Renderer *renderer_{nullptr};
+  SDL_Texture *video_texture_{nullptr};
+  int texture_width_{kVideoWidth};
+  int texture_height_{kVideoHeight};
 
   std::mutex mu_;
   std::optional<json> latest_gyro_;
   std::optional<json> latest_pan_;
   std::optional<json> latest_tilt_;
+
+  bool show_depth_{false};
+
+  std::mutex video_mu_;
+  std::vector<std::uint8_t> video_buffer_;
+  int video_width_{0};
+  int video_height_{0};
+  std::uint64_t video_frame_count_{0};
+  std::uint64_t last_rendered_frame_count_{0};
+
+  std::mutex depth_mu_;
+  std::vector<std::uint8_t> depth_buffer_;
+  int depth_width_{0};
+  int depth_height_{0};
+  std::uint64_t depth_frame_count_{0};
+
+  std::mutex depth_vis_mu_;
+  std::vector<std::uint8_t> depth_vis_buffer_;
+  int depth_vis_width_{0};
+  int depth_vis_height_{0};
+  std::uint64_t depth_vis_frame_count_{0};
+  std::uint64_t last_rendered_depth_vis_count_{0};
 
   std::mutex cmd_mu_;
   double pan_vel_rad_s_{0.0};

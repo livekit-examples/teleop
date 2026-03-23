@@ -18,12 +18,14 @@
 #include "pan_tilt_topics.h"
 
 #include "livekit/lk_log.h"
+#include "livekit/track.h"
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <csignal>
 #include <cstdint>
 #include <exception>
@@ -111,6 +113,15 @@ bool PtLiveKitApp::initializeHardware() {
     return false;
   }
   gyro_.start();
+
+  if (config_.enable_realsense) {
+    camera_ = std::make_unique<RealsenseCamera>(config_.realsense_cfg);
+    if (!camera_->start()) {
+      LK_LOG_ERROR("[pan_tilt_livekit] RealSense camera failed to start");
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -131,6 +142,22 @@ bool PtLiveKitApp::connectAndPublishTracks() {
   LK_LOG_INFO("[pan_tilt_livekit] Published data tracks: {}, {}, {}",
               pan_tilt_topics::kGyroStateTrack, pan_tilt_topics::kPanStateTrack,
               pan_tilt_topics::kTiltStateTrack);
+
+  if (camera_) {
+    tracks_.camera_color = bridge_.createVideoTrack(
+        pan_tilt_topics::kCameraColorTrack, camera_->width(), camera_->height(),
+        livekit::TrackSource::SOURCE_CAMERA);
+    tracks_.camera_depth =
+        bridge_.createDataTrack(pan_tilt_topics::kCameraDepthTrack);
+    tracks_.camera_depth_vis = bridge_.createVideoTrack(
+        pan_tilt_topics::kCameraDepthVisTrack, camera_->width(),
+        camera_->height(), livekit::TrackSource::SOURCE_SCREENSHARE);
+    LK_LOG_INFO(
+        "[pan_tilt_livekit] Published camera tracks: {} (video), {} (data), {} (video)",
+        pan_tilt_topics::kCameraColorTrack, pan_tilt_topics::kCameraDepthTrack,
+        pan_tilt_topics::kCameraDepthVisTrack);
+  }
+
   return true;
 }
 
@@ -282,6 +309,78 @@ void PtLiveKitApp::publishStateTick() {
       std::vector<std::uint8_t>(gyro_msg.begin(), gyro_msg.end()));
 }
 
+void PtLiveKitApp::publishCameraTick() {
+  if (!camera_) {
+    return;
+  }
+
+  auto frame = camera_->poll();
+  if (!frame.valid) {
+    return;
+  }
+
+  if (tracks_.camera_color) {
+    tracks_.camera_color->pushFrame(frame.rgba.data(), frame.rgba.size(),
+                                    frame.timestamp_us);
+  }
+
+  const auto now = std::chrono::steady_clock::now();
+  const auto depth_interval = std::chrono::microseconds(
+      1000000 / std::max(config_.depth_publish_rate_hz, 1));
+  if (now - last_depth_publish_ < depth_interval) {
+    return;
+  }
+  last_depth_publish_ = now;
+
+  if (tracks_.camera_depth) {
+    constexpr std::size_t kHeaderSize = 16;
+    const std::size_t payload_size = kHeaderSize + frame.depth_raw.size();
+    std::vector<std::uint8_t> payload(payload_size);
+
+    const std::uint32_t w = static_cast<std::uint32_t>(frame.depth_width);
+    const std::uint32_t h = static_cast<std::uint32_t>(frame.depth_height);
+    const std::uint64_t ts =
+        static_cast<std::uint64_t>(frame.timestamp_us);
+
+    std::memcpy(payload.data(), &w, sizeof(w));
+    std::memcpy(payload.data() + 4, &h, sizeof(h));
+    std::memcpy(payload.data() + 8, &ts, sizeof(ts));
+    std::memcpy(payload.data() + kHeaderSize, frame.depth_raw.data(),
+                frame.depth_raw.size());
+
+    tracks_.camera_depth->pushFrame(
+        payload, static_cast<std::uint64_t>(frame.timestamp_us));
+  }
+
+  if (tracks_.camera_depth_vis) {
+    const int dw = frame.depth_width;
+    const int dh = frame.depth_height;
+    const auto pixel_count = static_cast<std::size_t>(dw) * dh;
+    const auto *z16 =
+        reinterpret_cast<const std::uint16_t *>(frame.depth_raw.data());
+
+    // Map Z16 (millimetres) to 8-bit grayscale. kMaxDepthMm is the
+    // distance that maps to black; closer objects are brighter.
+    constexpr std::uint16_t kMaxDepthMm = 10000;
+    std::vector<std::uint8_t> rgba(pixel_count * 4);
+    for (std::size_t i = 0; i < pixel_count; ++i) {
+      const std::uint16_t d = z16[i];
+      const std::uint8_t g =
+          (d == 0 || d > kMaxDepthMm)
+              ? 0
+              : static_cast<std::uint8_t>(
+                    255 - (static_cast<std::uint32_t>(d) * 255 / kMaxDepthMm));
+      rgba[i * 4 + 0] = g;
+      rgba[i * 4 + 1] = g;
+      rgba[i * 4 + 2] = g;
+      rgba[i * 4 + 3] = 0xFF;
+    }
+
+    tracks_.camera_depth_vis->pushFrame(rgba.data(), rgba.size(),
+                                        frame.timestamp_us);
+  }
+}
+
 int PtLiveKitApp::run() {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
@@ -303,13 +402,27 @@ int PtLiveKitApp::run() {
   const auto publish_period =
       std::chrono::microseconds(1000000 / std::max(config_.publish_rate_hz, 1));
   auto next_tick = std::chrono::steady_clock::now();
+  last_depth_publish_ = std::chrono::steady_clock::now();
 
-  LK_LOG_INFO("[pan_tilt_livekit] Running publish loop at {} Hz",
-              config_.publish_rate_hz);
+  constexpr auto kMinLoopDuration = std::chrono::milliseconds(5);
+
+  LK_LOG_INFO("[pan_tilt_livekit] Running publish loop at {} Hz{}",
+              config_.publish_rate_hz,
+              camera_ ? " (with RealSense camera)" : "");
   while (g_running_.load()) {
-    next_tick += publish_period;
-    publishStateTick();
-    std::this_thread::sleep_until(next_tick);
+    const auto loop_start = std::chrono::steady_clock::now();
+
+    if (loop_start >= next_tick) {
+      next_tick += publish_period;
+      publishStateTick();
+    }
+
+    publishCameraTick();
+
+    const auto elapsed = std::chrono::steady_clock::now() - loop_start;
+    if (elapsed < kMinLoopDuration) {
+      std::this_thread::sleep_for(kMinLoopDuration - elapsed);
+    }
   }
 
   shutdown();
@@ -336,6 +449,10 @@ void PtLiveKitApp::shutdown() {
   } catch (const std::exception &e) {
     LK_LOG_WARN("[pan_tilt_livekit] Failed to clear controller callback: {}",
                 e.what());
+  }
+
+  if (camera_) {
+    camera_->stop();
   }
 
   if (!pan_tilt_.haltMotors()) {
