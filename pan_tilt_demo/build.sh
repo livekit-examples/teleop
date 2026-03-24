@@ -48,4 +48,4 @@ mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}"
 
 cmake "${SCRIPT_DIR}" "$@"
-make -j"$(nproc)"
+cmake --build . --parallel
