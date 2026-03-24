@@ -1,4 +1,5 @@
 # Build directories
+build.log
 build/
 **/build/
 
