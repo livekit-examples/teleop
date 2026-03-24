@@ -33,7 +33,7 @@ In one terminal, run the robot:
 
 In another terminal, run the teleop controller:
 ```
-./build/PanTiltController --robot <id_of_robot_used_in_token_generation>
+./build/TeleopController --robot <id_of_robot_used_in_token_generation>
 ```
 
 ## RealSense Camera
