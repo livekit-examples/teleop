@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "extends": ["./.oxlintrc.base-nextjs.json"],
+  "rules": {
+    "@typescript-eslint/no-empty-object-type": "warn",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "no-unused-vars": "warn",
+    "no-async-promise-executor": "warn",
+    "no-constant-binary-expression": "warn"
+  },
+  "ignorePatterns": ["next-env.d.ts"]
+}
