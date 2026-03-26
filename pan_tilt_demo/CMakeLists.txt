@@ -23,7 +23,6 @@ else()
   )
 endif()
 find_package(LiveKit CONFIG REQUIRED)
-find_package(realsense2 REQUIRED)
 find_package(ZLIB REQUIRED)
 
 include(Dependencies)
@@ -34,8 +33,6 @@ get_filename_component(_lk_lib_dir  "${_lk_cmake_dir}" DIRECTORY)
 
 # Robot-side targets require Linux (servo/gyro hardware, RealSense, etc.)
 if(LINUX)
-  find_package(realsense2 REQUIRED)
-
   add_subdirectory(setup/gyroscope)
   add_subdirectory(setup/servos)
 
@@ -52,7 +49,7 @@ if(LINUX)
     SCServo
     nlohmann_json::nlohmann_json
     ZLIB::ZLIB
-    ${realsense2_LIBRARY}
+    ${PAN_TILT_DEMO_REALSENSE_TARGET}
   )
   target_link_directories(PanTiltRobot PRIVATE "${_lk_lib_dir}")
 endif()
