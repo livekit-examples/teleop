@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { useState, useEffect } from 'react';
-import { ScaleVertical } from '@/components/scale-vertical';
-import { ScaleHorizontal } from '@/components/scale-horizontal';
-import { BottomBar } from '@/components/bottom-bar';
-import { Joystick } from '@/components/joystick';
-import { Mode } from '@/lib/types';
-import logo from './logo.svg';
-import { useRemoteParticipants, useSessionContext } from '@livekit/components-react';
-import { useDataTracks } from '@/hooks/use-data-tracks';
+import Image from "next/image";
+import { useState, useEffect } from "react";
+import { ScaleVertical } from "@/components/scale-vertical";
+import { ScaleHorizontal } from "@/components/scale-horizontal";
+import { BottomBar } from "@/components/bottom-bar";
+import { Joystick } from "@/components/joystick";
+import { Mode } from "@/lib/types";
+import logo from "./logo.svg";
+import { useRemoteParticipants, useSessionContext } from "@livekit/components-react";
+import { useDataTracks } from "@/hooks/use-data-tracks";
 
 export function App() {
   const [pitch, setPitch] = useState(0);
   const [yaw, setYaw] = useState(0);
-  const [mode, setMode] = useState<Mode>('view');
+  const [mode, setMode] = useState<Mode>("view");
   const [isOperatorModeLocked, setIsOperatorModeLocked] = useState(false);
 
   const session = useSessionContext();
@@ -22,11 +22,11 @@ export function App() {
   const remoteParticipants = useRemoteParticipants();
 
   useEffect(() => {
-    console.log('!!! REMOTE PARTICIPANTS: ', remoteParticipants);
+    console.log("!!! REMOTE PARTICIPANTS: ", remoteParticipants);
   }, [remoteParticipants]);
 
   useEffect(() => {
-    console.log('!!! DATA TRACKS: ', dataTracks);
+    console.log("!!! DATA TRACKS: ", dataTracks);
   }, [dataTracks]);
 
   return (
@@ -46,9 +46,9 @@ export function App() {
           className="absolute inset-0 bg-size-[33dvh_33dvh] bg-center"
           style={{
             backgroundImage: [
-              'linear-gradient(0deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)',
-              'linear-gradient(90deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)',
-            ].join(', '),
+              "linear-gradient(0deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)",
+              "linear-gradient(90deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)",
+            ].join(", "),
           }}
         />
 
@@ -68,8 +68,8 @@ export function App() {
             <div className="text-accent-foreground/50">{pitch}°</div>
           </div>
           <div>
-            Operator Seat Available:{' '}
-            <span className="text-accent-foreground/50">{isOperatorModeLocked ? 'No' : 'Yes'}</span>
+            Operator Seat Available:{" "}
+            <span className="text-accent-foreground/50">{isOperatorModeLocked ? "No" : "Yes"}</span>
           </div>
         </div>
 
@@ -89,7 +89,7 @@ export function App() {
           mode={mode}
           setYaw={setYaw}
           setPitch={setPitch}
-          disabled={mode === 'view'}
+          disabled={mode === "view"}
           className="absolute right-6 bottom-6 z-20 bg-black"
         />
       </div>
