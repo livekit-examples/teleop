@@ -26,10 +26,13 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
+#include <vector>
 
 /**
  * @brief Runtime configuration for the pan/tilt LiveKit participant.
@@ -100,6 +103,13 @@ public:
   static void requestStop();
 
 private:
+  struct DepthSendJob {
+    std::vector<std::uint8_t> depth_raw;
+    int depth_width{0};
+    int depth_height{0};
+    std::int64_t timestamp_us{0};
+  };
+
   struct PublishedTracks {
     std::shared_ptr<livekit_bridge::BridgeDataTrack> gyro_state;
     std::shared_ptr<livekit_bridge::BridgeDataTrack> pan_state;
@@ -118,6 +128,10 @@ private:
   void onControlCmdPayload(const std::vector<std::uint8_t> &payload);
   void publishStateTick();
   void publishCameraTick();
+  void startDepthWorker();
+  void stopDepthWorker();
+  void depthWorkerLoop();
+  void processDepthSendJob(const DepthSendJob &job);
   void shutdown();
 
   static std::atomic<bool> g_running_;
@@ -129,6 +143,12 @@ private:
   PublishedTracks tracks_;
   std::unique_ptr<RealsenseCamera> camera_;
   std::chrono::steady_clock::time_point last_depth_publish_;
+
+  std::mutex depth_mutex_;
+  std::condition_variable depth_cv_;
+  std::optional<DepthSendJob> depth_pending_;
+  std::atomic<bool> depth_worker_stop_{false};
+  std::thread depth_worker_thread_;
 
   std::mutex controller_mutex_;
   std::string controller_identity_;
