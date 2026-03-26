@@ -1,33 +1,32 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ScaleVertical } from "@/components/scale-vertical";
 import { ScaleHorizontal } from "@/components/scale-horizontal";
 import { BottomBar } from "@/components/bottom-bar";
 import { Joystick } from "@/components/joystick";
 import { Mode } from "@/lib/types";
 import logo from "./logo.svg";
-import { useRemoteParticipants, useSessionContext } from "@livekit/components-react";
+import { useSessionContext, useTracks, VideoTrack } from "@livekit/components-react";
 import { useDataTracks } from "@/hooks/use-data-tracks";
+import { useServoTelemetryFromDataTracks } from "@/hooks/use-servo-telemetry-from-data-tracks";
+import { Track } from "livekit-client";
 
 export function App() {
   const [pitch, setPitch] = useState(0);
   const [yaw, setYaw] = useState(0);
   const [mode, setMode] = useState<Mode>("view");
-  const [isOperatorModeLocked, setIsOperatorModeLocked] = useState(false);
+  const [isOperatorModeLocked] = useState(false);
 
   const session = useSessionContext();
   const dataTracks = useDataTracks(session.room);
-  const remoteParticipants = useRemoteParticipants();
+  const videoTracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
 
-  useEffect(() => {
-    console.log("!!! REMOTE PARTICIPANTS: ", remoteParticipants);
-  }, [remoteParticipants]);
+  useServoTelemetryFromDataTracks(dataTracks, setYaw, setPitch);
 
-  useEffect(() => {
-    console.log("!!! DATA TRACKS: ", dataTracks);
-  }, [dataTracks]);
+  const mainVideoTrack = videoTracks.find((track) => track.source === Track.Source.Camera);
+  const depthVideoTrack = videoTracks.find((track) => track.source === Track.Source.ScreenShare);
 
   return (
     <div className="flex h-dvh flex-col bg-black">
@@ -42,15 +41,18 @@ export function App() {
       {/* Main viewport area */}
       <div className="relative flex-1">
         {/* Fullscreen video placeholder */}
-        <div
-          className="absolute inset-0 bg-size-[33dvh_33dvh] bg-center"
-          style={{
-            backgroundImage: [
-              "linear-gradient(0deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)",
-              "linear-gradient(90deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)",
-            ].join(", "),
-          }}
-        />
+        <div className="absolute inset-y-20 inset-x-36">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-full w-full">
+            {mainVideoTrack ? (
+              <VideoTrack
+                trackRef={mainVideoTrack}
+                className="h-full rounded overflow-hidden mx-auto"
+              />
+            ) : (
+              <div className="aspect-4/3 h-full max-w-full mx-auto bg-black border border-accent-foreground/20 rounded" />
+            )}
+          </div>
+        </div>
 
         {/* Small PiP video - top right */}
         <div className="absolute top-6 right-6 z-10 aspect-4/3 w-[160px] rounded bg-black">
