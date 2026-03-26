@@ -39,8 +39,15 @@ jobs:
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libspdlog-dev ninja-build pkg-config zlib1g-dev librealsense2-dev librealsense2-utils
+          sudo apt-get update && sudo apt-get upgrade -y
+          sudo apt-get install -y --no-install-recommends \
+            libspdlog-dev \
+            ninja-build \
+            pkg-config \
+            zlib1g-dev \
+            librealsense2-dev \
+            librealsense2-utils \
+          && sudo apt-get autoremove -y && sudo apt-get clean -y
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
