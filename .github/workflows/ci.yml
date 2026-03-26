@@ -42,7 +42,6 @@ jobs:
           sudo apt-get update && sudo apt-get upgrade -y
           sudo apt-get install -y --no-install-recommends \
             libspdlog-dev \
-            ninja-build \
             pkg-config \
             zlib1g-dev \
             librealsense2-dev \
@@ -51,11 +50,11 @@ jobs:
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
-        run: brew install spdlog ninja readline zlib
+        run: brew install spdlog readline zlib
 
       - name: Build pan_tilt_demo
         working-directory: pan_tilt_demo
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          ./build.sh -G Ninja
+          ./build.sh
