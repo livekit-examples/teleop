@@ -48,6 +48,7 @@
 #include "livekit/video_frame.h"
 
 #include <SDL3/SDL.h>
+#include <zlib.h>
 #include <nlohmann/json.hpp>
 
 #include <atomic>
@@ -492,18 +493,67 @@ private:
 
   void onDepthFrame(const std::vector<std::uint8_t> &payload,
                     std::optional<std::uint64_t> user_timestamp) {
-    constexpr std::size_t kHeaderSize = 16;
-    if (payload.size() < kHeaderSize) {
+    using pan_tilt_topics::depth_payload::kCompressedHeaderBytes;
+    using pan_tilt_topics::depth_payload::kMagicCompressed;
+    using pan_tilt_topics::depth_payload::kRawHeaderBytes;
+
+    if (payload.size() < kRawHeaderBytes) {
       LK_LOG_WARN("[pt_controller] Depth frame too small ({} bytes)",
                   payload.size());
       return;
     }
-    std::uint32_t w = 0;
+
+    std::uint32_t first_u32 = 0;
+    std::memcpy(&first_u32, payload.data(), sizeof(first_u32));
+
+    if (first_u32 == kMagicCompressed) {
+      if (payload.size() < kCompressedHeaderBytes) {
+        LK_LOG_WARN("[pt_controller] Compressed depth frame too small ({} bytes)",
+                    payload.size());
+        return;
+      }
+      std::uint32_t w = 0;
+      std::uint32_t h = 0;
+      std::uint32_t unc_u32 = 0;
+      std::memcpy(&w, payload.data() + 4, sizeof(w));
+      std::memcpy(&h, payload.data() + 8, sizeof(h));
+      std::memcpy(&unc_u32, payload.data() + 20, sizeof(unc_u32));
+      const std::size_t expected_unc =
+          static_cast<std::size_t>(w) * static_cast<std::size_t>(h) * 2;
+      if (unc_u32 != expected_unc) {
+        LK_LOG_WARN(
+            "[pt_controller] Compressed depth uncompressed_len mismatch: {} vs "
+            "{}x{}x2",
+            unc_u32, w, h);
+        return;
+      }
+      const std::size_t comp_len = payload.size() - kCompressedHeaderBytes;
+      std::vector<std::uint8_t> decompressed(unc_u32);
+      uLongf dest_len = static_cast<uLongf>(unc_u32);
+      const int zr = uncompress(
+          decompressed.data(), &dest_len,
+          payload.data() + kCompressedHeaderBytes,
+          static_cast<uLong>(comp_len));
+      if (zr != Z_OK || dest_len != unc_u32) {
+        LK_LOG_WARN("[pt_controller] Depth zlib uncompress failed (zr={}, len={}/{})",
+                    zr, static_cast<std::uint64_t>(dest_len),
+                    static_cast<std::uint64_t>(unc_u32));
+        return;
+      }
+      std::lock_guard<std::mutex> lock(depth_mu_);
+      depth_buffer_ = std::move(decompressed);
+      depth_width_ = static_cast<int>(w);
+      depth_height_ = static_cast<int>(h);
+      depth_frame_count_++;
+      (void)user_timestamp;
+      return;
+    }
+
+    const std::uint32_t w = first_u32;
     std::uint32_t h = 0;
-    std::memcpy(&w, payload.data(), sizeof(w));
     std::memcpy(&h, payload.data() + 4, sizeof(h));
     const std::size_t expected_size =
-        kHeaderSize + static_cast<std::size_t>(w) * h * 2;
+        kRawHeaderBytes + static_cast<std::size_t>(w) * h * 2;
     if (payload.size() != expected_size) {
       LK_LOG_WARN("[pt_controller] Depth frame size mismatch: {} vs expected {}",
                   payload.size(), expected_size);
@@ -511,7 +561,7 @@ private:
     }
     {
       std::lock_guard<std::mutex> lock(depth_mu_);
-      depth_buffer_.assign(payload.begin() + kHeaderSize, payload.end());
+      depth_buffer_.assign(payload.begin() + kRawHeaderBytes, payload.end());
       depth_width_ = static_cast<int>(w);
       depth_height_ = static_cast<int>(h);
       depth_frame_count_++;

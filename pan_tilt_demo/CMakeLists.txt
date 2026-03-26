@@ -23,6 +23,8 @@ else()
   )
 endif()
 find_package(LiveKit CONFIG REQUIRED)
+find_package(realsense2 REQUIRED)
+find_package(ZLIB REQUIRED)
 
 include(Dependencies)
 
@@ -44,6 +46,7 @@ if(LINUX)
     LiveKit::livekit_bridge
     SCServo
     nlohmann_json::nlohmann_json
+    ZLIB::ZLIB
     ${realsense2_LIBRARY}
   )
 endif()
@@ -58,4 +61,5 @@ target_link_libraries(TeleopController PRIVATE
   LiveKit::livekit_bridge
   SDL3::SDL3
   nlohmann_json::nlohmann_json
+  ZLIB::ZLIB
 )
