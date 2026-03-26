@@ -90,3 +90,50 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           ./build.sh
+
+  build-rover:
+    name: Build rover (${{ matrix.name }})
+    runs-on: ${{ matrix.runs_on }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            runs_on: macos-latest
+          - name: Linux x64
+            runs_on: ubuntu-24.04
+          - name: Linux ARM64
+            runs_on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get upgrade -y
+          sudo apt-get install -y --no-install-recommends \
+            libspdlog-dev \
+            pkg-config \
+            zlib1g-dev \
+            libssl-dev \
+            libcamera-dev \
+            libpng-dev \
+            git \
+            wget \
+            cmake \
+            build-essential \
+          && sudo apt-get autoremove -y && sudo apt-get clean -y
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install spdlog readline zlib
+
+      - name: Build rover
+        working-directory: rover
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ./build.sh
