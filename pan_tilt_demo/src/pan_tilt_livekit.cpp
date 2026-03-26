@@ -21,6 +21,7 @@
 #include "livekit/track.h"
 
 #include <nlohmann/json.hpp>
+#include <zlib.h>
 
 #include <algorithm>
 #include <chrono>
@@ -28,6 +29,7 @@
 #include <cstring>
 #include <csignal>
 #include <cstdint>
+#include <limits>
 #include <exception>
 #include <stdexcept>
 #include <thread>
@@ -309,6 +311,99 @@ void PtLiveKitApp::publishStateTick() {
       std::vector<std::uint8_t>(gyro_msg.begin(), gyro_msg.end()));
 }
 
+void PtLiveKitApp::processDepthSendJob(const DepthSendJob &job) {
+  if (!tracks_.camera_depth) {
+    return;
+  }
+
+  using pan_tilt_topics::depth_payload::kCompressedHeaderBytes;
+  using pan_tilt_topics::depth_payload::kMagicCompressed;
+  using pan_tilt_topics::depth_payload::kRawHeaderBytes;
+
+  const std::uint32_t w = static_cast<std::uint32_t>(job.depth_width);
+  const std::uint32_t h = static_cast<std::uint32_t>(job.depth_height);
+  const std::uint64_t ts = static_cast<std::uint64_t>(job.timestamp_us);
+  const std::size_t raw_size = job.depth_raw.size();
+
+  uLongf comp_len = compressBound(static_cast<uLong>(raw_size));
+  std::vector<std::uint8_t> zlib_buf(comp_len);
+  const int zr = compress2(
+      zlib_buf.data(), &comp_len,
+      reinterpret_cast<const Bytef *>(job.depth_raw.data()),
+      static_cast<uLong>(raw_size), Z_BEST_SPEED);
+
+  const std::size_t raw_wire = kRawHeaderBytes + raw_size;
+  const std::size_t compressed_wire = kCompressedHeaderBytes + comp_len;
+  const bool use_compressed =
+      (zr == Z_OK && compressed_wire < raw_wire && comp_len > 0);
+
+  std::vector<std::uint8_t> payload;
+  if (use_compressed) {
+    payload.resize(compressed_wire);
+    std::memcpy(payload.data(), &kMagicCompressed, sizeof(kMagicCompressed));
+    std::memcpy(payload.data() + 4, &w, sizeof(w));
+    std::memcpy(payload.data() + 8, &h, sizeof(h));
+    std::memcpy(payload.data() + 12, &ts, sizeof(ts));
+    const std::uint32_t unc_u32 = static_cast<std::uint32_t>(raw_size);
+    std::memcpy(payload.data() + 20, &unc_u32, sizeof(unc_u32));
+    std::memcpy(payload.data() + kCompressedHeaderBytes, zlib_buf.data(),
+                comp_len);
+  } else {
+    if (zr != Z_OK) {
+      LK_LOG_WARN("[pan_tilt_livekit] zlib compress2 failed ({}), sending raw",
+                  zr);
+    }
+    payload.resize(raw_wire);
+    std::memcpy(payload.data(), &w, sizeof(w));
+    std::memcpy(payload.data() + 4, &h, sizeof(h));
+    std::memcpy(payload.data() + 8, &ts, sizeof(ts));
+    std::memcpy(payload.data() + kRawHeaderBytes, job.depth_raw.data(),
+                raw_size);
+  }
+
+  tracks_.camera_depth->pushFrame(
+      payload, static_cast<std::uint64_t>(job.timestamp_us));
+}
+
+void PtLiveKitApp::depthWorkerLoop() {
+  while (true) {
+    std::optional<DepthSendJob> job;
+    {
+      std::unique_lock<std::mutex> lock(depth_mutex_);
+      depth_cv_.wait(lock, [this] {
+        return depth_worker_stop_.load() || depth_pending_.has_value();
+      });
+      if (depth_worker_stop_.load()) {
+        break;
+      }
+      job = std::move(depth_pending_);
+      depth_pending_.reset();
+    }
+    if (job.has_value()) {
+      processDepthSendJob(*job);
+    }
+  }
+}
+
+void PtLiveKitApp::startDepthWorker() {
+  if (!tracks_.camera_depth) {
+    return;
+  }
+  depth_worker_stop_.store(false);
+  depth_worker_thread_ = std::thread(&PtLiveKitApp::depthWorkerLoop, this);
+  LK_LOG_INFO("[pan_tilt_livekit] camera.depth send worker started");
+}
+
+void PtLiveKitApp::stopDepthWorker() {
+  if (!depth_worker_thread_.joinable()) {
+    return;
+  }
+  depth_worker_stop_.store(true);
+  depth_cv_.notify_all();
+  depth_worker_thread_.join();
+  LK_LOG_INFO("[pan_tilt_livekit] camera.depth send worker stopped");
+}
+
 void PtLiveKitApp::publishCameraTick() {
   if (!camera_) {
     return;
@@ -324,34 +419,6 @@ void PtLiveKitApp::publishCameraTick() {
                                     frame.timestamp_us);
   }
 
-  const auto now = std::chrono::steady_clock::now();
-  const auto depth_interval = std::chrono::microseconds(
-      1000000 / std::max(config_.depth_publish_rate_hz, 1));
-  if (now - last_depth_publish_ < depth_interval) {
-    return;
-  }
-  last_depth_publish_ = now;
-
-  if (tracks_.camera_depth) {
-    constexpr std::size_t kHeaderSize = 16;
-    const std::size_t payload_size = kHeaderSize + frame.depth_raw.size();
-    std::vector<std::uint8_t> payload(payload_size);
-
-    const std::uint32_t w = static_cast<std::uint32_t>(frame.depth_width);
-    const std::uint32_t h = static_cast<std::uint32_t>(frame.depth_height);
-    const std::uint64_t ts =
-        static_cast<std::uint64_t>(frame.timestamp_us);
-
-    std::memcpy(payload.data(), &w, sizeof(w));
-    std::memcpy(payload.data() + 4, &h, sizeof(h));
-    std::memcpy(payload.data() + 8, &ts, sizeof(ts));
-    std::memcpy(payload.data() + kHeaderSize, frame.depth_raw.data(),
-                frame.depth_raw.size());
-
-    tracks_.camera_depth->pushFrame(
-        payload, static_cast<std::uint64_t>(frame.timestamp_us));
-  }
-
   if (tracks_.camera_depth_vis) {
     const int dw = frame.depth_width;
     const int dh = frame.depth_height;
@@ -359,17 +426,26 @@ void PtLiveKitApp::publishCameraTick() {
     const auto *z16 =
         reinterpret_cast<const std::uint16_t *>(frame.depth_raw.data());
 
-    // Map Z16 (millimetres) to 8-bit grayscale. kMaxDepthMm is the
-    // distance that maps to black; closer objects are brighter.
-    constexpr std::uint16_t kMaxDepthMm = 10000;
+    // Find the actual min/max of valid depth values for adaptive scaling.
+    std::uint16_t min_d = std::numeric_limits<std::uint16_t>::max();
+    std::uint16_t max_d = 0;
+    for (std::size_t i = 0; i < pixel_count; ++i) {
+      const std::uint16_t d = z16[i];
+      if (d == 0) continue;
+      if (d < min_d) min_d = d;
+      if (d > max_d) max_d = d;
+    }
+
+    const std::uint32_t range = (max_d > min_d) ? (max_d - min_d) : 1;
+
     std::vector<std::uint8_t> rgba(pixel_count * 4);
     for (std::size_t i = 0; i < pixel_count; ++i) {
       const std::uint16_t d = z16[i];
       const std::uint8_t g =
-          (d == 0 || d > kMaxDepthMm)
+          (d == 0)
               ? 0
               : static_cast<std::uint8_t>(
-                    255 - (static_cast<std::uint32_t>(d) * 255 / kMaxDepthMm));
+                    255 - (static_cast<std::uint32_t>(d - min_d) * 255 / range));
       rgba[i * 4 + 0] = g;
       rgba[i * 4 + 1] = g;
       rgba[i * 4 + 2] = g;
@@ -378,6 +454,27 @@ void PtLiveKitApp::publishCameraTick() {
 
     tracks_.camera_depth_vis->pushFrame(rgba.data(), rgba.size(),
                                         frame.timestamp_us);
+  }
+
+  if (tracks_.camera_depth) {
+    const auto now = std::chrono::steady_clock::now();
+    const auto depth_interval = std::chrono::microseconds(
+        1000000 / std::max(config_.depth_publish_rate_hz, 1));
+    if (now - last_depth_publish_ < depth_interval) {
+      return;
+    }
+    last_depth_publish_ = now;
+
+    DepthSendJob job;
+    job.depth_raw = std::move(frame.depth_raw);
+    job.depth_width = frame.depth_width;
+    job.depth_height = frame.depth_height;
+    job.timestamp_us = frame.timestamp_us;
+    {
+      std::lock_guard<std::mutex> lock(depth_mutex_);
+      depth_pending_ = std::move(job);
+    }
+    depth_cv_.notify_one();
   }
 }
 
@@ -398,6 +495,8 @@ int PtLiveKitApp::run() {
     shutdown();
     return 1;
   }
+
+  startDepthWorker();
 
   const auto publish_period =
       std::chrono::microseconds(1000000 / std::max(config_.publish_rate_hz, 1));
@@ -434,6 +533,8 @@ void PtLiveKitApp::shutdown() {
     return;
   }
   shutdown_done_ = true;
+
+  stopDepthWorker();
 
   if (rpc_registered_) {
     try {
