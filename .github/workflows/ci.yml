@@ -36,6 +36,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # pan_tilt_demo README + project deps (librealsense is built from source; no apt librealsense2 packages).
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
@@ -44,9 +45,38 @@ jobs:
             libspdlog-dev \
             pkg-config \
             zlib1g-dev \
-            librealsense2-dev \
-            librealsense2-utils \
+            libssl-dev \
+            libusb-1.0-0-dev \
+            libudev-dev \
+            libgtk-3-dev \
+            git \
+            wget \
+            cmake \
+            build-essential \
+            libglfw3-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            at \
           && sudo apt-get autoremove -y && sudo apt-get clean -y
+
+      # Matches pan_tilt_demo/README.md (Installing librealsense2). Installs to /usr/local for find_package(realsense2).
+      # - Udev: README runs ./scripts/setup_udev_rules.sh; that script prompts when cameras/video nodes exist. In CI we
+      #   apply the same default USB rules (config/99-realsense-libusb.rules) + udevadm reload (see that script).
+      # - patch-realsense-ubuntu-lts-hwe.sh: not run in CI (full kernel-module rebuild; not needed to compile the
+      #   librealsense2 userspace SDK on stock Ubuntu 24.04; run locally per README when using hardware).
+      - name: Build and install librealsense2 from source (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euxo pipefail
+          src="${{ runner.temp }}/librealsense"
+          git clone https://github.com/realsenseai/librealsense.git "$src"
+          cd "$src"
+          sudo cp config/99-realsense-libusb.rules /etc/udev/rules.d/
+          sudo udevadm control --reload-rules && sudo udevadm trigger
+          mkdir -p build && cd build
+          cmake ../ -DCMAKE_BUILD_TYPE=Release
+          make -j"$(( $(nproc) - 1 ))"
+          sudo make install
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
