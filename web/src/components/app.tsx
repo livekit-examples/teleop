@@ -1,22 +1,22 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Image from "next/image";
-import { ScaleVertical } from "@/components/scale-vertical";
-import { ScaleHorizontal } from "@/components/scale-horizontal";
-import { BottomBar } from "@/components/bottom-bar";
-import { Joystick } from "@/components/joystick";
-import { useSessionContext, useTracks, VideoTrack } from "@livekit/components-react";
-import { useAcquireControl } from "@/hooks/use-acquire-control";
-import { useControlCmdTrack } from "@/hooks/use-control-cmd-track";
-import { usePanTilt } from "@/hooks/use-pan-tilt";
-import { useVideoFitContainer } from "@/hooks/use-video-fit-container";
-import { ConnectionState, Track } from "livekit-client";
-import { Button } from "@/components/button";
+import { useState } from 'react';
+import Image from 'next/image';
+import { ScaleVertical } from '@/components/scale-vertical';
+import { ScaleHorizontal } from '@/components/scale-horizontal';
+import { BottomBar } from '@/components/bottom-bar';
+import { Joystick } from '@/components/joystick';
+import { useSessionContext, useTracks, VideoTrack } from '@livekit/components-react';
+import { useAcquireControl } from '@/hooks/use-acquire-control';
+import { useControlCmdTrack } from '@/hooks/use-control-cmd-track';
+import { usePanTilt } from '@/hooks/use-pan-tilt';
+import { useVideoFitContainer } from '@/hooks/use-video-fit-container';
+import { ConnectionState, Track } from 'livekit-client';
+import { Button } from '@/components/button';
 
-import logo from "./logo.svg";
+import logo from './logo.svg';
 
-const ROBOT_IDENTITY = process.env.NEXT_PUBLIC_ROBOT_IDENTITY || "";
+const ROBOT_IDENTITY = process.env.NEXT_PUBLIC_ROBOT_IDENTITY || '';
 
 export function App() {
   const session = useSessionContext();
@@ -30,7 +30,7 @@ export function App() {
     isConnected: session.isConnected,
   });
 
-  const { pushControlCmd } = useControlCmdTrack(mode === "operate" && session.isConnected);
+  const { pushControlCmd } = useControlCmdTrack(mode === 'operate' && session.isConnected);
 
   useVideoFitContainer(mainVideoEl);
 
@@ -48,7 +48,7 @@ export function App() {
       {!session.isConnected && (
         <div className="absolute top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2">
           <Button type="button" onClick={() => session.start()}>
-            {session.connectionState === ConnectionState.Connecting ? "Connecting…" : "Connect"}
+            {session.connectionState === ConnectionState.Connecting ? 'Connecting…' : 'Connect'}
           </Button>
         </div>
       )}
@@ -58,9 +58,9 @@ export function App() {
         className="relative flex-1 bg-size-[33dvh_33dvh] bg-center"
         style={{
           backgroundImage: [
-            "linear-gradient(0deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)",
-            "linear-gradient(90deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)",
-          ].join(", "),
+            'linear-gradient(0deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)',
+            'linear-gradient(90deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)',
+          ].join(', '),
         }}
       >
         {/* Fullscreen video placeholder */}
@@ -111,9 +111,9 @@ export function App() {
                 <div className="text-accent-foreground/50">{tilt}°</div>
               </div>
               <div>
-                Control Available:{" "}
+                Control Available:{' '}
                 <span className="text-accent-foreground/50">
-                  {isOperatorModeLocked ? "No" : "Yes"}
+                  {isOperatorModeLocked ? 'No' : 'Yes'}
                 </span>
               </div>
             </div>
@@ -132,7 +132,7 @@ export function App() {
             <Joystick
               mode={mode}
               onVelocities={pushControlCmd}
-              disabled={mode === "view"}
+              disabled={mode === 'view'}
               className="absolute right-6 bottom-6 z-20 bg-black"
             />
           </>

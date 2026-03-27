@@ -7,6 +7,8 @@ import { motion } from 'motion/react';
 import { Mode } from '@/lib/types';
 import { Button } from '@/components/button';
 import { ModeToggle } from '@/components/mode-toggle';
+import { useGamepadConnected } from '@/hooks/use-gamepad-connected';
+import { cn } from '@/lib/utils';
 
 interface BottomBarProps {
   mode: Mode;
@@ -22,6 +24,7 @@ export function BottomBar({
   onModeRequest = () => {},
 }: BottomBarProps) {
   const session = useSessionContext();
+  const gamepadConnected = useGamepadConnected();
   const roomName = session.room?.name;
   const isConnectedOrConnecting =
     session.isConnected || session.connectionState === ConnectionState.Connecting;
@@ -66,7 +69,14 @@ export function BottomBar({
                 <span className="text-accent-foreground">{roomName}</span>
               </span>
 
-              <Gamepad2 size={20} className="text-accent-foreground/25 shrink-0" />
+              <Gamepad2
+                size={20}
+                aria-hidden
+                className={cn(
+                  'shrink-0 transition-colors duration-200',
+                  gamepadConnected ? 'text-accent-foreground' : 'text-accent-foreground/25',
+                )}
+              />
             </div>
           </div>
         )}
