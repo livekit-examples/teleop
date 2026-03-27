@@ -8,7 +8,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { animate, motion, useMotionValue } from "motion/react";
-import { type Dispatch, type SetStateAction, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 // import { useRepeatStep } from "@/hooks/use-repeat-step";
 import { useArrowKey } from "@/hooks/use-arrow-key";
@@ -31,8 +31,6 @@ function clampNorm(n: number): number {
 
 interface JoystickProps {
   mode: Mode;
-  setYaw: Dispatch<SetStateAction<number>>;
-  setPitch: Dispatch<SetStateAction<number>>;
   disabled?: boolean;
   className?: string;
 }
@@ -92,7 +90,7 @@ export function Joystick({ mode, disabled, className }: JoystickProps) {
           type="button"
           disabled={disabled}
           className={cn(
-            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10",
+            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10 outline-none focus-visible:ring-1 ring-ring",
             keysDown.includes("ArrowUp") && "bg-accent-foreground/20",
           )}
           // {...repeatPitchUp}
@@ -105,7 +103,7 @@ export function Joystick({ mode, disabled, className }: JoystickProps) {
           type="button"
           disabled={disabled}
           className={cn(
-            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10",
+            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10 outline-none focus-visible:ring-1 ring-ring",
             keysDown.includes("ArrowLeft") && "bg-accent-foreground/20",
           )}
           // {...repeatYawLeft}
@@ -136,7 +134,7 @@ export function Joystick({ mode, disabled, className }: JoystickProps) {
           type="button"
           disabled={disabled}
           className={cn(
-            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10",
+            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10 outline-none focus-visible:ring-1 ring-ring",
             keysDown.includes("ArrowRight") && "bg-accent-foreground/20",
           )}
           // {...repeatYawRight}
@@ -149,7 +147,7 @@ export function Joystick({ mode, disabled, className }: JoystickProps) {
           type="button"
           disabled={disabled}
           className={cn(
-            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10",
+            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10 outline-none focus-visible:ring-1 ring-ring",
             keysDown.includes("ArrowDown") && "bg-accent-foreground/20",
           )}
           // {...repeatPitchDown}

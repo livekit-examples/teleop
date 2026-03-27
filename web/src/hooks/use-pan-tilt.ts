@@ -1,5 +1,6 @@
-import { useEffect, type Dispatch, type SetStateAction } from "react";
-import { type RoomDataTrack } from "@/hooks/use-data-tracks";
+import { useEffect, useState } from "react";
+import { useSessionContext } from "@livekit/components-react";
+import { type RoomDataTrack, useDataTracks } from "@/hooks/use-data-tracks";
 import {
   PAN_STATE_TOPIC,
   servoTicksToDegrees,
@@ -8,23 +9,27 @@ import {
 } from "@/lib/servo-state";
 import { type RoomEventCallbacks } from "livekit-client";
 
-type RemoteDataTrack = Parameters<
-  RoomEventCallbacks["dataTrackPublished"]
->[0];
+type RemoteDataTrack = Parameters<RoomEventCallbacks["dataTrackPublished"]>[0];
 
 function isRemoteDataTrack(t: RoomDataTrack): t is RemoteDataTrack {
   return !t.isLocal;
 }
 
+interface PanTilt {
+  pan: number;
+  tilt: number;
+}
+
 /**
  * Subscribes to `state.pan` / `state.tilt` remote data tracks and maps servo JSON
- * to yaw/pitch degrees (see `servoTicksToDegrees`).
+ * to pan/tilt degrees (see `servoTicksToDegrees`).
  */
-export function useServoTelemetryFromDataTracks(
-  dataTracks: RoomDataTrack[],
-  setYaw: Dispatch<SetStateAction<number>>,
-  setPitch: Dispatch<SetStateAction<number>>,
-): void {
+export function usePanTilt(): PanTilt {
+  const session = useSessionContext();
+  const [pan, setPan] = useState(0);
+  const [tilt, setTilt] = useState(0);
+  const dataTracks = useDataTracks(session.room);
+
   useEffect(() => {
     const decoders: Array<() => void> = [];
 
@@ -53,9 +58,9 @@ export function useServoTelemetryFromDataTracks(
             }
             const deg = servoTicksToDegrees(parsed.position_ticks);
             if (name === PAN_STATE_TOPIC) {
-              setYaw(deg);
+              setPan(deg);
             } else if (name === TILT_STATE_TOPIC) {
-              setPitch(deg);
+              setTilt(deg);
             }
           }
         } catch {
@@ -67,5 +72,7 @@ export function useServoTelemetryFromDataTracks(
     return () => {
       for (const stop of decoders) stop();
     };
-  }, [dataTracks, setYaw, setPitch]);
+  }, [dataTracks, setPan, setTilt]);
+
+  return { pan, tilt };
 }

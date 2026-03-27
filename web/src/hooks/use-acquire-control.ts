@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocalParticipant } from "@livekit/components-react";
 import {
   isSeatHeldByOther,
@@ -8,21 +8,35 @@ import {
   RELEASE_CONTROL_PAYLOAD,
 } from "@/lib/acquire-control";
 import { RpcError } from "livekit-client";
+import { Mode } from "@/lib/types";
 
 let warnedMissingRobotIdentity = false;
 
 export interface UseAcquireControlOptions {
-  identity: string | undefined;
   isConnected: boolean;
+  identity: string | undefined;
 }
 
 export function useAcquireControl({
   identity,
   isConnected,
 }: UseAcquireControlOptions) {
+  const [mode, setMode] = useState<Mode>("view");
   const { localParticipant } = useLocalParticipant();
   const [isOperatorModeLocked, setIsOperatorModeLocked] = useState(false);
   const [isRpcPending, setIsRpcPending] = useState(false);
+
+  const handleModeRequest = async (next: Mode) => {
+    if (next === "operate") {
+      const ok = await acquireOperator();
+      if (ok) setMode("operate");
+    } else {
+      await releaseOperator();
+      setMode("view");
+    }
+  };
+
+  const modeRef = useRef(mode);
 
   const acquireOperator = useCallback(async (): Promise<boolean> => {
     if (!identity) {
@@ -94,10 +108,24 @@ export function useAcquireControl({
     }
   }, [identity, isConnected, localParticipant]);
 
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    return () => {
+      if (modeRef.current === "operate") {
+        void releaseOperator();
+      }
+    };
+  }, [releaseOperator]);
+
   return {
+    mode,
     isRpcPending,
     isOperatorModeLocked,
     acquireOperator,
     releaseOperator,
+    handleModeRequest,
   };
 }
