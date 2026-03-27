@@ -138,7 +138,7 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
           "text-accent-foreground absolute inset-0 grid grid-cols-[auto_40px_auto] grid-rows-[auto_40px_auto] rounded-lg border transition-colors",
           disabled
             ? "border-accent-foreground/10 bg-accent-foreground/5 cursor-not-allowed"
-            : "border-accent-foreground/20 bg-accent-foreground/10",
+            : "border-accent-foreground/50 bg-accent-foreground/10",
         )}
       >
         <div />
