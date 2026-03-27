@@ -8,6 +8,7 @@ import { Joystick } from "@/components/joystick";
 import logo from "./logo.svg";
 import { useSessionContext, useTracks, VideoTrack } from "@livekit/components-react";
 import { useAcquireControl } from "@/hooks/use-acquire-control";
+import { useControlCmdTrack } from "@/hooks/use-control-cmd-track";
 import { usePanTilt } from "@/hooks/use-pan-tilt";
 import { Track } from "livekit-client";
 
@@ -23,6 +24,10 @@ export function App() {
     identity: ROBOT_IDENTITY,
     isConnected: session.isConnected,
   });
+
+  const { pushControlCmd } = useControlCmdTrack(
+    mode === "operate" && session.isConnected,
+  );
 
   return (
     <div className="flex h-dvh flex-col bg-black">
@@ -97,6 +102,7 @@ export function App() {
 
         <Joystick
           mode={mode}
+          onVelocities={pushControlCmd}
           disabled={mode === "view"}
           className="absolute right-6 bottom-6 z-20 bg-black"
         />
