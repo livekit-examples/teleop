@@ -1,14 +1,9 @@
-import { useCallback, useEffect, useRef } from "react";
-import { useLocalParticipant } from "@livekit/components-react";
-import {
-  CONTROL_CMD_TOPIC,
-  controlCmdJson,
-} from "@/lib/control-cmd";
-import type { LocalParticipant } from "livekit-client";
+import { useCallback, useEffect, useRef } from 'react';
+import { useLocalParticipant } from '@livekit/components-react';
+import { CONTROL_CMD_TOPIC, controlCmdJson } from '@/lib/control-cmd';
+import type { LocalParticipant } from 'livekit-client';
 
-type LocalDataTrack = Awaited<
-  ReturnType<LocalParticipant["publishDataTrack"]>
->;
+type LocalDataTrack = Awaited<ReturnType<LocalParticipant['publishDataTrack']>>;
 
 async function pushFrame(track: LocalDataTrack, pan_vel: number, tilt_vel: number) {
   const payload = new TextEncoder().encode(controlCmdJson(pan_vel, tilt_vel));
@@ -55,7 +50,7 @@ export function useControlCmdTrack(enabled: boolean) {
         }
         trackRef.current = track;
       } catch (e) {
-        console.warn("[control_cmd] publishDataTrack failed:", e);
+        console.warn('[control_cmd] publishDataTrack failed:', e);
       }
     })();
 
@@ -67,16 +62,13 @@ export function useControlCmdTrack(enabled: boolean) {
     };
   }, [enabled, localParticipant]);
 
-  const pushControlCmd = useCallback(
-    (pan_vel: number, tilt_vel: number) => {
-      const track = trackRef.current;
-      if (!track?.isPublished()) return;
-      void pushFrame(track, pan_vel, tilt_vel).catch(() => {
-        // dropped / unpublished
-      });
-    },
-    [],
-  );
+  const pushControlCmd = useCallback((pan_vel: number, tilt_vel: number) => {
+    const track = trackRef.current;
+    if (!track?.isPublished()) return;
+    void pushFrame(track, pan_vel, tilt_vel).catch(() => {
+      // dropped / unpublished
+    });
+  }, []);
 
   return { pushControlCmd };
 }

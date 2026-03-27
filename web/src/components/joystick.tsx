@@ -1,19 +1,14 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import {
-  ChevronUp,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-} from "lucide-react";
-import { animate, motion, useMotionValue } from "motion/react";
-import { useEffect } from "react";
+import { cn } from '@/lib/utils';
+import { ChevronUp, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { animate, motion, useMotionValue } from 'motion/react';
+import { useEffect } from 'react';
 
-import { useArrowKey } from "@/hooks/use-arrow-key";
-import { usePadButtons } from "@/hooks/use-pad-buttons";
-import { MAX_CONTROL_RAD_PER_SEC } from "@/lib/control-cmd";
-import { Mode } from "@/lib/types";
+import { useArrowKey } from '@/hooks/use-arrow-key';
+import { usePadButtons } from '@/hooks/use-pad-buttons';
+import { MAX_CONTROL_RAD_PER_SEC } from '@/lib/control-cmd';
+import { Mode } from '@/lib/types';
 
 /** size-20 (80px) container, size-8 (32px) knob — max travel from center */
 const MAX_OFFSET = (100 - 32) / 2;
@@ -23,7 +18,7 @@ const RATE_MS = 50;
 /** Inverted stick/keys vs previous mapping; 50% of full-scale rad/s. */
 const CONTROL_GAIN = MAX_CONTROL_RAD_PER_SEC * 0.5;
 
-const spring = { type: "spring" as const, stiffness: 420, damping: 15 };
+const spring = { type: 'spring' as const, stiffness: 420, damping: 15 };
 
 function clampNorm(n: number): number {
   return Math.max(-1, Math.min(1, n));
@@ -37,12 +32,7 @@ interface JoystickProps {
   onVelocities?: (pan_vel: number, tilt_vel: number) => void;
 }
 
-export function Joystick({
-  mode,
-  disabled,
-  className,
-  onVelocities,
-}: JoystickProps) {
+export function Joystick({ mode, disabled, className, onVelocities }: JoystickProps) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const keysDown = useArrowKey(mode);
@@ -56,10 +46,10 @@ export function Joystick({
       const ny = clampNorm(y.get() / MAX_OFFSET);
       let kx = 0;
       let ky = 0;
-      if (keysDown.includes("ArrowLeft") || padHeld.has("left")) kx -= 1;
-      if (keysDown.includes("ArrowRight") || padHeld.has("right")) kx += 1;
-      if (keysDown.includes("ArrowUp") || padHeld.has("up")) ky -= 1;
-      if (keysDown.includes("ArrowDown") || padHeld.has("down")) ky += 1;
+      if (keysDown.includes('ArrowLeft') || padHeld.has('left')) kx -= 1;
+      if (keysDown.includes('ArrowRight') || padHeld.has('right')) kx += 1;
+      if (keysDown.includes('ArrowUp') || padHeld.has('up')) ky -= 1;
+      if (keysDown.includes('ArrowDown') || padHeld.has('down')) ky += 1;
       const cx = clampNorm(nx + kx);
       const cy = clampNorm(ny + ky);
       // API: pan_vel positive = left, tilt_vel positive = up (inverted + half gain)
@@ -78,24 +68,23 @@ export function Joystick({
   };
 
   return (
-    <div className={cn("size-20 relative rounded-lg", className)}>
+    <div className={cn('relative size-20 rounded-lg', className)}>
       <div
         className={cn(
-          "grid inset-0 absolute rounded-lg border grid-cols-[auto_auto_auto] grid-rows-[auto_auto_auto] text-accent-foreground transition-colors",
+          'text-accent-foreground absolute inset-0 grid grid-cols-[auto_auto_auto] grid-rows-[auto_auto_auto] rounded-lg border transition-colors',
           disabled
-            ? "cursor-not-allowed border-accent-foreground/10 bg-accent-foreground/5"
-            : "border-accent-foreground/20 bg-accent-foreground/10",
+            ? 'border-accent-foreground/10 bg-accent-foreground/5 cursor-not-allowed'
+            : 'border-accent-foreground/20 bg-accent-foreground/10',
         )}
       >
         <div />
         <button
           type="button"
           disabled={disabled}
-          {...padButtonHandlers("up")}
+          {...padButtonHandlers('up')}
           className={cn(
-            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10 outline-none focus-visible:ring-1 ring-ring select-none touch-manipulation",
-            (keysDown.includes("ArrowUp") || padHeld.has("up")) &&
-              "bg-accent-foreground/20",
+            'not-disabled:hover:bg-accent-foreground/10 ring-ring grid touch-manipulation place-content-center outline-none select-none not-disabled:cursor-pointer focus-visible:ring-1 disabled:opacity-20',
+            (keysDown.includes('ArrowUp') || padHeld.has('up')) && 'bg-accent-foreground/20',
           )}
         >
           <ChevronUp size={16} />
@@ -105,11 +94,10 @@ export function Joystick({
         <button
           type="button"
           disabled={disabled}
-          {...padButtonHandlers("left")}
+          {...padButtonHandlers('left')}
           className={cn(
-            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10 outline-none focus-visible:ring-1 ring-ring select-none touch-manipulation",
-            (keysDown.includes("ArrowLeft") || padHeld.has("left")) &&
-              "bg-accent-foreground/20",
+            'not-disabled:hover:bg-accent-foreground/10 ring-ring grid touch-manipulation place-content-center outline-none select-none not-disabled:cursor-pointer focus-visible:ring-1 disabled:opacity-20',
+            (keysDown.includes('ArrowLeft') || padHeld.has('left')) && 'bg-accent-foreground/20',
           )}
         >
           <ChevronLeft size={16} />
@@ -128,19 +116,18 @@ export function Joystick({
             dragMomentum={false}
             onDragEnd={onDragEnd}
             className={cn(
-              "absolute left-1/2 top-1/2 -ml-4 -mt-4 size-8 cursor-grab bg-accent-foreground touch-none rounded-full border transition-colors will-change-transform active:cursor-grabbing",
-              disabled && "pointer-events-none opacity-20",
+              'bg-accent-foreground absolute top-1/2 left-1/2 -mt-4 -ml-4 size-8 cursor-grab touch-none rounded-full border transition-colors will-change-transform active:cursor-grabbing',
+              disabled && 'pointer-events-none opacity-20',
             )}
           />
         </div>
         <button
           type="button"
           disabled={disabled}
-          {...padButtonHandlers("right")}
+          {...padButtonHandlers('right')}
           className={cn(
-            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10 outline-none focus-visible:ring-1 ring-ring select-none touch-manipulation",
-            (keysDown.includes("ArrowRight") || padHeld.has("right")) &&
-              "bg-accent-foreground/20",
+            'not-disabled:hover:bg-accent-foreground/10 ring-ring grid touch-manipulation place-content-center outline-none select-none not-disabled:cursor-pointer focus-visible:ring-1 disabled:opacity-20',
+            (keysDown.includes('ArrowRight') || padHeld.has('right')) && 'bg-accent-foreground/20',
           )}
         >
           <ChevronRight size={16} />
@@ -150,11 +137,10 @@ export function Joystick({
         <button
           type="button"
           disabled={disabled}
-          {...padButtonHandlers("down")}
+          {...padButtonHandlers('down')}
           className={cn(
-            "grid place-content-center disabled:opacity-20 not-disabled:cursor-pointer not-disabled:hover:bg-accent-foreground/10 outline-none focus-visible:ring-1 ring-ring select-none touch-manipulation",
-            (keysDown.includes("ArrowDown") || padHeld.has("down")) &&
-              "bg-accent-foreground/20",
+            'not-disabled:hover:bg-accent-foreground/10 ring-ring grid touch-manipulation place-content-center outline-none select-none not-disabled:cursor-pointer focus-visible:ring-1 disabled:opacity-20',
+            (keysDown.includes('ArrowDown') || padHeld.has('down')) && 'bg-accent-foreground/20',
           )}
         >
           <ChevronDown size={16} />

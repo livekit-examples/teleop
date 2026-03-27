@@ -47,7 +47,7 @@ export function ScaleVertical({
   const stripHeight = degreeRange * pxPerDeg;
 
   return (
-    <div className={cn('select-none grid grid-cols-[auto_auto] gap-1', className)}>
+    <div className={cn('grid grid-cols-[auto_auto] gap-1 select-none', className)}>
       {/* Vertical scale — strip translates so current value stays centered */}
       <div
         ref={viewportRef}

@@ -11,7 +11,7 @@ export function ScaleValue({ value, orientation, className }: ScaleValueProps) {
   return (
     <div
       className={cn(
-        'items-center justify-center font-mono text-accent-foreground',
+        'text-accent-foreground items-center justify-center font-mono',
         orientation === 'vertical' ? 'flex flex-col' : 'flex flex-row',
         className,
       )}

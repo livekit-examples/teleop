@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
-export type PadDir = "up" | "down" | "left" | "right";
+export type PadDir = 'up' | 'down' | 'left' | 'right';
 
 function addPadDir(prev: Set<PadDir>, d: PadDir): Set<PadDir> {
   const next = new Set(prev);
@@ -23,8 +23,8 @@ export function usePadButtons(disabled: boolean) {
 
   useEffect(() => {
     const clearPad = () => setPadHeld(new Set());
-    window.addEventListener("blur", clearPad);
-    return () => window.removeEventListener("blur", clearPad);
+    window.addEventListener('blur', clearPad);
+    return () => window.removeEventListener('blur', clearPad);
   }, []);
 
   useEffect(() => {

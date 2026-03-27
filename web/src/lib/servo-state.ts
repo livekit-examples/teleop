@@ -1,8 +1,8 @@
 /** Matches `PanTiltController::kTicksPerRevolution` in pan_tilt_demo. */
 export const SERVO_TICKS_PER_REV = 4096;
 
-export const PAN_STATE_TOPIC = "state.pan";
-export const TILT_STATE_TOPIC = "state.tilt";
+export const PAN_STATE_TOPIC = 'state.pan';
+export const TILT_STATE_TOPIC = 'state.tilt';
 
 /** Same wrapping as `PanTiltController::wrapTicks`. */
 export function wrapServoTicks(rawTicks: number): number {

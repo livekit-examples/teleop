@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { Mode } from "@/lib/types";
+import { useEffect, useRef, useState } from 'react';
+import { Mode } from '@/lib/types';
 
-const ARROW_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+const ARROW_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
   return target.isContentEditable;
 }
 
@@ -22,7 +22,7 @@ export function useArrowKey(mode: Mode) {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (mode === "view") return;
+      if (mode === 'view') return;
       if (!ARROW_KEYS.has(e.key)) return;
       if (isEditableTarget(e.target)) return;
       if (e.repeat) return;
@@ -45,14 +45,14 @@ export function useArrowKey(mode: Mode) {
       setKeysDown([]);
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", releaseAll);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', releaseAll);
 
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", releaseAll);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', releaseAll);
       releaseAll();
     };
   }, [mode, setKeysDown]);

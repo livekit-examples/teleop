@@ -1,10 +1,10 @@
-import { type Room, RoomEvent, type RoomEventCallbacks } from "livekit-client";
-import { useEffect, useState } from "react";
+import { type Room, RoomEvent, type RoomEventCallbacks } from 'livekit-client';
+import { useEffect, useState } from 'react';
 
 /** Any data track in the room (local publish or remote). */
 export type RoomDataTrack =
-  | Parameters<RoomEventCallbacks["dataTrackPublished"]>[0]
-  | Parameters<RoomEventCallbacks["localDataTrackPublished"]>[0];
+  | Parameters<RoomEventCallbacks['dataTrackPublished']>[0]
+  | Parameters<RoomEventCallbacks['localDataTrackPublished']>[0];
 
 /**
  * Subscribes to all data track publish/unpublish events (local and remote).
@@ -15,9 +15,7 @@ export function useDataTracks(room: Room | undefined | null) {
   useEffect(() => {
     if (!room) return;
 
-    function handleRemotePublished(
-      track: Parameters<RoomEventCallbacks["dataTrackPublished"]>[0],
-    ) {
+    function handleRemotePublished(track: Parameters<RoomEventCallbacks['dataTrackPublished']>[0]) {
       setDataTracks((prev) => [...prev, track]);
     }
 

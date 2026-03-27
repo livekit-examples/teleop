@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react";
-import { useSessionContext } from "@livekit/components-react";
-import { type RoomDataTrack, useDataTracks } from "@/hooks/use-data-tracks";
+import { useEffect, useState } from 'react';
+import { useSessionContext } from '@livekit/components-react';
+import { type RoomDataTrack, useDataTracks } from '@/hooks/use-data-tracks';
 import {
   PAN_STATE_TOPIC,
   servoTicksToDegrees,
   TILT_STATE_TOPIC,
   type ServoStatePayload,
-} from "@/lib/servo-state";
-import { type RoomEventCallbacks } from "livekit-client";
+} from '@/lib/servo-state';
+import { type RoomEventCallbacks } from 'livekit-client';
 
-type RemoteDataTrack = Parameters<RoomEventCallbacks["dataTrackPublished"]>[0];
+type RemoteDataTrack = Parameters<RoomEventCallbacks['dataTrackPublished']>[0];
 
 function isRemoteDataTrack(t: RoomDataTrack): t is RemoteDataTrack {
   return !t.isLocal;

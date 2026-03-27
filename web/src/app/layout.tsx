@@ -1,11 +1,9 @@
-import type { Metadata } from 'next';
-import { Public_Sans } from 'next/font/google';
 import './globals.css';
 
-const publicSans = Public_Sans({
-  variable: '--font-public-sans',
-  subsets: ['latin'],
-});
+import { cn } from '@/lib/utils';
+import type { Metadata } from 'next';
+
+import { displayFont, monoFont, sansFont } from '@/lib/fonts';
 
 export const metadata: Metadata = {
   title: 'TeleOps UI',
@@ -18,8 +16,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${publicSans.variable} dark`}>
-      <body className="min-h-screen overflow-hidden font-(family-name:--font-public-sans)">
+    <html
+      lang="en"
+      className={cn(sansFont.variable, displayFont.variable, monoFont.variable, 'dark')}
+    >
+      <body className="min-h-screen overflow-hidden font-(family-name:--font-lk-sans)">
         {children}
       </body>
     </html>

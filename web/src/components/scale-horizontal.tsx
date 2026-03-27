@@ -49,7 +49,7 @@ export function ScaleHorizontal({
   return (
     <div
       className={cn(
-        'select-none grid grid-rows-[auto_auto] gap-1 font-mono text-accent-foreground',
+        'text-accent-foreground grid grid-rows-[auto_auto] gap-1 font-mono select-none',
         className,
       )}
     >
