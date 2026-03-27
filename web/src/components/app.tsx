@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScaleVertical } from "@/components/scale-vertical";
 import { ScaleHorizontal } from "@/components/scale-horizontal";
 import { BottomBar } from "@/components/bottom-bar";
@@ -9,6 +9,7 @@ import { Joystick } from "@/components/joystick";
 import { Mode } from "@/lib/types";
 import logo from "./logo.svg";
 import { useSessionContext, useTracks, VideoTrack } from "@livekit/components-react";
+import { useAcquireControl } from "@/hooks/use-acquire-control";
 import { useDataTracks } from "@/hooks/use-data-tracks";
 import { useServoTelemetryFromDataTracks } from "@/hooks/use-servo-telemetry-from-data-tracks";
 import { Track } from "livekit-client";
@@ -17,9 +18,43 @@ export function App() {
   const [pitch, setPitch] = useState(0);
   const [yaw, setYaw] = useState(0);
   const [mode, setMode] = useState<Mode>("view");
-  const [isOperatorModeLocked] = useState(false);
 
   const session = useSessionContext();
+  const { room } = session;
+
+  const remoteParticipants = Array.from(room?.remoteParticipants.values() || []);
+
+  const robotIdentity = remoteParticipants[0]?.identity;
+
+  const { acquireOperator, releaseOperator, isOperatorModeLocked, isRpcPending } =
+    useAcquireControl({
+      identity: robotIdentity,
+      isConnected: session.isConnected,
+    });
+
+  const handleModeRequest = async (next: Mode) => {
+    if (next === "operate") {
+      const ok = await acquireOperator();
+      if (ok) setMode("operate");
+    } else {
+      await releaseOperator();
+      setMode("view");
+    }
+  };
+
+  const modeRef = useRef(mode);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    return () => {
+      if (modeRef.current === "operate") {
+        void releaseOperator();
+      }
+    };
+  }, [releaseOperator]);
   const dataTracks = useDataTracks(session.room);
   const videoTracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare]);
 
@@ -71,7 +106,9 @@ export function App() {
           </div>
           <div>
             Operator Seat Available:{" "}
-            <span className="text-accent-foreground/50">{isOperatorModeLocked ? "No" : "Yes"}</span>
+            <span className="text-accent-foreground/50">
+              {/* {isOperatorModeLocked ? "No" : "Yes"} */}
+            </span>
           </div>
         </div>
 
@@ -97,7 +134,12 @@ export function App() {
       </div>
 
       {/* Bottom status bar */}
-      <BottomBar mode={mode} setMode={setMode} isOperatorModeLocked={isOperatorModeLocked} />
+      <BottomBar
+        mode={mode}
+        isRpcPending={isRpcPending}
+        onModeRequest={handleModeRequest}
+        isOperatorModeLocked={isOperatorModeLocked}
+      />
     </div>
   );
 }
