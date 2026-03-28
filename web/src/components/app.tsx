@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ScaleVertical } from "@/components/scale-vertical";
 import { ScaleHorizontal } from "@/components/scale-horizontal";
-import { BottomBar } from "@/components/bottom-bar";
+import { StatusBar } from "@/components/status-bar";
 import { Joystick } from "@/components/joystick";
 import { useSessionContext, useTracks, VideoTrack } from "@livekit/components-react";
 import { useAcquireControl } from "@/hooks/use-acquire-control";
@@ -116,63 +116,6 @@ export function App() {
           </motion.div>
         )}
 
-        {/* Debug info */}
-        {session.isConnected && showDebugInfo && (
-          <motion.div
-            key="debug-info"
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            variants={ANIMATION_VARIANTS}
-            transition={ANIMATION_TRANSITION}
-            className="absolute bottom-3 left-3 flex w-44 flex-col gap-3 font-mono text-xs 1 text-accent-foreground"
-          >
-            <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
-              <div className="opacity-50">Pan</div>
-              <div className="text-right">{pan}°</div>
-              <div className="opacity-50">Tilt</div>
-              <div className="text-right">{tilt}°</div>
-            </div>
-            <hr className="border-accent-foreground/20" />
-            <div className="grid grid-cols-[auto_1fr_20px] gap-x-2 gap-y-0.5">
-              <div className="opacity-50">ωz</div>
-              <div className="text-right">
-                {gyro.gyro_z_dps !== undefined ? gyro.gyro_z_dps.toFixed(2) : "—"}
-              </div>
-              <div>°/s</div>
-              <div className="opacity-50">ωy</div>
-              <div className="text-right">
-                {gyro.gyro_y_dps !== undefined ? gyro.gyro_y_dps.toFixed(2) : "—"}
-              </div>
-              <div>°/s</div>
-              <div className="opacity-50">ωx</div>
-              <div className="text-right">
-                {gyro.gyro_x_dps !== undefined ? gyro.gyro_x_dps.toFixed(2) : "—"}
-              </div>
-              <div>°/s</div>
-              <div className="opacity-50">θx</div>
-              <div className="text-right">
-                {gyro.angle_x_deg !== undefined ? gyro.angle_x_deg.toFixed(2) : "—"}
-              </div>
-              <div>°</div>
-              <div className="opacity-50">θy</div>
-              <div className="text-right">
-                {gyro.angle_y_deg !== undefined ? gyro.angle_y_deg.toFixed(2) : "—"}
-              </div>
-              <div>°</div>
-              <div className="opacity-50">θz</div>
-              <div className="text-right">
-                {gyro.angle_z_deg !== undefined ? gyro.angle_z_deg.toFixed(2) : "—"}
-              </div>
-              <div>°</div>
-              <div className="opacity-50">valid</div>
-              <div className="text-right">
-                {gyro.valid === undefined ? "—" : gyro.valid ? "yes" : "no"}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
         {session.isConnected && (
           <motion.div
             key="scale-vertical"
@@ -220,13 +163,14 @@ export function App() {
               mode={mode}
               onVelocities={pushControlCmd}
               disabled={mode === "view"}
-              className="absolute right-4 bottom-16 z-20 bg-black"
+              className="absolute right-2 bottom-14 z-20 bg-black"
             />
           </motion.div>
         )}
 
-        {/* Bottom status bar */}
-        <BottomBar
+        {/* Status bar */}
+        <StatusBar
+          key="status-bar"
           mode={mode}
           isRpcPending={isRpcPending}
           showDebugInfo={showDebugInfo}
@@ -234,6 +178,63 @@ export function App() {
           onModeRequest={handleModeRequest}
           onShowDebugInfoChange={setShowDebugInfo}
         />
+
+        {/* Debug info */}
+        {session.isConnected && showDebugInfo && (
+          <motion.div
+            key="debug-info"
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={ANIMATION_VARIANTS}
+            transition={ANIMATION_TRANSITION}
+            className="absolute bottom-3 left-3 flex w-36 flex-col gap-3 font-mono text-xs 1 text-accent-foreground"
+          >
+            <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+              <div className="opacity-50">Pan</div>
+              <div className="text-right">{pan}°</div>
+              <div className="opacity-50">Tilt</div>
+              <div className="text-right">{tilt}°</div>
+            </div>
+            <hr className="border-accent-foreground/20" />
+            <div className="grid grid-cols-[auto_1fr_20px] gap-x-2 gap-y-0.5">
+              <div className="opacity-50">ωz</div>
+              <div className="text-right">
+                {gyro.gyro_z_dps !== undefined ? gyro.gyro_z_dps.toFixed(2) : "—"}
+              </div>
+              <div>°/s</div>
+              <div className="opacity-50">ωy</div>
+              <div className="text-right">
+                {gyro.gyro_y_dps !== undefined ? gyro.gyro_y_dps.toFixed(2) : "—"}
+              </div>
+              <div>°/s</div>
+              <div className="opacity-50">ωx</div>
+              <div className="text-right">
+                {gyro.gyro_x_dps !== undefined ? gyro.gyro_x_dps.toFixed(2) : "—"}
+              </div>
+              <div>°/s</div>
+              <div className="opacity-50">θx</div>
+              <div className="text-right">
+                {gyro.angle_x_deg !== undefined ? gyro.angle_x_deg.toFixed(2) : "—"}
+              </div>
+              <div>°</div>
+              <div className="opacity-50">θy</div>
+              <div className="text-right">
+                {gyro.angle_y_deg !== undefined ? gyro.angle_y_deg.toFixed(2) : "—"}
+              </div>
+              <div>°</div>
+              <div className="opacity-50">θz</div>
+              <div className="text-right">
+                {gyro.angle_z_deg !== undefined ? gyro.angle_z_deg.toFixed(2) : "—"}
+              </div>
+              <div>°</div>
+              <div className="opacity-50">valid</div>
+              <div className="text-right">
+                {gyro.valid === undefined ? "—" : gyro.valid ? "yes" : "no"}
+              </div>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

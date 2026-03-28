@@ -9,8 +9,10 @@ import { Button } from "@/components/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useGamepadConnected } from "@/hooks/use-gamepad-connected";
 import { cn } from "@/lib/utils";
+import { useGyro } from "@/hooks/use-gyro";
+import { Gyroscope } from "./gyroscope";
 
-interface BottomBarProps {
+interface StatusBarProps {
   mode: Mode;
   isRpcPending?: boolean;
   showDebugInfo?: boolean;
@@ -19,14 +21,15 @@ interface BottomBarProps {
   onModeRequest?: (next: Mode) => void | Promise<void>;
 }
 
-export function BottomBar({
+export function StatusBar({
   mode,
   isRpcPending = false,
   showDebugInfo = false,
   isOperatorModeLocked = false,
   onModeRequest = () => {},
   onShowDebugInfoChange = () => {},
-}: BottomBarProps) {
+}: StatusBarProps) {
+  const gyro = useGyro();
   const session = useSessionContext();
   const gamepadConnected = useGamepadConnected();
   const roomName = session.room?.name;
@@ -44,9 +47,9 @@ export function BottomBar({
       }}
       className="fixed bottom-0 inset-x-0"
     >
-      <div className="flex items-center justify-between px-4 py-2">
+      <div className="flex items-center justify-between p-2">
         {/* Actions */}
-        <div className="flex w-[250px] items-center justify-start"></div>
+        <div className="flex w-[300px] items-center justify-start"></div>
 
         {/* Connection Status */}
         {isConnectedOrConnecting && (
@@ -101,12 +104,20 @@ export function BottomBar({
           </div>
         )}
 
-        <ModeToggle
-          mode={mode}
-          onModeRequest={onModeRequest}
-          isOperatorModeLocked={isOperatorModeLocked}
-          isRpcPending={isRpcPending}
-        />
+        <div className="flex items-center gap-1 w-[300px] justify-end">
+          {/* Gyroscope */}
+          {mode === "operate" && (
+            <Gyroscope x={gyro.gyro_x_dps} y={gyro.gyro_y_dps} z={gyro.gyro_z_dps} />
+          )}
+
+          {/* Mode Toggle */}
+          <ModeToggle
+            mode={mode}
+            onModeRequest={onModeRequest}
+            isOperatorModeLocked={isOperatorModeLocked}
+            isRpcPending={isRpcPending}
+          />
+        </div>
       </div>
     </motion.div>
   );
