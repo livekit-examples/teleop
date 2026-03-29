@@ -90,10 +90,7 @@ export function App() {
                   height={mainVideoTrack.publication.dimensions?.height}
                   className="border-accent-foreground/50 rounded border"
                 />
-              ) : (
-                // <div className="aspect-4/3 h-full max-w-full mx-auto bg-black border border-accent-foreground/20 rounded" />
-                <></>
-              )}
+              ) : null}
             </div>
           </motion.div>
         )}
