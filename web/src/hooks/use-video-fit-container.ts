@@ -1,5 +1,13 @@
 import { useEffect } from 'react';
 
+/**
+ * Keeps a `<video>` element fitted within its parent container while preserving
+ * aspect ratio.
+ *
+ * Attaches a `ResizeObserver` to the video's parent element and toggles between
+ * `width: 100%` and `height: 100%` based on which dimension is the constraining
+ * axis, using the video's intrinsic `videoWidth` / `videoHeight`.
+ */
 export function useVideoFitContainer(mainVideoEl: HTMLVideoElement | null) {
   useEffect(() => {
     if (!mainVideoEl) return;

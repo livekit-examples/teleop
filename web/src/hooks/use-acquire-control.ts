@@ -17,6 +17,14 @@ export interface UseAcquireControlOptions {
   identity: string | undefined;
 }
 
+/**
+ * Manages the operator control lifecycle via `acquire_control` RPC.
+ *
+ * Exposes `handleModeRequest` which sends an acquire or release RPC to the robot
+ * participant identified by `identity`. The response is parsed to determine whether
+ * the operator seat was granted, already held, or locked by another user.
+ * Automatically releases control on unmount if currently in operate mode.
+ */
 export function useAcquireControl({ identity, isConnected }: UseAcquireControlOptions) {
   const [mode, setMode] = useState<Mode>('view');
   const { localParticipant } = useLocalParticipant();

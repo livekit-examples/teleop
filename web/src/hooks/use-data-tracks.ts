@@ -2,8 +2,12 @@ import { type Room, RoomEvent, type RoomEventCallbacks, RemoteDataTrack } from '
 import { useEffect, useState } from 'react';
 
 /**
- * Subscribes to remote data track publish/unpublish events, seeding with
- * any tracks that are already published when the hook mounts.
+ * Returns a live array of all {@link RemoteDataTrack}s in the room.
+ *
+ * On mount, seeds the list by iterating every remote participant's `dataTracks` map.
+ * After that, listens for `DataTrackPublished` / `DataTrackUnpublished` room events
+ * to keep the array in sync. The returned reference changes on every publish or
+ * unpublish, so downstream effects that depend on it will re-run.
  */
 export function useRemoteDataTracks(room: Room | undefined | null) {
   const [dataTracks, setDataTracks] = useState<RemoteDataTrack[]>([]);

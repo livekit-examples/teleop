@@ -15,8 +15,12 @@ function delPadDir(prev: Set<PadDir>, d: PadDir): Set<PadDir> {
 }
 
 /**
- * Tracks directional pad (chevron) holds via pointer capture; clears on window
- * blur and when `disabled` becomes true.
+ * Tracks which on-screen directional pad buttons are held down.
+ *
+ * Returns `padHeld` (the set of active directions) and `padButtonHandlers(dir)`
+ * which wires up `onPointerDown` / `onPointerUp` / `onPointerCancel` with pointer
+ * capture for reliable drag-off handling. Clears all held directions on window blur
+ * or when `disabled` becomes true.
  */
 export function usePadButtons(disabled: boolean) {
   const [padHeld, setPadHeld] = useState<Set<PadDir>>(() => new Set());

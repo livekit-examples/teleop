@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
 
+/**
+ * Returns whether any gamepad is currently connected.
+ *
+ * Polls `navigator.getGamepads()` on mount and listens for the browser's
+ * `gamepadconnected` / `gamepaddisconnected` events to stay in sync.
+ */
 export function useGamepadConnected() {
   const [connected, setConnected] = useState(false);
 

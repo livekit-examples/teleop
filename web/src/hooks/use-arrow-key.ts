@@ -11,10 +11,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * While arrow keys are held: set the keys down state.
+ * Tracks which arrow keys are currently held down.
  *
- * @param mode - The current mode of the application.
- * @returns An array of keys that are currently down.
+ * Listens for `keydown` / `keyup` on the window and maintains a set of held arrow
+ * keys. Ignores events when `mode` is `'view'`, when the target is an editable
+ * element, or on key-repeat. All keys are released on window blur or unmount.
  */
 export function useArrowKey(mode: Mode) {
   const heldRef = useRef(new Set<string>());

@@ -14,10 +14,13 @@ interface PanTilt {
 }
 
 /**
- * Subscribes to `state.pan` / `state.tilt` remote data tracks and maps servo JSON
- * to pan/tilt degrees (see `servoTicksToDegrees`).
- * Filters by `robotIdentity` to avoid subscribing to identically-named tracks
- * from other participants.
+ * Subscribes to `state.pan` and `state.tilt` remote data tracks from the given robot.
+ *
+ * Uses {@link useRemoteDataTracks} to discover published tracks, then filters by
+ * publisher identity and topic name. For each matching track a `ReadableStream`
+ * reader is opened; incoming JSON frames are decoded into {@link ServoStatePayload},
+ * converted from encoder ticks to degrees via {@link servoTicksToDegrees}, and stored
+ * as `pan` / `tilt` state. Readers are torn down via `AbortController` on cleanup.
  */
 export function usePanTilt(robotIdentity: string): PanTilt {
   const session = useSessionContext();

@@ -6,9 +6,13 @@ import { GYRO_STATE_TOPIC, type GyroStatePayload } from "@/lib/servo-state";
 const initialGyro: GyroStatePayload = {};
 
 /**
- * Subscribes to `state.gyro` remote data track (JSON gyro + integrated angles).
- * Filters by `robotIdentity` to avoid subscribing to identically-named tracks
- * from other participants.
+ * Subscribes to the `state.gyro` remote data track from the given robot participant.
+ *
+ * Uses {@link useRemoteDataTracks} to discover published tracks, then filters by
+ * topic name and publisher identity. For each matching track a `ReadableStream`
+ * reader is opened; incoming frames are JSON-decoded into {@link GyroStatePayload}
+ * and stored in state. All readers are torn down via `AbortController` when the
+ * track list changes or the component unmounts.
  */
 export function useGyro(robotIdentity: string): GyroStatePayload {
   const session = useSessionContext();

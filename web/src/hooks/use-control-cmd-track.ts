@@ -10,6 +10,14 @@ async function pushFrame(track: LocalDataTrack, pan_vel: number, tilt_vel: numbe
   await track.tryPush({ payload });
 }
 
+/**
+ * Publishes a `control_cmd` local data track for sending pan/tilt velocity commands.
+ *
+ * When `enabled` is true, publishes a data track named `control_cmd` via the local
+ * participant. Returns `pushControlCmd(pan_vel, tilt_vel)` which JSON-encodes the
+ * velocities and pushes a frame to the track. When `enabled` flips to false or the
+ * component unmounts, the track is unpublished.
+ */
 export function useControlCmdTrack(enabled: boolean) {
   const { localParticipant } = useLocalParticipant();
   const trackRef = useRef<LocalDataTrack | null>(null);
