@@ -1,19 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSessionContext } from '@livekit/components-react';
-import { type RoomDataTrack, useDataTracks } from '@/hooks/use-data-tracks';
+import { useRemoteDataTracks } from '@/hooks/use-data-tracks';
 import {
   PAN_STATE_TOPIC,
   servoTicksToDegrees,
   TILT_STATE_TOPIC,
   type ServoStatePayload,
 } from '@/lib/servo-state';
-import { type RoomEventCallbacks } from 'livekit-client';
-
-type RemoteDataTrack = Parameters<RoomEventCallbacks['dataTrackPublished']>[0];
-
-function isRemoteDataTrack(t: RoomDataTrack): t is RemoteDataTrack {
-  return !t.isLocal;
-}
 
 interface PanTilt {
   pan: number;
@@ -28,13 +21,12 @@ export function usePanTilt(): PanTilt {
   const session = useSessionContext();
   const [pan, setPan] = useState(0);
   const [tilt, setTilt] = useState(0);
-  const dataTracks = useDataTracks(session.room);
+  const dataTracks = useRemoteDataTracks(session.room);
 
   useEffect(() => {
     const decoders: Array<() => void> = [];
 
     for (const track of dataTracks) {
-      if (!isRemoteDataTrack(track)) continue;
       const name = track.info.name;
       if (name !== PAN_STATE_TOPIC && name !== TILT_STATE_TOPIC) continue;
 
@@ -72,7 +64,7 @@ export function usePanTilt(): PanTilt {
     return () => {
       for (const stop of decoders) stop();
     };
-  }, [dataTracks, setPan, setTilt]);
+  }, [dataTracks]);
 
   return { pan, tilt };
 }

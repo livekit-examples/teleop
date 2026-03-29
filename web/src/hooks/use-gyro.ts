@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSessionContext } from '@livekit/components-react';
-import { type RoomDataTrack, useDataTracks } from '@/hooks/use-data-tracks';
+import { useRemoteDataTracks } from '@/hooks/use-data-tracks';
 import { GYRO_STATE_TOPIC, type GyroStatePayload } from '@/lib/servo-state';
-import { type RoomEventCallbacks } from 'livekit-client';
-
-type RemoteDataTrack = Parameters<RoomEventCallbacks['dataTrackPublished']>[0];
-
-function isRemoteDataTrack(t: RoomDataTrack): t is RemoteDataTrack {
-  return !t.isLocal;
-}
 
 const initialGyro: GyroStatePayload = {};
 
@@ -18,13 +11,12 @@ const initialGyro: GyroStatePayload = {};
 export function useGyro(): GyroStatePayload {
   const session = useSessionContext();
   const [gyro, setGyro] = useState<GyroStatePayload>(initialGyro);
-  const dataTracks = useDataTracks(session.room);
+  const dataTracks = useRemoteDataTracks(session.room);
 
   useEffect(() => {
     const decoders: Array<() => void> = [];
 
     for (const track of dataTracks) {
-      if (!isRemoteDataTrack(track)) continue;
       if (track.info.name !== GYRO_STATE_TOPIC) continue;
 
       const ac = new AbortController();

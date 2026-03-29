@@ -1,22 +1,18 @@
-import { type Room, RoomEvent, type RoomEventCallbacks } from 'livekit-client';
+import { type Room, RoomEvent, type RoomEventCallbacks, RemoteDataTrack } from 'livekit-client';
 import { useEffect, useState } from 'react';
 
-/** Any data track in the room (local publish or remote). */
-export type RoomDataTrack =
-  | Parameters<RoomEventCallbacks['dataTrackPublished']>[0]
-  | Parameters<RoomEventCallbacks['localDataTrackPublished']>[0];
-
 /**
- * Subscribes to all data track publish/unpublish events (local and remote).
+ * Subscribes to remote data track publish/unpublish events, seeding with
+ * any tracks that are already published when the hook mounts.
  */
-export function useDataTracks(room: Room | undefined | null) {
-  const [dataTracks, setDataTracks] = useState<RoomDataTrack[]>([]);
+export function useRemoteDataTracks(room: Room | undefined | null) {
+  const [dataTracks, setDataTracks] = useState<RemoteDataTrack[]>([]);
 
   useEffect(() => {
     if (!room) return;
 
     // Seed with already-published remote data tracks
-    const existing: RoomDataTrack[] = [];
+    const existing: RemoteDataTrack[] = [];
     for (const participant of room.remoteParticipants.values()) {
       for (const track of participant.dataTracks.values()) {
         existing.push(track);
@@ -26,7 +22,9 @@ export function useDataTracks(room: Room | undefined | null) {
       setDataTracks(existing);
     }
 
-    function handleRemotePublished(track: Parameters<RoomEventCallbacks['dataTrackPublished']>[0]) {
+    function handleRemotePublished(
+      track: Parameters<RoomEventCallbacks['dataTrackPublished']>[0],
+    ) {
       setDataTracks((prev) => [...prev, track]);
     }
 
