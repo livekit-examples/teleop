@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useSessionContext } from '@livekit/components-react';
-import { useRemoteDataTracks } from '@/hooks/use-data-tracks';
+import { useEffect, useState } from "react";
+import { useSessionContext } from "@livekit/components-react";
+import { useRemoteDataTracks } from "@/hooks/use-data-tracks";
 import {
   PAN_STATE_TOPIC,
   servoTicksToDegrees,
   TILT_STATE_TOPIC,
   type ServoStatePayload,
-} from '@/lib/servo-state';
+} from "@/lib/servo-state";
 
 interface PanTilt {
   pan: number;
@@ -29,8 +29,8 @@ export function usePanTilt(robotIdentity: string): PanTilt {
     const decoders: Array<() => void> = [];
 
     for (const track of dataTracks) {
-      if (robotIdentity && track.publisherIdentity !== robotIdentity) continue;
       const name = track.info.name;
+      if (track.publisherIdentity !== robotIdentity) continue;
       if (name !== PAN_STATE_TOPIC && name !== TILT_STATE_TOPIC) continue;
 
       const ac = new AbortController();

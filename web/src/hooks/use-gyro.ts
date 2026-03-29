@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { useSessionContext } from '@livekit/components-react';
-import { useRemoteDataTracks } from '@/hooks/use-data-tracks';
-import { GYRO_STATE_TOPIC, type GyroStatePayload } from '@/lib/servo-state';
+import { useEffect, useState } from "react";
+import { useSessionContext } from "@livekit/components-react";
+import { useRemoteDataTracks } from "@/hooks/use-data-tracks";
+import { GYRO_STATE_TOPIC, type GyroStatePayload } from "@/lib/servo-state";
 
 const initialGyro: GyroStatePayload = {};
 
@@ -20,7 +20,7 @@ export function useGyro(robotIdentity: string): GyroStatePayload {
 
     for (const track of dataTracks) {
       if (track.info.name !== GYRO_STATE_TOPIC) continue;
-      if (robotIdentity && track.publisherIdentity !== robotIdentity) continue;
+      if (track.publisherIdentity !== robotIdentity) continue;
 
       const ac = new AbortController();
       const stream = track.subscribe({ signal: ac.signal });
