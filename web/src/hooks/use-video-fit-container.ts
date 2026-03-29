@@ -11,7 +11,7 @@ export function useVideoFitContainer(mainVideoEl: HTMLVideoElement | null) {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         const containerAspectRatio = width / height;
-        const videoAspectRatio = mainVideoEl.width / mainVideoEl.height;
+        const videoAspectRatio = mainVideoEl.videoWidth / mainVideoEl.videoHeight;
 
         if (containerAspectRatio > videoAspectRatio) {
           mainVideoEl.style.width = 'auto';
