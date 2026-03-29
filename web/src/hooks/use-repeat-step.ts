@@ -1,4 +1,11 @@
-import { type KeyboardEvent, type PointerEvent, useCallback, useEffect, useRef } from 'react';
+import {
+  type KeyboardEvent,
+  type PointerEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from 'react';
 
 const REPEAT_MS = 100;
 
@@ -9,6 +16,10 @@ const REPEAT_MS = 100;
 export function useRepeatStep(step: () => void) {
   const stepRef = useRef(step);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useLayoutEffect(() => {
+    stepRef.current = step;
+  }, [step]);
 
   const clear = useCallback(() => {
     if (intervalRef.current !== null) {
