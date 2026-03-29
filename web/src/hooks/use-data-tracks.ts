@@ -15,6 +15,17 @@ export function useDataTracks(room: Room | undefined | null) {
   useEffect(() => {
     if (!room) return;
 
+    // Seed with already-published remote data tracks
+    const existing: RoomDataTrack[] = [];
+    for (const participant of room.remoteParticipants.values()) {
+      for (const track of participant.dataTracks.values()) {
+        existing.push(track);
+      }
+    }
+    if (existing.length > 0) {
+      setDataTracks(existing);
+    }
+
     function handleRemotePublished(track: Parameters<RoomEventCallbacks['dataTrackPublished']>[0]) {
       setDataTracks((prev) => [...prev, track]);
     }
