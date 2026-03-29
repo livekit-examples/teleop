@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import { ChevronUp, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
-import { animate, motion, useMotionValue, useTransform } from "motion/react";
-import { ComponentProps, useEffect } from "react";
+import { cn } from '@/lib/utils';
+import { ChevronUp, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { animate, motion, useMotionValue, useTransform } from 'motion/react';
+import { ComponentProps, useEffect } from 'react';
 
-import { useArrowKey } from "@/hooks/use-arrow-key";
-import { usePadButtons } from "@/hooks/use-pad-buttons";
-import { MAX_CONTROL_RAD_PER_SEC } from "@/lib/control-cmd";
-import { Mode } from "@/lib/types";
+import { useArrowKey } from '@/hooks/use-arrow-key';
+import { usePadButtons } from '@/hooks/use-pad-buttons';
+import { MAX_CONTROL_RAD_PER_SEC } from '@/lib/control-cmd';
+import { Mode } from '@/lib/types';
 
 /** size-20 (80px) container, size-8 (32px) knob — max travel from center */
 const MAX_OFFSET = (100 - 32) / 2;
@@ -18,7 +18,7 @@ const RATE_MS = 50;
 /** Inverted stick/keys vs previous mapping; 50% of full-scale rad/s. */
 const CONTROL_GAIN = MAX_CONTROL_RAD_PER_SEC * 0.5;
 
-const spring = { type: "spring" as const, stiffness: 420, damping: 15 };
+const spring = { type: 'spring' as const, stiffness: 420, damping: 15 };
 
 function clampNorm(n: number): number {
   return Math.max(-1, Math.min(1, n));
@@ -48,13 +48,13 @@ function DirectionButton({
   className,
   isActive,
   ...props
-}: ComponentProps<"button"> & { isActive: boolean }) {
+}: ComponentProps<'button'> & { isActive: boolean }) {
   return (
     <button
       {...props}
       className={cn(
-        "not-disabled:hover:bg-accent-foreground/10 ring-ring grid touch-manipulation place-content-center outline-none select-none not-disabled:cursor-pointer focus-visible:ring-1 disabled:opacity-20",
-        isActive && "bg-accent-foreground/20",
+        'not-disabled:hover:bg-accent-foreground/10 ring-ring grid touch-manipulation place-content-center outline-none select-none not-disabled:cursor-pointer focus-visible:ring-1 disabled:opacity-20',
+        isActive && 'bg-accent-foreground/20',
         className,
       )}
     />
@@ -106,10 +106,10 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
       let kx = 0;
       let ky = 0;
 
-      if (keysDown.includes("ArrowLeft") || padHeld.has("left")) kx -= 1;
-      if (keysDown.includes("ArrowRight") || padHeld.has("right")) kx += 1;
-      if (keysDown.includes("ArrowUp") || padHeld.has("up")) ky -= 1;
-      if (keysDown.includes("ArrowDown") || padHeld.has("down")) ky += 1;
+      if (keysDown.includes('ArrowLeft') || padHeld.has('left')) kx -= 1;
+      if (keysDown.includes('ArrowRight') || padHeld.has('right')) kx += 1;
+      if (keysDown.includes('ArrowUp') || padHeld.has('up')) ky -= 1;
+      if (keysDown.includes('ArrowDown') || padHeld.has('down')) ky += 1;
 
       const gxr = gx.get();
       const gyr = gy.get();
@@ -132,21 +132,21 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
   };
 
   return (
-    <div className={cn("relative size-20 rounded-lg", className)}>
+    <div className={cn('relative size-20 rounded-lg', className)}>
       <div
         className={cn(
-          "text-accent-foreground absolute inset-0 grid grid-cols-[auto_40px_auto] grid-rows-[auto_40px_auto] rounded-lg border transition-colors",
+          'text-accent-foreground absolute inset-0 grid grid-cols-[auto_40px_auto] grid-rows-[auto_40px_auto] rounded-lg border transition-colors',
           disabled
-            ? "border-accent-foreground/10 bg-accent-foreground/5 cursor-not-allowed"
-            : "border-accent-foreground/50 bg-accent-foreground/10",
+            ? 'border-accent-foreground/10 bg-accent-foreground/5 cursor-not-allowed'
+            : 'border-accent-foreground/50 bg-accent-foreground/10',
         )}
       >
         <div />
         <DirectionButton
           type="button"
           disabled={disabled}
-          {...padButtonHandlers("up")}
-          isActive={keysDown.includes("ArrowUp") || padHeld.has("up")}
+          {...padButtonHandlers('up')}
+          isActive={keysDown.includes('ArrowUp') || padHeld.has('up')}
         >
           <ChevronUp size={16} />
         </DirectionButton>
@@ -155,8 +155,8 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
         <DirectionButton
           type="button"
           disabled={disabled}
-          {...padButtonHandlers("left")}
-          isActive={keysDown.includes("ArrowLeft") || padHeld.has("left")}
+          {...padButtonHandlers('left')}
+          isActive={keysDown.includes('ArrowLeft') || padHeld.has('left')}
         >
           <ChevronLeft size={16} />
         </DirectionButton>
@@ -178,8 +178,8 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
               dragMomentum={false}
               onDragEnd={onDragEnd}
               className={cn(
-                "bg-accent-foreground pointer-events-auto size-10 cursor-grab touch-none rounded-full border transition-colors will-change-transform active:cursor-grabbing",
-                disabled && "pointer-events-none opacity-20",
+                'bg-accent-foreground pointer-events-auto size-10 cursor-grab touch-none rounded-full border transition-colors will-change-transform active:cursor-grabbing',
+                disabled && 'pointer-events-none opacity-20',
               )}
             />
           </motion.div>
@@ -187,8 +187,8 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
         <DirectionButton
           type="button"
           disabled={disabled}
-          {...padButtonHandlers("right")}
-          isActive={keysDown.includes("ArrowRight") || padHeld.has("right")}
+          {...padButtonHandlers('right')}
+          isActive={keysDown.includes('ArrowRight') || padHeld.has('right')}
         >
           <ChevronRight size={16} />
         </DirectionButton>
@@ -197,8 +197,8 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
         <DirectionButton
           type="button"
           disabled={disabled}
-          {...padButtonHandlers("down")}
-          isActive={keysDown.includes("ArrowDown") || padHeld.has("down")}
+          {...padButtonHandlers('down')}
+          isActive={keysDown.includes('ArrowDown') || padHeld.has('down')}
         >
           <ChevronDown size={16} />
         </DirectionButton>

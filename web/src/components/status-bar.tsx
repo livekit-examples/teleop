@@ -1,16 +1,16 @@
-"use client";
+'use client';
 
-import { useSessionContext } from "@livekit/components-react";
-import { ConnectionState } from "livekit-client";
-import { Radio, RadioOff, Gamepad2, BugIcon, BugOffIcon, PowerIcon } from "lucide-react";
-import { motion } from "motion/react";
-import { Mode } from "@/lib/types";
-import { Button } from "@/components/button";
-import { ModeToggle } from "@/components/mode-toggle";
-import { useGamepadConnected } from "@/hooks/use-gamepad-connected";
-import { cn } from "@/lib/utils";
-import { useGyro } from "@/hooks/use-gyro";
-import { Gyroscope } from "./gyroscope";
+import { useSessionContext } from '@livekit/components-react';
+import { ConnectionState } from 'livekit-client';
+import { Radio, RadioOff, Gamepad2, BugIcon, BugOffIcon, PowerIcon } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Mode } from '@/lib/types';
+import { Button } from '@/components/button';
+import { ModeToggle } from '@/components/mode-toggle';
+import { useGamepadConnected } from '@/hooks/use-gamepad-connected';
+import { cn } from '@/lib/utils';
+import { useGyro } from '@/hooks/use-gyro';
+import { Gyroscope } from './gyroscope';
 
 interface StatusBarProps {
   mode: Mode;
@@ -45,9 +45,9 @@ export function StatusBar({
       }}
       transition={{
         duration: 0.2,
-        ease: "easeInOut",
+        ease: 'easeInOut',
       }}
-      className="fixed bottom-0 inset-x-0"
+      className="fixed inset-x-0 bottom-0"
     >
       <div className="flex items-center justify-between p-2">
         {/* Actions */}
@@ -60,7 +60,7 @@ export function StatusBar({
               type="button"
               title="Toggle Debug Info"
               onClick={() => onShowDebugInfoChange(!showDebugInfo)}
-              className="size-10 grid place-items-center"
+              className="grid size-10 place-items-center"
             >
               {showDebugInfo ? (
                 <BugOffIcon size={20} className="text-accent-foreground size-5" />
@@ -80,8 +80,8 @@ export function StatusBar({
                   {session.connectionState === ConnectionState.Connecting ||
                   session.connectionState === ConnectionState.Reconnecting ||
                   session.connectionState === ConnectionState.SignalReconnecting
-                    ? "Connecting"
-                    : "Connected to"}
+                    ? 'Connecting'
+                    : 'Connected to'}
                 </span>
                 <span className="text-accent-foreground">{roomName}</span>
               </span>
@@ -90,8 +90,8 @@ export function StatusBar({
                 size={20}
                 aria-hidden
                 className={cn(
-                  "shrink-0 transition-colors duration-200",
-                  gamepadConnected ? "text-accent-foreground" : "text-accent-foreground/25",
+                  'shrink-0 transition-colors duration-200',
+                  gamepadConnected ? 'text-accent-foreground' : 'text-accent-foreground/25',
                 )}
               />
             </div>
@@ -99,16 +99,16 @@ export function StatusBar({
               type="button"
               title="Disconnect"
               onClick={() => session.end()}
-              className="size-10 grid place-items-center"
+              className="grid size-10 place-items-center"
             >
               <PowerIcon size={24} className="text-accent-foreground size-5" />
             </Button>
           </div>
         )}
 
-        <div className="flex items-center gap-1 w-[300px] justify-end">
+        <div className="flex w-[300px] items-center justify-end gap-1">
           {/* Gyroscope */}
-          {mode === "operate" && (
+          {mode === 'operate' && (
             <Gyroscope x={gyro.gyro_x_dps} y={gyro.gyro_y_dps} z={gyro.gyro_z_dps} />
           )}
 

@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ScaleValue } from "./scale-value";
+import { cn } from '@/lib/utils';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ScaleValue } from './scale-value';
 
 const DEGREE_RANGE = 360;
 const DEGREE_INCREMENT = 45;
@@ -49,7 +49,7 @@ export function ScaleHorizontal({
   return (
     <div
       className={cn(
-        "text-accent-foreground grid grid-rows-[auto_auto] gap-1 font-mono select-none",
+        'text-accent-foreground grid grid-rows-[auto_auto] gap-1 font-mono select-none',
         className,
       )}
     >
@@ -78,7 +78,7 @@ export function ScaleHorizontal({
                 className="absolute top-0 flex -translate-x-1/2 flex-col items-center gap-1"
                 style={{ left: x }}
               >
-                <div className={cn(`bg-accent-foreground/25 w-0.5`, isZero ? "h-3" : "h-2")} />
+                <div className={cn(`bg-accent-foreground/25 w-0.5`, isZero ? 'h-3' : 'h-2')} />
                 <span className="text-accent-foreground/50 shrink-0 font-mono text-xs leading-6 whitespace-pre">
                   {deg >= 0 ? ` ${deg}°` : `${deg}°`}
                 </span>
