@@ -16,8 +16,10 @@ interface PanTilt {
 /**
  * Subscribes to `state.pan` / `state.tilt` remote data tracks and maps servo JSON
  * to pan/tilt degrees (see `servoTicksToDegrees`).
+ * Filters by `robotIdentity` to avoid subscribing to identically-named tracks
+ * from other participants.
  */
-export function usePanTilt(): PanTilt {
+export function usePanTilt(robotIdentity: string): PanTilt {
   const session = useSessionContext();
   const [pan, setPan] = useState(0);
   const [tilt, setTilt] = useState(0);
@@ -27,6 +29,7 @@ export function usePanTilt(): PanTilt {
     const decoders: Array<() => void> = [];
 
     for (const track of dataTracks) {
+      if (robotIdentity && track.publisherIdentity !== robotIdentity) continue;
       const name = track.info.name;
       if (name !== PAN_STATE_TOPIC && name !== TILT_STATE_TOPIC) continue;
 
@@ -64,7 +67,7 @@ export function usePanTilt(): PanTilt {
     return () => {
       for (const stop of decoders) stop();
     };
-  }, [dataTracks]);
+  }, [dataTracks, robotIdentity]);
 
   return { pan, tilt };
 }

@@ -7,8 +7,10 @@ const initialGyro: GyroStatePayload = {};
 
 /**
  * Subscribes to `state.gyro` remote data track (JSON gyro + integrated angles).
+ * Filters by `robotIdentity` to avoid subscribing to identically-named tracks
+ * from other participants.
  */
-export function useGyro(): GyroStatePayload {
+export function useGyro(robotIdentity: string): GyroStatePayload {
   const session = useSessionContext();
   const [gyro, setGyro] = useState<GyroStatePayload>(initialGyro);
   const dataTracks = useRemoteDataTracks(session.room);
@@ -18,6 +20,7 @@ export function useGyro(): GyroStatePayload {
 
     for (const track of dataTracks) {
       if (track.info.name !== GYRO_STATE_TOPIC) continue;
+      if (robotIdentity && track.publisherIdentity !== robotIdentity) continue;
 
       const ac = new AbortController();
       const stream = track.subscribe({ signal: ac.signal });
@@ -45,7 +48,7 @@ export function useGyro(): GyroStatePayload {
     return () => {
       for (const stop of decoders) stop();
     };
-  }, [dataTracks]);
+  }, [dataTracks, robotIdentity]);
 
   return gyro;
 }

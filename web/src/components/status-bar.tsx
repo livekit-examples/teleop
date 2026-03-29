@@ -14,6 +14,7 @@ import { Gyroscope } from "./gyroscope";
 
 interface StatusBarProps {
   mode: Mode;
+  robotIdentity: string;
   isRpcPending?: boolean;
   showDebugInfo?: boolean;
   isOperatorModeLocked?: boolean;
@@ -23,13 +24,14 @@ interface StatusBarProps {
 
 export function StatusBar({
   mode,
+  robotIdentity,
   isRpcPending = false,
   showDebugInfo = false,
   isOperatorModeLocked = false,
   onModeRequest = () => {},
   onShowDebugInfoChange = () => {},
 }: StatusBarProps) {
-  const gyro = useGyro();
+  const gyro = useGyro(robotIdentity);
   const session = useSessionContext();
   const gamepadConnected = useGamepadConnected();
   const roomName = session.room?.name;

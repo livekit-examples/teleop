@@ -30,8 +30,8 @@ const ANIMATION_TRANSITION: Transition = {
 
 export function App() {
   const session = useSessionContext();
-  const gyro = useGyro();
-  const { pan, tilt } = usePanTilt();
+  const gyro = useGyro(ROBOT_IDENTITY);
+  const { pan, tilt } = usePanTilt(ROBOT_IDENTITY);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [mainVideoTrack] = useTracks([Track.Source.Camera]);
   const [depthVideoTrack] = useTracks([Track.Source.ScreenShare]);
@@ -169,6 +169,7 @@ export function App() {
         <StatusBar
           key="status-bar"
           mode={mode}
+          robotIdentity={ROBOT_IDENTITY}
           isRpcPending={isRpcPending}
           showDebugInfo={showDebugInfo}
           isOperatorModeLocked={isOperatorModeLocked}
