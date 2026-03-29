@@ -145,7 +145,7 @@ export function Gyroscope({ x = 0, y = 0, z = 0 }: GyroscopeProps) {
         rings.push({
           zKey,
           draw: () => {
-            ctx.strokeStyle = "okl(0, 220, 220)";
+            ctx.strokeStyle = "oklch(0.637 0.237 25.33)";
             ctx.lineWidth = 1.25;
             ctx.lineJoin = "round";
             ctx.beginPath();
@@ -173,7 +173,7 @@ export function Gyroscope({ x = 0, y = 0, z = 0 }: GyroscopeProps) {
         rings.push({
           zKey,
           draw: () => {
-            ctx.strokeStyle = "oklch(0.717 0.129 218.88)";
+            ctx.strokeStyle = "oklch(0.717 0.176 142.71)";
             ctx.lineWidth = 1.25;
             ctx.lineJoin = "round";
             ctx.beginPath();
@@ -201,7 +201,7 @@ export function Gyroscope({ x = 0, y = 0, z = 0 }: GyroscopeProps) {
         rings.push({
           zKey,
           draw: () => {
-            ctx.strokeStyle = "okl(0, 220, 220)";
+            ctx.strokeStyle = "oklch(0.717 0.129 218.88)";
             ctx.lineWidth = 1.25;
             ctx.lineJoin = "round";
             ctx.beginPath();
