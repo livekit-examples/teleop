@@ -1,7 +1,7 @@
-import { Mode } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { Button } from "@base-ui/react/button";
-import { motion } from "motion/react";
+import { Mode } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { Button } from '@base-ui/react/button';
+import { motion } from 'motion/react';
 // import { Lock, Unlock } from "lucide-react";
 
 interface ModeToggleProps {
@@ -20,21 +20,21 @@ export function ModeToggle({
   const disabled = isRpcPending;
 
   return (
-    <div className="bg-background flex h-10 w-[250px] items-center justify-center rounded border dark:border-input p-1">
-      <div className="relative grow h-full">
+    <div className="bg-card dark:border-input flex h-10 w-[250px] items-center justify-center rounded border p-1">
+      <div className="relative h-full grow">
         <motion.div
-          animate={{ x: mode === "view" ? 0 : "100%" }}
-          transition={{ duration: 0.2, ease: "easeInOut" }}
-          className="bg-input/30 text-primary-foreground absolute z-10 h-full w-1/2 left-0 rounded border border-input"
+          animate={{ x: mode === 'view' ? 0 : '100%' }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          className="bg-input/30 text-primary-foreground border-input absolute left-0 z-10 h-full w-1/2 rounded border"
         />
         <div className="grid grid-cols-2">
           <Button
             type="button"
             disabled={disabled}
-            onClick={() => void onModeRequest("view")}
+            onClick={() => void onModeRequest('view')}
             className={cn(
-              `font-mono text-xs h-full z-20 rounded-xs hover:opacity-100 transition-opacity`,
-              mode !== "view" ? "opacity-50" : "opacity-100",
+              `z-20 h-full rounded-xs font-mono text-xs transition-opacity hover:opacity-100`,
+              mode !== 'view' ? 'opacity-50' : 'opacity-100',
             )}
           >
             Viewer
@@ -42,10 +42,10 @@ export function ModeToggle({
           <Button
             type="button"
             disabled={disabled || isOperatorModeLocked}
-            onClick={() => void onModeRequest("operate")}
+            onClick={() => void onModeRequest('operate')}
             className={cn(
-              `font-mono text-xs h-8 z-20 rounded-xs hover:opacity-100 transition-opacity`,
-              mode !== "operate" ? "opacity-50" : "opacity-100",
+              `z-20 h-8 rounded-xs font-mono text-xs transition-opacity hover:opacity-100`,
+              mode !== 'operate' ? 'opacity-50' : 'opacity-100',
             )}
           >
             Controller

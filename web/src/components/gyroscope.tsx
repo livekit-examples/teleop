@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 interface GyroscopeProps {
   x?: number;
@@ -84,7 +84,7 @@ export function Gyroscope({ x = 0, y = 0, z = 0 }: GyroscopeProps) {
     const container = containerRef.current;
     if (!canvas || !container) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let angX = 0;
@@ -149,9 +149,9 @@ export function Gyroscope({ x = 0, y = 0, z = 0 }: GyroscopeProps) {
         rings.push({
           zKey,
           draw: () => {
-            ctx.strokeStyle = getCssVariable("--chart-1");
+            ctx.strokeStyle = getCssVariable('--chart-1');
             ctx.lineWidth = 1.25;
-            ctx.lineJoin = "round";
+            ctx.lineJoin = 'round';
             ctx.beginPath();
             const p0 = pts[0];
             if (!p0) return;
@@ -177,9 +177,9 @@ export function Gyroscope({ x = 0, y = 0, z = 0 }: GyroscopeProps) {
         rings.push({
           zKey,
           draw: () => {
-            ctx.strokeStyle = getCssVariable("--chart-2");
+            ctx.strokeStyle = getCssVariable('--chart-2');
             ctx.lineWidth = 1.25;
-            ctx.lineJoin = "round";
+            ctx.lineJoin = 'round';
             ctx.beginPath();
             const p0 = pts[0];
             if (!p0) return;
@@ -205,9 +205,9 @@ export function Gyroscope({ x = 0, y = 0, z = 0 }: GyroscopeProps) {
         rings.push({
           zKey,
           draw: () => {
-            ctx.strokeStyle = getCssVariable("--chart-3");
+            ctx.strokeStyle = getCssVariable('--chart-3');
             ctx.lineWidth = 1.25;
-            ctx.lineJoin = "round";
+            ctx.lineJoin = 'round';
             ctx.beginPath();
             const p0 = pts[0];
             if (!p0) return;
@@ -237,7 +237,7 @@ export function Gyroscope({ x = 0, y = 0, z = 0 }: GyroscopeProps) {
   }, []);
 
   return (
-    <div className="size-10 rounded border p-1">
+    <div className="bg-card border-input size-10 rounded border p-1">
       <div ref={containerRef} className="relative size-full">
         <canvas ref={canvasRef} className="absolute size-full" aria-hidden />
       </div>

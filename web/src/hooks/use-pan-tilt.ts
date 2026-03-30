@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-import { useSessionContext } from "@livekit/components-react";
-import { useRemoteDataTracks } from "@/hooks/use-data-tracks";
+import { useEffect, useState } from 'react';
+import { useSessionContext } from '@livekit/components-react';
+import { useRemoteDataTracks } from '@/hooks/use-data-tracks';
 import {
   PAN_STATE_TOPIC,
   servoTicksToDegrees,
   TILT_STATE_TOPIC,
   type ServoStatePayload,
-} from "@/lib/servo-state";
+} from '@/lib/servo-state';
 
 interface PanTilt {
   pan: number;

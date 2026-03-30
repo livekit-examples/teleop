@@ -26,9 +26,7 @@ export function useRemoteDataTracks(room: Room | undefined | null) {
       setDataTracks(existing);
     }
 
-    function handleRemotePublished(
-      track: Parameters<RoomEventCallbacks['dataTrackPublished']>[0],
-    ) {
+    function handleRemotePublished(track: Parameters<RoomEventCallbacks['dataTrackPublished']>[0]) {
       setDataTracks((prev) => [...prev, track]);
     }
 

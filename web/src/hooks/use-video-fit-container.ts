@@ -8,9 +8,15 @@ import { useEffect } from 'react';
  * `width: 100%` and `height: 100%` based on which dimension is the constraining
  * axis, using the video's intrinsic `videoWidth` / `videoHeight`.
  */
-export function useVideoFitContainer(mainVideoEl: HTMLVideoElement | null) {
+export function useVideoFitContainer(mainVideoEl: HTMLVideoElement | null, isFullscreen: boolean) {
   useEffect(() => {
     if (!mainVideoEl) return;
+
+    if (isFullscreen) {
+      mainVideoEl.style.width = '100%';
+      mainVideoEl.style.height = '100%';
+      return;
+    }
 
     const container = mainVideoEl.parentElement;
     if (!container) return;
@@ -33,5 +39,5 @@ export function useVideoFitContainer(mainVideoEl: HTMLVideoElement | null) {
 
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
-  }, [mainVideoEl]);
+  }, [mainVideoEl, isFullscreen]);
 }
