@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { cn } from '@/lib/utils';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { cn } from "@/lib/utils";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { ScaleValue } from './scale-value';
+import { ScaleValue } from "./scale-value";
 
 const DEGREE_RANGE = 360;
 const DEGREE_INCREMENT = 45;
@@ -47,7 +47,7 @@ export function ScaleVertical({
   const stripHeight = degreeRange * pxPerDeg;
 
   return (
-    <div className={cn('grid grid-cols-[auto_auto] gap-1 select-none', className)}>
+    <div className={cn("grid grid-cols-[auto_auto] gap-1 select-none", className)}>
       {/* Vertical scale — strip translates so current value stays centered */}
       <div
         ref={viewportRef}
@@ -70,10 +70,10 @@ export function ScaleVertical({
                 className="absolute right-0 flex -translate-y-1/2 items-center justify-end gap-1"
                 style={{ top: y }}
               >
-                <span className="text-accent-foreground/50 shrink-0 text-right font-mono text-xs leading-6 whitespace-nowrap">
+                <span className="text-foreground/50 shrink-0 text-right font-mono text-xs leading-6 whitespace-nowrap">
                   {deg}°
                 </span>
-                <div className={cn(`bg-accent-foreground/25 h-0.5`, isZero ? 'w-3' : 'w-2')} />
+                <div className={cn(`bg-card/25 h-0.5`, isZero ? "w-3" : "w-2")} />
               </div>
             );
           })}
