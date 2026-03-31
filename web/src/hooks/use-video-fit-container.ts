@@ -10,7 +10,7 @@ import { useEffect } from 'react';
  */
 export function useVideoFitContainer(mainVideoEl: HTMLVideoElement | null, isFullscreen: boolean) {
   useEffect(() => {
-    if (!mainVideoEl) return;
+    if (!mainVideoEl || !isFullscreen) return;
 
     if (isFullscreen) {
       mainVideoEl.style.width = '100%';
@@ -21,23 +21,25 @@ export function useVideoFitContainer(mainVideoEl: HTMLVideoElement | null, isFul
     const container = mainVideoEl.parentElement;
     if (!container) return;
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        const containerAspectRatio = width / height;
-        const videoAspectRatio = mainVideoEl.videoWidth / mainVideoEl.videoHeight;
+    function fitVideo() {
+      if (!mainVideoEl || !container) return;
+      const { width, height } = container.getBoundingClientRect();
+      const containerAspectRatio = width / height;
+      const videoAspectRatio = mainVideoEl.videoWidth / mainVideoEl.videoHeight;
 
-        if (containerAspectRatio > videoAspectRatio) {
-          mainVideoEl.style.width = 'auto';
-          mainVideoEl.style.height = '100%';
-        } else {
-          mainVideoEl.style.width = '100%';
-          mainVideoEl.style.height = 'auto';
-        }
+      if (containerAspectRatio > videoAspectRatio) {
+        mainVideoEl.style.width = 'auto';
+        mainVideoEl.style.height = '100%';
+      } else {
+        mainVideoEl.style.width = '100%';
+        mainVideoEl.style.height = 'auto';
       }
-    });
+    }
 
-    resizeObserver.observe(container);
+    const resizeObserver = new ResizeObserver(fitVideo);
+
+    resizeObserver.observe(mainVideoEl);
+
     return () => resizeObserver.disconnect();
   }, [mainVideoEl, isFullscreen]);
 }

@@ -5,7 +5,7 @@ import { ConnectionState } from 'livekit-client';
 import { Radio, RadioOff, Gamepad2, BugIcon, BugOffIcon, PowerIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Mode } from '@/lib/types';
-import { Button } from '@/components/button';
+import { Button } from '@/components/ui/button';
 import { ModeToggle } from '@/components/mode-toggle';
 import { useGamepadConnected } from '@/hooks/use-gamepad-connected';
 import { cn } from '@/lib/utils';
@@ -57,12 +57,14 @@ export function StatusBar({
 
         {/* Connection Status */}
         {isConnectedOrConnecting && (
-          <div className="flex items-center justify-between gap-1">
+          <div className="bg-card dark:border-input flex items-center justify-between gap-1 rounded-lg border p-1">
             <Button
               type="button"
+              variant="outline"
+              size="icon"
               title="Toggle Debug Info"
               onClick={() => onShowDebugInfoChange(!showDebugInfo)}
-              className="grid size-10 place-items-center"
+              className="rounded"
             >
               {showDebugInfo ? (
                 <BugOffIcon size={20} className="text-foreground size-5" />
@@ -70,7 +72,7 @@ export function StatusBar({
                 <BugIcon size={20} className="text-foreground size-5" />
               )}
             </Button>
-            <div className="bg-card dark:border-input flex h-10 w-100 items-center justify-between gap-8 rounded border px-3 font-mono text-sm font-light">
+            <div className="bg-background/50 dark:border-input flex h-8 w-100 items-center justify-between gap-8 rounded border px-3 font-mono text-sm font-light">
               <Radio size={20} className="text-foreground shrink-0 group-hover:hidden" />
               <RadioOff size={20} className="text-foreground hidden shrink-0 group-hover:block" />
 
@@ -97,8 +99,10 @@ export function StatusBar({
             <Button
               type="button"
               title="Disconnect"
+              size="icon"
+              variant="outline"
               onClick={() => session.end()}
-              className="grid size-10 place-items-center"
+              className="rounded"
             >
               <PowerIcon size={24} className="text-foreground size-5" />
             </Button>

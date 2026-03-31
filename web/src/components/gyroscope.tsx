@@ -237,7 +237,7 @@ export function Gyroscope({ x = 0, y = 0, z = 0 }: GyroscopeProps) {
   }, []);
 
   return (
-    <div className="bg-card border-input size-10 rounded border p-1">
+    <div className="bg-card border-input size-10 rounded-lg border p-1">
       <div ref={containerRef} className="relative size-full">
         <canvas ref={canvasRef} className="absolute size-full" aria-hidden />
       </div>

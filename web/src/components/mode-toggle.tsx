@@ -1,6 +1,6 @@
 import { Mode } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Button } from '@base-ui/react/button';
+import { Button } from '@/components/ui/button';
 import { motion } from 'motion/react';
 // import { Lock, Unlock } from "lucide-react";
 
@@ -20,7 +20,7 @@ export function ModeToggle({
   const disabled = isRpcPending;
 
   return (
-    <div className="bg-card dark:border-input flex h-10 w-[250px] items-center justify-center rounded border p-1">
+    <div className="bg-card dark:border-input flex h-10 w-[250px] items-center justify-center rounded-md border p-1">
       <div className="relative h-full grow">
         <motion.div
           animate={{ x: mode === 'view' ? 0 : '100%' }}
@@ -31,9 +31,10 @@ export function ModeToggle({
           <Button
             type="button"
             disabled={disabled}
+            variant="ghost"
             onClick={() => void onModeRequest('view')}
             className={cn(
-              `z-20 h-full rounded-xs font-mono text-xs transition-opacity hover:opacity-100`,
+              `z-20 h-full font-mono text-xs transition-opacity hover:opacity-100`,
               mode !== 'view' ? 'opacity-50' : 'opacity-100',
             )}
           >
@@ -41,10 +42,11 @@ export function ModeToggle({
           </Button>
           <Button
             type="button"
+            variant="ghost"
             disabled={disabled || isOperatorModeLocked}
             onClick={() => void onModeRequest('operate')}
             className={cn(
-              `z-20 h-8 rounded-xs font-mono text-xs transition-opacity hover:opacity-100`,
+              `z-20 h-8 font-mono text-xs transition-opacity hover:opacity-100`,
               mode !== 'operate' ? 'opacity-50' : 'opacity-100',
             )}
           >
