@@ -18,7 +18,7 @@
 #define PAN_TILT_LIVEKIT_H
 
 #include "l3g4200d_gyro.h"
-#include "livekit_bridge/livekit_bridge.h"
+#include "livekit/livekit.h"
 #include "pan_tilt_controller.h"
 #include "realsense_camera.h"
 
@@ -56,7 +56,7 @@ struct PtLiveKitConfig {
  *
  * @details
  * This app owns:
- * - `livekit_bridge::LiveKitBridge` for room connection and data tracks
+ * - `livekit::Room` for room connection, track publishing, and RPC
  * - `PanTiltController` for two SMS/STS motors (`0=pan`, `1=tilt`)
  * - `L3G4200D_GYRO` for gyroscope polling
  *
@@ -111,12 +111,12 @@ private:
   };
 
   struct PublishedTracks {
-    std::shared_ptr<livekit_bridge::BridgeDataTrack> gyro_state;
-    std::shared_ptr<livekit_bridge::BridgeDataTrack> pan_state;
-    std::shared_ptr<livekit_bridge::BridgeDataTrack> tilt_state;
-    std::shared_ptr<livekit_bridge::BridgeVideoTrack> camera_color;
-    std::shared_ptr<livekit_bridge::BridgeDataTrack> camera_depth;
-    std::shared_ptr<livekit_bridge::BridgeVideoTrack> camera_depth_vis;
+    std::shared_ptr<livekit::LocalDataTrack> gyro_state;
+    std::shared_ptr<livekit::LocalDataTrack> pan_state;
+    std::shared_ptr<livekit::LocalDataTrack> tilt_state;
+    std::shared_ptr<livekit::VideoSource> camera_color_source;
+    std::shared_ptr<livekit::LocalDataTrack> camera_depth;
+    std::shared_ptr<livekit::VideoSource> camera_depth_vis_source;
   };
 
   bool initializeHardware();
@@ -133,11 +133,16 @@ private:
   void depthWorkerLoop();
   void processDepthSendJob(const DepthSendJob &job);
   void shutdown();
+  void logPublishDiagnosticsIfDue();
 
   static std::atomic<bool> g_running_;
 
+  static constexpr int kPublishTrackCount = 6;
+  std::array<std::atomic<std::uint64_t>, kPublishTrackCount> publish_counts_{};
+  std::chrono::steady_clock::time_point last_publish_diag_log_{};
+
   PtLiveKitConfig config_;
-  livekit_bridge::LiveKitBridge bridge_;
+  std::unique_ptr<livekit::Room> room_;
   L3G4200D_GYRO gyro_;
   PanTiltController pan_tilt_;
   PublishedTracks tracks_;
@@ -152,6 +157,7 @@ private:
 
   std::mutex controller_mutex_;
   std::string controller_identity_;
+  livekit::DataFrameCallbackId control_cmd_callback_id_{0};
   bool rpc_registered_{false};
   bool shutdown_done_{false};
 };

@@ -28,6 +28,10 @@ find_package(ZLIB REQUIRED)
 
 include(Dependencies)
 
+# Resolve the livekit_ffi link directory from the LiveKit package
+get_filename_component(_lk_cmake_dir "${LiveKit_DIR}" DIRECTORY)
+get_filename_component(_lk_lib_dir  "${_lk_cmake_dir}" DIRECTORY)
+
 # Robot-side targets require Linux (servo/gyro hardware, RealSense, etc.)
 if(LINUX)
   find_package(realsense2 REQUIRED)
@@ -43,12 +47,14 @@ if(LINUX)
   )
   target_include_directories(PanTiltRobot PRIVATE include)
   target_link_libraries(PanTiltRobot PRIVATE
-    LiveKit::livekit_bridge
+    LiveKit::livekit
+    fmt::fmt
     SCServo
     nlohmann_json::nlohmann_json
     ZLIB::ZLIB
     ${realsense2_LIBRARY}
   )
+  target_link_directories(PanTiltRobot PRIVATE "${_lk_lib_dir}")
 endif()
 
 add_executable(TeleopController
@@ -58,8 +64,10 @@ target_include_directories(TeleopController PRIVATE
   include
 )
 target_link_libraries(TeleopController PRIVATE
-  LiveKit::livekit_bridge
+  LiveKit::livekit
+  fmt::fmt
   SDL3::SDL3
   nlohmann_json::nlohmann_json
   ZLIB::ZLIB
 )
+target_link_directories(TeleopController PRIVATE "${_lk_lib_dir}")

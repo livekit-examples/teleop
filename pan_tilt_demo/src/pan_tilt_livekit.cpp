@@ -26,12 +26,15 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <csignal>
 #include <cstdint>
+#include <fstream>
 #include <limits>
 #include <exception>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -41,6 +44,13 @@ using json = nlohmann::json;
 namespace {
 constexpr int kPanIndex = 0;
 constexpr int kTiltIndex = 1;
+constexpr int kPublishGyroStateIdx = 0;
+constexpr int kPublishPanStateIdx = 1;
+constexpr int kPublishTiltStateIdx = 2;
+constexpr int kPublishCameraColorIdx = 3;
+constexpr int kPublishCameraDepthIdx = 4;
+constexpr int kPublishCameraDepthVisIdx = 5;
+
 constexpr double kTwoPi = 6.28318530717958647692;
 constexpr double kServoStepsPerRadian =
     static_cast<double>(PanTiltController::kTicksPerRevolution) / kTwoPi;
@@ -70,6 +80,34 @@ json buildServoStateJson(const PanTiltController::ServoState &state,
       {"current_milliamps", state.current_milliamps},
       {"valid", state.valid},
   };
+}
+
+bool readProcSelfMemoryKb(long long *vm_rss_kb, long long *vm_size_kb) {
+  if (vm_rss_kb == nullptr || vm_size_kb == nullptr) {
+    return false;
+  }
+  *vm_rss_kb = -1;
+  *vm_size_kb = -1;
+  std::ifstream f("/proc/self/status");
+  if (!f) {
+    return false;
+  }
+  std::string line;
+  while (std::getline(f, line)) {
+    if (line.rfind("VmRSS:", 0) == 0) {
+      if (std::sscanf(line.c_str(), "VmRSS: %lld", vm_rss_kb) != 1) {
+        *vm_rss_kb = -1;
+      }
+    } else if (line.rfind("VmSize:", 0) == 0) {
+      if (std::sscanf(line.c_str(), "VmSize: %lld", vm_size_kb) != 1) {
+        *vm_size_kb = -1;
+      }
+    }
+    if (*vm_rss_kb >= 0 && *vm_size_kb >= 0) {
+      return true;
+    }
+  }
+  return *vm_rss_kb >= 0 && *vm_size_kb >= 0;
 }
 
 json buildGyroStateJson(const GYROData &gyro) {
@@ -128,32 +166,72 @@ bool PtLiveKitApp::initializeHardware() {
 }
 
 bool PtLiveKitApp::connectAndPublishTracks() {
+  livekit::initialize();
+
+  room_ = std::make_unique<livekit::Room>();
+
   livekit::RoomOptions options;
   options.auto_subscribe = true;
   options.dynacast = false;
 
   LK_LOG_INFO("[pan_tilt_livekit] Connecting to {}", config_.url);
-  if (!bridge_.connect(config_.url, config_.token, options)) {
+  if (!room_->Connect(config_.url, config_.token, options)) {
     LK_LOG_ERROR("[pan_tilt_livekit] Failed to connect to LiveKit");
     return false;
   }
 
-  tracks_.gyro_state = bridge_.createDataTrack(pan_tilt_topics::kGyroStateTrack);
-  tracks_.pan_state = bridge_.createDataTrack(pan_tilt_topics::kPanStateTrack);
-  tracks_.tilt_state = bridge_.createDataTrack(pan_tilt_topics::kTiltStateTrack);
+  auto *lp = room_->localParticipant();
+
+  auto gyro_result = lp->publishDataTrack(pan_tilt_topics::kGyroStateTrack);
+  if (!gyro_result) {
+    LK_LOG_ERROR("[pan_tilt_livekit] Failed to publish data track '{}'",
+                 pan_tilt_topics::kGyroStateTrack);
+    return false;
+  }
+  tracks_.gyro_state = std::move(gyro_result).value();
+
+  auto pan_result = lp->publishDataTrack(pan_tilt_topics::kPanStateTrack);
+  if (!pan_result) {
+    LK_LOG_ERROR("[pan_tilt_livekit] Failed to publish data track '{}'",
+                 pan_tilt_topics::kPanStateTrack);
+    return false;
+  }
+  tracks_.pan_state = std::move(pan_result).value();
+
+  auto tilt_result = lp->publishDataTrack(pan_tilt_topics::kTiltStateTrack);
+  if (!tilt_result) {
+    LK_LOG_ERROR("[pan_tilt_livekit] Failed to publish data track '{}'",
+                 pan_tilt_topics::kTiltStateTrack);
+    return false;
+  }
+  tracks_.tilt_state = std::move(tilt_result).value();
+
   LK_LOG_INFO("[pan_tilt_livekit] Published data tracks: {}, {}, {}",
               pan_tilt_topics::kGyroStateTrack, pan_tilt_topics::kPanStateTrack,
               pan_tilt_topics::kTiltStateTrack);
 
   if (camera_) {
-    tracks_.camera_color = bridge_.createVideoTrack(
-        pan_tilt_topics::kCameraColorTrack, camera_->width(), camera_->height(),
-        livekit::TrackSource::SOURCE_CAMERA);
-    tracks_.camera_depth =
-        bridge_.createDataTrack(pan_tilt_topics::kCameraDepthTrack);
-    tracks_.camera_depth_vis = bridge_.createVideoTrack(
-        pan_tilt_topics::kCameraDepthVisTrack, camera_->width(),
-        camera_->height(), livekit::TrackSource::SOURCE_SCREENSHARE);
+    tracks_.camera_color_source = std::make_shared<livekit::VideoSource>(
+        camera_->width(), camera_->height());
+    lp->publishVideoTrack(pan_tilt_topics::kCameraColorTrack,
+                          tracks_.camera_color_source,
+                          livekit::TrackSource::SOURCE_CAMERA);
+
+    auto depth_result =
+        lp->publishDataTrack(pan_tilt_topics::kCameraDepthTrack);
+    if (!depth_result) {
+      LK_LOG_ERROR("[pan_tilt_livekit] Failed to publish data track '{}'",
+                   pan_tilt_topics::kCameraDepthTrack);
+      return false;
+    }
+    tracks_.camera_depth = std::move(depth_result).value();
+
+    tracks_.camera_depth_vis_source = std::make_shared<livekit::VideoSource>(
+        camera_->width(), camera_->height());
+    lp->publishVideoTrack(pan_tilt_topics::kCameraDepthVisTrack,
+                          tracks_.camera_depth_vis_source,
+                          livekit::TrackSource::SOURCE_SCREENSHARE);
+
     LK_LOG_INFO(
         "[pan_tilt_livekit] Published camera tracks: {} (video), {} (data), {} (video)",
         pan_tilt_topics::kCameraColorTrack, pan_tilt_topics::kCameraDepthTrack,
@@ -165,11 +243,12 @@ bool PtLiveKitApp::connectAndPublishTracks() {
 
 bool PtLiveKitApp::registerAcquireControlRpc() {
   try {
-    bridge_.registerRpcMethod(pan_tilt_topics::kAcquireControlRpc,
-                              [this](const livekit::RpcInvocationData &data)
-                                  -> std::optional<std::string> {
-                                return handleAcquireControlRpc(data);
-                              });
+    room_->localParticipant()->registerRpcMethod(
+        pan_tilt_topics::kAcquireControlRpc,
+        [this](const livekit::RpcInvocationData &data)
+            -> std::optional<std::string> {
+          return handleAcquireControlRpc(data);
+        });
     rpc_registered_ = true;
     LK_LOG_INFO("[pan_tilt_livekit] Registered RPC method '{}'",
                 pan_tilt_topics::kAcquireControlRpc);
@@ -183,6 +262,11 @@ bool PtLiveKitApp::registerAcquireControlRpc() {
 
 std::optional<std::string>
 PtLiveKitApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
+  if (data.caller_identity.empty()) {
+    LK_LOG_ERROR("[pan_tilt_livekit] acquire_control called with empty caller identity");
+    return std::nullopt;
+  }
+
   bool release_requested = false;
   if (!data.payload.empty()) {
     try {
@@ -203,13 +287,12 @@ PtLiveKitApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
     }
   }
 
-  std::string active_controller;
-  {
-    std::lock_guard<std::mutex> lock(controller_mutex_);
-    active_controller = controller_identity_;
-  }
-
   if (release_requested) {
+    std::string active_controller;
+    {
+      std::lock_guard<std::mutex> lock(controller_mutex_);
+      active_controller = controller_identity_;
+    }
     if (active_controller.empty()) {
       return std::optional<std::string>{"no controller is set"};
     }
@@ -222,23 +305,41 @@ PtLiveKitApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
                                       data.caller_identity};
   }
 
-  if (!active_controller.empty()) {
-    if (active_controller == data.caller_identity) {
-      return std::optional<std::string>{"already controller: " +
-                                        data.caller_identity};
-    }
-    return std::optional<std::string>{"controller is currently " +
-                                      active_controller};
-  }
-
   {
     std::lock_guard<std::mutex> lock(controller_mutex_);
+    if (!controller_identity_.empty()) {
+      if (controller_identity_ == data.caller_identity) {
+        return std::optional<std::string>{"already controller: " +
+                                          data.caller_identity};
+      }
+      return std::optional<std::string>{"controller is currently " +
+                                        controller_identity_};
+    }
     controller_identity_ = data.caller_identity;
   }
-  bridge_.setOnDataFrameCallback(
-      data.caller_identity, pan_tilt_topics::kControlCmdTrack,
-      [this](const std::vector<std::uint8_t> &payload,
-             std::optional<std::uint64_t>) { onControlCmdPayload(payload); });
+
+  try {
+    if (control_cmd_callback_id_ != 0) {
+      room_->removeOnDataFrameCallback(control_cmd_callback_id_);
+      control_cmd_callback_id_ = 0;
+    }
+    control_cmd_callback_id_ = room_->addOnDataFrameCallback(
+        data.caller_identity, pan_tilt_topics::kControlCmdTrack,
+        [this](const std::vector<std::uint8_t> &payload,
+               std::optional<std::uint64_t>) { onControlCmdPayload(payload); });
+  } catch (const std::exception &e) {
+    {
+      std::lock_guard<std::mutex> lock(controller_mutex_);
+      if (controller_identity_ == data.caller_identity) {
+        controller_identity_.clear();
+      }
+    }
+    LK_LOG_ERROR(
+        "[pan_tilt_livekit] Failed subscribing controller '{}' to '{}': {}",
+        data.caller_identity, pan_tilt_topics::kControlCmdTrack, e.what());
+    throw std::runtime_error("failed to subscribe controller to control_cmd");
+  }
+
   LK_LOG_INFO("[pan_tilt_livekit] Controller acquired by '{}'", data.caller_identity);
   return std::optional<std::string>{"control acquired by " +
                                     data.caller_identity};
@@ -255,8 +356,10 @@ void PtLiveKitApp::clearController() {
     controller_identity_.clear();
   }
 
-  bridge_.clearOnDataFrameCallback(previous_controller,
-                                   pan_tilt_topics::kControlCmdTrack);
+  if (control_cmd_callback_id_ != 0) {
+    room_->removeOnDataFrameCallback(control_cmd_callback_id_);
+    control_cmd_callback_id_ = 0;
+  }
   LK_LOG_INFO("[pan_tilt_livekit] Controller '{}' released", previous_controller);
 }
 
@@ -303,12 +406,18 @@ void PtLiveKitApp::publishStateTick() {
   const std::string tilt_msg = tilt_json.dump();
   const std::string gyro_msg = gyro_json.dump();
 
-  tracks_.pan_state->pushFrame(
+  (void)tracks_.pan_state->tryPush(
       std::vector<std::uint8_t>(pan_msg.begin(), pan_msg.end()));
-  tracks_.tilt_state->pushFrame(
+  publish_counts_[static_cast<std::size_t>(kPublishPanStateIdx)]
+      .fetch_add(1, std::memory_order_relaxed);
+  (void)tracks_.tilt_state->tryPush(
       std::vector<std::uint8_t>(tilt_msg.begin(), tilt_msg.end()));
-  tracks_.gyro_state->pushFrame(
+  publish_counts_[static_cast<std::size_t>(kPublishTiltStateIdx)]
+      .fetch_add(1, std::memory_order_relaxed);
+  (void)tracks_.gyro_state->tryPush(
       std::vector<std::uint8_t>(gyro_msg.begin(), gyro_msg.end()));
+  publish_counts_[static_cast<std::size_t>(kPublishGyroStateIdx)]
+      .fetch_add(1, std::memory_order_relaxed);
 }
 
 void PtLiveKitApp::processDepthSendJob(const DepthSendJob &job) {
@@ -361,8 +470,10 @@ void PtLiveKitApp::processDepthSendJob(const DepthSendJob &job) {
                 raw_size);
   }
 
-  tracks_.camera_depth->pushFrame(
-      payload, static_cast<std::uint64_t>(job.timestamp_us));
+  (void)tracks_.camera_depth->tryPush(
+      std::move(payload), static_cast<std::uint64_t>(job.timestamp_us));
+  publish_counts_[static_cast<std::size_t>(kPublishCameraDepthIdx)]
+      .fetch_add(1, std::memory_order_relaxed);
 }
 
 void PtLiveKitApp::depthWorkerLoop() {
@@ -414,12 +525,16 @@ void PtLiveKitApp::publishCameraTick() {
     return;
   }
 
-  if (tracks_.camera_color) {
-    tracks_.camera_color->pushFrame(frame.rgba.data(), frame.rgba.size(),
-                                    frame.timestamp_us);
+  if (tracks_.camera_color_source) {
+    livekit::VideoFrame vf(camera_->width(), camera_->height(),
+                           livekit::VideoBufferType::RGBA,
+                           std::move(frame.rgba));
+    tracks_.camera_color_source->captureFrame(vf, frame.timestamp_us);
+    publish_counts_[static_cast<std::size_t>(kPublishCameraColorIdx)]
+        .fetch_add(1, std::memory_order_relaxed);
   }
 
-  if (tracks_.camera_depth_vis) {
+  if (tracks_.camera_depth_vis_source) {
     const int dw = frame.depth_width;
     const int dh = frame.depth_height;
     const auto pixel_count = static_cast<std::size_t>(dw) * dh;
@@ -452,8 +567,11 @@ void PtLiveKitApp::publishCameraTick() {
       rgba[i * 4 + 3] = 0xFF;
     }
 
-    tracks_.camera_depth_vis->pushFrame(rgba.data(), rgba.size(),
-                                        frame.timestamp_us);
+    livekit::VideoFrame vf(dw, dh, livekit::VideoBufferType::RGBA,
+                           std::move(rgba));
+    tracks_.camera_depth_vis_source->captureFrame(vf, frame.timestamp_us);
+    publish_counts_[static_cast<std::size_t>(kPublishCameraDepthVisIdx)]
+        .fetch_add(1, std::memory_order_relaxed);
   }
 
   if (tracks_.camera_depth) {
@@ -502,6 +620,7 @@ int PtLiveKitApp::run() {
       std::chrono::microseconds(1000000 / std::max(config_.publish_rate_hz, 1));
   auto next_tick = std::chrono::steady_clock::now();
   last_depth_publish_ = std::chrono::steady_clock::now();
+  last_publish_diag_log_ = std::chrono::steady_clock::now();
 
   constexpr auto kMinLoopDuration = std::chrono::milliseconds(5);
 
@@ -517,6 +636,7 @@ int PtLiveKitApp::run() {
     }
 
     publishCameraTick();
+    logPublishDiagnosticsIfDue();
 
     const auto elapsed = std::chrono::steady_clock::now() - loop_start;
     if (elapsed < kMinLoopDuration) {
@@ -528,6 +648,44 @@ int PtLiveKitApp::run() {
   return 0;
 }
 
+void PtLiveKitApp::logPublishDiagnosticsIfDue() {
+  const auto now = std::chrono::steady_clock::now();
+  if (now - last_publish_diag_log_ < std::chrono::seconds(30)) {
+    return;
+  }
+  last_publish_diag_log_ = now;
+
+  long long rss_kb = -1;
+  long long vsz_kb = -1;
+  if (!readProcSelfMemoryKb(&rss_kb, &vsz_kb)) {
+    LK_LOG_WARN(
+        "[pan_tilt_livekit] could not read /proc/self/status (VmRSS/VmSize)");
+    return;
+  }
+
+  LK_LOG_INFO(
+      "[pan_tilt_livekit] mem VmRSS={} kB VmSize={} kB publish_total "
+      "{}={} {}={} {}={} {}={} {}={} {}={}",
+      rss_kb, vsz_kb, pan_tilt_topics::kGyroStateTrack,
+      publish_counts_[static_cast<std::size_t>(kPublishGyroStateIdx)].load(
+          std::memory_order_relaxed),
+      pan_tilt_topics::kPanStateTrack,
+      publish_counts_[static_cast<std::size_t>(kPublishPanStateIdx)].load(
+          std::memory_order_relaxed),
+      pan_tilt_topics::kTiltStateTrack,
+      publish_counts_[static_cast<std::size_t>(kPublishTiltStateIdx)].load(
+          std::memory_order_relaxed),
+      pan_tilt_topics::kCameraColorTrack,
+      publish_counts_[static_cast<std::size_t>(kPublishCameraColorIdx)].load(
+          std::memory_order_relaxed),
+      pan_tilt_topics::kCameraDepthTrack,
+      publish_counts_[static_cast<std::size_t>(kPublishCameraDepthIdx)].load(
+          std::memory_order_relaxed),
+      pan_tilt_topics::kCameraDepthVisTrack,
+      publish_counts_[static_cast<std::size_t>(kPublishCameraDepthVisIdx)].load(
+          std::memory_order_relaxed));
+}
+
 void PtLiveKitApp::shutdown() {
   if (shutdown_done_) {
     return;
@@ -536,9 +694,10 @@ void PtLiveKitApp::shutdown() {
 
   stopDepthWorker();
 
-  if (rpc_registered_) {
+  if (rpc_registered_ && room_) {
     try {
-      bridge_.unregisterRpcMethod(pan_tilt_topics::kAcquireControlRpc);
+      room_->localParticipant()->unregisterRpcMethod(
+          pan_tilt_topics::kAcquireControlRpc);
     } catch (const std::exception &e) {
       LK_LOG_WARN("[pan_tilt_livekit] RPC unregister skipped: {}", e.what());
     }
@@ -560,5 +719,8 @@ void PtLiveKitApp::shutdown() {
     LK_LOG_WARN("[pan_tilt_livekit] Failed to halt motors during shutdown");
   }
   gyro_.stop();
-  bridge_.disconnect();
+
+  tracks_ = {};
+  room_.reset();
+  livekit::shutdown();
 }

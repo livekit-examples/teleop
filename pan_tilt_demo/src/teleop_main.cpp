@@ -41,11 +41,8 @@
  *   LIVEKIT_URL=... LIVEKIT_TOKEN=... TeleopController
  */
 
-#include "livekit_bridge/livekit_bridge.h"
+#include "livekit/livekit.h"
 #include "pan_tilt_topics.h"
-#include "livekit/lk_log.h"
-#include "livekit/track.h"
-#include "livekit/video_frame.h"
 
 #include <SDL3/SDL.h>
 #include <zlib.h>
@@ -253,12 +250,17 @@ public:
     std::signal(SIGINT, handleSignal);
     std::signal(SIGTERM, handleSignal);
 
+    livekit::initialize();
+    room_ = std::make_unique<livekit::Room>();
+
     livekit::RoomOptions options;
     options.auto_subscribe = true;
     options.dynacast = false;
 
-    if (!bridge_.connect(args_.url, args_.token, options)) {
+    if (!room_->Connect(args_.url, args_.token, options)) {
       LK_LOG_ERROR("[pt_controller] Failed to connect to room");
+      room_.reset();
+      livekit::shutdown();
       return 1;
     }
     const auto token_identity = extractTokenIdentity(args_.token);
@@ -272,7 +274,8 @@ public:
             "Use a token generated with a distinct participant identity "
             "(e.g. --id pt_controller).",
             args_.robot_identity);
-        bridge_.disconnect();
+        room_.reset();
+        livekit::shutdown();
         return 1;
       }
     } else {
@@ -282,12 +285,22 @@ public:
     }
 
     setupStateSubscribers();
-    control_track_ = bridge_.createDataTrack(pan_tilt_topics::kControlCmdTrack);
+    auto dt_result =
+        room_->localParticipant()->publishDataTrack(
+            pan_tilt_topics::kControlCmdTrack);
+    if (!dt_result) {
+      LK_LOG_ERROR("[pt_controller] Failed to publish control_cmd data track");
+      room_.reset();
+      livekit::shutdown();
+      return 1;
+    }
+    control_track_ = std::move(dt_result).value();
 
     acquireControl();
 
     if (!initSdlInput()) {
-      bridge_.disconnect();
+      room_.reset();
+      livekit::shutdown();
       return 1;
     }
 
@@ -328,7 +341,9 @@ public:
       input_window_ = nullptr;
     }
     SDL_Quit();
-    bridge_.disconnect();
+    control_track_.reset();
+    room_.reset();
+    livekit::shutdown();
     return 0;
   }
 
@@ -383,7 +398,7 @@ private:
 
   void setupStateSubscribers() {
     LK_LOG_INFO("[pt_controller] Setting up gyro state subscriber");
-    bridge_.setOnDataFrameCallback(
+    room_->addOnDataFrameCallback(
         args_.robot_identity, pan_tilt_topics::kGyroStateTrack,
         [this](const std::vector<std::uint8_t> &payload,
                std::optional<std::uint64_t>) {
@@ -397,7 +412,7 @@ private:
         });
 
     LK_LOG_INFO("[pt_controller] Setting up pan state subscriber");
-    bridge_.setOnDataFrameCallback(
+    room_->addOnDataFrameCallback(
         args_.robot_identity, pan_tilt_topics::kPanStateTrack,
         [this](const std::vector<std::uint8_t> &payload,
                std::optional<std::uint64_t>) {
@@ -411,7 +426,7 @@ private:
         });
 
     LK_LOG_INFO("[pt_controller] Setting up tilt state subscriber");
-    bridge_.setOnDataFrameCallback(
+    room_->addOnDataFrameCallback(
         args_.robot_identity, pan_tilt_topics::kTiltStateTrack,
         [this](const std::vector<std::uint8_t> &payload,
                std::optional<std::uint64_t>) {
@@ -425,14 +440,14 @@ private:
         });
 
     LK_LOG_INFO("[pt_controller] Setting up camera.color video subscriber");
-    bridge_.setOnVideoFrameCallback(
+    room_->setOnVideoFrameCallback(
         args_.robot_identity, livekit::TrackSource::SOURCE_CAMERA,
         [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
           onVideoFrame(frame, timestamp_us);
         });
 
     LK_LOG_INFO("[pt_controller] Setting up camera.depth data subscriber");
-    bridge_.setOnDataFrameCallback(
+    room_->addOnDataFrameCallback(
         args_.robot_identity, pan_tilt_topics::kCameraDepthTrack,
         [this](const std::vector<std::uint8_t> &payload,
                std::optional<std::uint64_t> user_timestamp) {
@@ -440,7 +455,7 @@ private:
         });
 
     LK_LOG_INFO("[pt_controller] Setting up camera.depth_vis video subscriber");
-    bridge_.setOnVideoFrameCallback(
+    room_->setOnVideoFrameCallback(
         args_.robot_identity, livekit::TrackSource::SOURCE_SCREENSHARE,
         [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
           onDepthVisFrame(frame, timestamp_us);
@@ -622,19 +637,14 @@ private:
 
   void acquireControl() {
     LK_LOG_INFO("[pt_controller] Acquiring control");
-    // Requested method name first; fallback to current robot-side spelling.
     for (const std::string method : {pan_tilt_topics::kAcquireControlRpc}) {
       try {
-        const auto response = bridge_.performRpc(
+        const auto response = room_->localParticipant()->performRpc(
             args_.robot_identity, method, R"({"acquire":true})", 5.0);
-        if (!response.has_value()) {
-          LK_LOG_ERROR("[pt_controller] Control not acquired; teleop publishing disabled");
-          return;
-        }
         control_acquired_ = true;
         rpc_method_ = method;
         LK_LOG_INFO("[pt_controller] Control acquired via '{}' response='{}'",
-                    method, response.value());
+                    method, response);
         return;
       } catch (const std::exception &e) {
         LK_LOG_ERROR("[pt_controller] {} failed: {}", method, e.what());
@@ -648,8 +658,8 @@ private:
       return;
     }
     try {
-      bridge_.performRpc(args_.robot_identity, rpc_method_,
-                         R"({"acquire":false})", 3.0);
+      room_->localParticipant()->performRpc(
+          args_.robot_identity, rpc_method_, R"({"acquire":false})", 3.0);
       LK_LOG_INFO("[pt_controller] Control released");
     } catch (const std::exception &e) {
       LK_LOG_WARN("[pt_controller] Failed to release control: {}", e.what());
@@ -742,7 +752,7 @@ private:
         {"tilt_vel", tilt_vel_rad_s},
     };
     const std::string msg = cmd.dump();
-    control_track_->pushFrame(std::vector<std::uint8_t>(msg.begin(), msg.end()));
+    (void)control_track_->tryPush(std::vector<std::uint8_t>(msg.begin(), msg.end()));
   }
 
   void printLatestStates() {
@@ -801,8 +811,8 @@ private:
   static constexpr int kVideoHeight = 480;
 
   Args args_;
-  livekit_bridge::LiveKitBridge bridge_;
-  std::shared_ptr<livekit_bridge::BridgeDataTrack> control_track_;
+  std::unique_ptr<livekit::Room> room_;
+  std::shared_ptr<livekit::LocalDataTrack> control_track_;
   SDL_Window *input_window_{nullptr};
   SDL_Renderer *renderer_{nullptr};
   SDL_Texture *video_texture_{nullptr};

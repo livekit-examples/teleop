@@ -10,4 +10,4 @@ add_executable(Gyro
 target_include_directories(Gyro PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )
-target_link_libraries(Gyro PRIVATE LiveKit::livekit)
+target_link_libraries(Gyro PRIVATE LiveKit::livekit fmt::fmt)
