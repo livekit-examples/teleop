@@ -32,5 +32,6 @@ target_include_directories(KeyboardController PRIVATE
 )
 target_link_libraries(KeyboardController PRIVATE
   LiveKit::livekit
+  fmt::fmt
   SCServo
 )
