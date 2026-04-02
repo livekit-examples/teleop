@@ -15,7 +15,7 @@
     "@livekit/protocol": "^1.45.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "livekit-client": "file:/Users/thomasyuill/src/github.com/livekit/client-sdk-js",
+    "livekit-client": "^2.18.1",
     "livekit-server-sdk": "^2.15.0",
     "lucide-react": "^1.0.1",
     "motion": "^12.38.0",
