@@ -26,8 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: macOS x64
-            runs_on: macos-13
+          - name: macOS
+            runs_on: macos-latest
           - name: Linux x64
             runs_on: ubuntu-24.04
           - name: Linux ARM64
