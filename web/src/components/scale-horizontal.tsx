@@ -47,46 +47,47 @@ export function ScaleHorizontal({
   const stripWidth = degreeRange * pxPerDeg;
 
   return (
-    <div
-      className={cn(
-        'select-none grid grid-rows-[auto_auto] gap-1 font-mono text-accent-foreground',
-        className,
-      )}
-    >
-      {/* Horizontal value */}
-      <ScaleValue value={value} orientation="horizontal" className="h-8" />
+    <div className={cn('relative p-1 select-none', className)}>
       {/* Horizontal scale — strip translates so current value stays centered */}
-      <div
-        ref={viewportRef}
-        data-slot="scale"
-        className="relative h-8 w-full overflow-hidden mask-[linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]"
-      >
+      <div className="h-12 w-full">
         <div
-          className="absolute top-0 left-1/2 h-full transition-transform duration-200 ease-out will-change-transform"
-          style={{
-            width: stripWidth,
-            transform: `translateX(${-(value + 180) * pxPerDeg}px)`,
-          }}
+          ref={viewportRef}
+          data-slot="scale"
+          className="relative h-full w-full overflow-hidden mask-[linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]"
         >
-          {ticks.map((deg) => {
-            const isZero = deg === 0;
-            const x = (deg + 180) * pxPerDeg;
+          <div
+            className="absolute bottom-0 left-1/2 h-full transition-transform duration-200 ease-out will-change-transform"
+            style={{
+              width: stripWidth,
+              transform: `translateX(${-(value + 180) * pxPerDeg}px)`,
+            }}
+          >
+            {ticks.map((deg) => {
+              const isZero = deg === 0;
+              const x = (deg + 180) * pxPerDeg;
 
-            return (
-              <div
-                key={deg}
-                className="absolute top-0 flex -translate-x-1/2 flex-col items-center gap-1"
-                style={{ left: x }}
-              >
-                <div className={cn(`bg-muted-foreground/25 w-0.5`, isZero ? 'h-3' : 'h-2')} />
-                <span className="text-muted-foreground/50 shrink-0 font-mono text-xs leading-6 whitespace-pre">
-                  {deg >= 0 ? ` ${deg}°` : `${deg}°`}
-                </span>
-              </div>
-            );
-          })}
+              return (
+                <div
+                  key={deg}
+                  className="absolute bottom-0 flex grow -translate-x-1/2 flex-col items-center justify-end gap-1"
+                  style={{ left: x }}
+                >
+                  <span className="text-foreground shrink-0 font-mono text-xs leading-6 whitespace-pre">
+                    {deg >= 0 ? ` ${deg}°` : `${deg}°`}
+                  </span>
+                  <div className={cn(`bg-input w-0.5`, isZero ? 'h-3' : 'h-2')} />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
+      {/* Horizontal value */}
+      <ScaleValue
+        value={value}
+        orientation="horizontal"
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full"
+      />
     </div>
   );
 }

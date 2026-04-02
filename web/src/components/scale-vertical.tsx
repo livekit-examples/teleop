@@ -47,40 +47,46 @@ export function ScaleVertical({
   const stripHeight = degreeRange * pxPerDeg;
 
   return (
-    <div className={cn('select-none grid grid-cols-[auto_auto] gap-1', className)}>
+    <div className={cn('relative p-1 select-none', className)}>
       {/* Vertical scale — strip translates so current value stays centered */}
-      <div
-        ref={viewportRef}
-        data-slot="scale"
-        className="relative h-full min-h-0 w-12 overflow-hidden mask-[linear-gradient(to_bottom,transparent,black_8%,black_92%,transparent)]"
-      >
+      <div className="h-full w-12">
         <div
-          className="absolute top-1/2 left-0 w-full transition-transform duration-200 ease-out will-change-transform"
-          style={{
-            height: stripHeight,
-            transform: `translateY(${-(180 - value) * pxPerDeg}px)`,
-          }}
+          ref={viewportRef}
+          data-slot="scale"
+          className="relative h-full w-full overflow-hidden mask-[linear-gradient(to_bottom,transparent,black_8%,black_92%,transparent)]"
         >
-          {ticks.map((deg) => {
-            const isZero = deg === 0;
-            const y = (180 - deg) * pxPerDeg;
-            return (
-              <div
-                key={deg}
-                className="absolute right-0 flex -translate-y-1/2 items-center justify-end gap-1"
-                style={{ top: y }}
-              >
-                <span className="text-muted-foreground/50 shrink-0 text-right font-mono text-xs leading-6 whitespace-nowrap">
-                  {deg}°
-                </span>
-                <div className={cn(`bg-muted-foreground/25 h-0.5`, isZero ? 'w-3' : 'w-2')} />
-              </div>
-            );
-          })}
+          <div
+            className="absolute top-1/2 left-0 w-full transition-transform duration-200 ease-out will-change-transform"
+            style={{
+              height: stripHeight,
+              transform: `translateY(${-(180 - value) * pxPerDeg}px)`,
+            }}
+          >
+            {ticks.map((deg) => {
+              const isZero = deg === 0;
+              const y = (180 - deg) * pxPerDeg;
+              return (
+                <div
+                  key={deg}
+                  className="absolute right-0 flex -translate-y-1/2 items-center justify-end gap-1"
+                  style={{ top: y }}
+                >
+                  <span className="text-foreground shrink-0 text-right font-mono text-xs leading-6 whitespace-nowrap">
+                    {deg}°
+                  </span>
+                  <div className={cn(`bg-input h-0.5`, isZero ? 'w-3' : 'w-1')} />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
       {/* Vertical value */}
-      <ScaleValue value={value} orientation="vertical" />
+      <ScaleValue
+        value={value}
+        orientation="vertical"
+        className="absolute top-1/2 right-0 translate-x-full -translate-y-1/2"
+      />
     </div>
   );
 }

@@ -1,14 +1,29 @@
-import { type KeyboardEvent, type PointerEvent, useCallback, useEffect, useRef } from 'react';
+import {
+  type KeyboardEvent,
+  type PointerEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from 'react';
 
 const REPEAT_MS = 100;
 
 /**
- * Primary-button press: first step immediately, then every REPEAT_MS until release.
- * Keyboard (Enter/Space): single step per key press (no auto-repeat here).
+ * Returns pointer and keyboard event handlers that fire a `step` callback repeatedly.
+ *
+ * On primary-button pointer down the callback fires immediately, then every
+ * {@link REPEAT_MS} until the pointer is released or leaves. On keyboard Enter/Space
+ * a single step fires per press (no auto-repeat). The `step` ref is kept in sync
+ * via `useLayoutEffect` so callers can pass an unstable closure safely.
  */
 export function useRepeatStep(step: () => void) {
   const stepRef = useRef(step);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useLayoutEffect(() => {
+    stepRef.current = step;
+  }, [step]);
 
   const clear = useCallback(() => {
     if (intervalRef.current !== null) {

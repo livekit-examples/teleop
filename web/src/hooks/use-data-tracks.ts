@@ -1,27 +1,32 @@
-import { type Room, RoomEvent, type RoomEventCallbacks } from 'livekit-client';
+import { type Room, RoomEvent, type RoomEventCallbacks, RemoteDataTrack } from 'livekit-client';
 import { useEffect, useState } from 'react';
 
-/** Any data track in the room (local publish or remote). */
-export type RoomDataTrack =
-  | Parameters<RoomEventCallbacks['dataTrackPublished']>[0]
-  | Parameters<RoomEventCallbacks['localDataTrackPublished']>[0];
-
 /**
- * Subscribes to all data track publish/unpublish events (local and remote).
+ * Returns a live array of all {@link RemoteDataTrack}s in the room.
+ *
+ * On mount, seeds the list by iterating every remote participant's `dataTracks` map.
+ * After that, listens for `DataTrackPublished` / `DataTrackUnpublished` room events
+ * to keep the array in sync. The returned reference changes on every publish or
+ * unpublish, so downstream effects that depend on it will re-run.
  */
-export function useDataTracks(room: Room | undefined | null) {
-  const [dataTracks, setDataTracks] = useState<RoomDataTrack[]>([]);
+export function useRemoteDataTracks(room: Room | undefined | null) {
+  const [dataTracks, setDataTracks] = useState<RemoteDataTrack[]>([]);
 
   useEffect(() => {
     if (!room) return;
 
-    function handleRemotePublished(track: Parameters<RoomEventCallbacks['dataTrackPublished']>[0]) {
-      setDataTracks((prev) => [...prev, track]);
+    // Seed with already-published remote data tracks
+    const existing: RemoteDataTrack[] = [];
+    for (const participant of room.remoteParticipants.values()) {
+      for (const track of participant.dataTracks.values()) {
+        existing.push(track);
+      }
+    }
+    if (existing.length > 0) {
+      setDataTracks(existing);
     }
 
-    function handleLocalPublished(
-      track: Parameters<RoomEventCallbacks['localDataTrackPublished']>[0],
-    ) {
+    function handleRemotePublished(track: Parameters<RoomEventCallbacks['dataTrackPublished']>[0]) {
       setDataTracks((prev) => [...prev, track]);
     }
 
@@ -30,15 +35,11 @@ export function useDataTracks(room: Room | undefined | null) {
     }
 
     room.on(RoomEvent.DataTrackPublished, handleRemotePublished);
-    room.on(RoomEvent.LocalDataTrackPublished, handleLocalPublished);
     room.on(RoomEvent.DataTrackUnpublished, handleUnpublished);
-    room.on(RoomEvent.LocalDataTrackUnpublished, handleUnpublished);
 
     return () => {
       room.off(RoomEvent.DataTrackPublished, handleRemotePublished);
-      room.off(RoomEvent.LocalDataTrackPublished, handleLocalPublished);
       room.off(RoomEvent.DataTrackUnpublished, handleUnpublished);
-      room.off(RoomEvent.LocalDataTrackUnpublished, handleUnpublished);
     };
   }, [room]);
 

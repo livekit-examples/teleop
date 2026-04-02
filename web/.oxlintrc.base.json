@@ -1,0 +1,46 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "react"],
+  "jsPlugins": [
+    {
+      "name": "react-compiler",
+      "specifier": "eslint-plugin-react-hooks"
+    }
+  ],
+  "ignorePatterns": ["**/gen/", "**/dist/", "storybook-static/**"],
+  "rules": {
+    "no-case-declarations": "error",
+    "no-empty": "error",
+    "no-fallthrough": "error",
+    "no-prototype-builtins": "error",
+    "no-redeclare": "error",
+    "no-regex-spaces": "error",
+    "no-array-constructor": "error",
+    "@typescript-eslint/ban-ts-comment": "error",
+    "@typescript-eslint/no-empty-object-type": "error",
+    "@typescript-eslint/no-namespace": "error",
+    "@typescript-eslint/no-require-imports": "error",
+    "@typescript-eslint/no-unnecessary-type-constraint": "error",
+    "@typescript-eslint/no-unsafe-function-type": "error",
+    "react-hooks/exhaustive-deps": "warn",
+    "react-compiler/purity": "warn",
+    "react-compiler/refs": "warn",
+    "react-compiler/set-state-in-effect": "warn",
+    "react-compiler/immutability": "warn",
+    "react-compiler/static-components": "warn",
+    "react-compiler/preserve-manual-memoization": "warn",
+    "react-compiler/error-boundaries": "warn",
+    "react-compiler/rules-of-hooks": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "rules": {
+        "no-var": "error",
+        "prefer-const": "error",
+        "prefer-rest-params": "error",
+        "prefer-spread": "error"
+      }
+    }
+  ]
+}

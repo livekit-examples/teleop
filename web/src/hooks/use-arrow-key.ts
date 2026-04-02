@@ -1,9 +1,7 @@
-import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Mode } from '@/lib/types';
 
 const ARROW_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
-
-const REPEAT_MS = 100;
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -13,36 +11,17 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * While arrow keys are held: adjust pitch (up/down) and yaw (left/right) once per REPEAT_MS.
+ * Tracks which arrow keys are currently held down.
+ *
+ * Listens for `keydown` / `keyup` on the window and maintains a set of held arrow
+ * keys. Ignores events when `mode` is `'view'`, when the target is an editable
+ * element, or on key-repeat. All keys are released on window blur or unmount.
  */
-export function useArrowKeyDegrees(
-  mode: Mode,
-  setPitch: Dispatch<SetStateAction<number>>,
-  setYaw: Dispatch<SetStateAction<number>>,
-) {
+export function useArrowKey(mode: Mode) {
   const heldRef = useRef(new Set<string>());
   const [keysDown, setKeysDown] = useState<string[]>([]);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    const clearIntervalIfIdle = () => {
-      if (heldRef.current.size === 0 && intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-
-    const tick = () => {
-      let dp = 0;
-      let dy = 0;
-      if (heldRef.current.has('ArrowUp')) dp += 1;
-      if (heldRef.current.has('ArrowDown')) dp -= 1;
-      if (heldRef.current.has('ArrowRight')) dy += 1;
-      if (heldRef.current.has('ArrowLeft')) dy -= 1;
-      if (dp !== 0) setPitch((p) => p + dp);
-      if (dy !== 0) setYaw((y) => y + dy);
-    };
-
     const onKeyDown = (e: KeyboardEvent) => {
       if (mode === 'view') return;
       if (!ARROW_KEYS.has(e.key)) return;
@@ -53,10 +32,6 @@ export function useArrowKeyDegrees(
       if (heldRef.current.has(k)) return;
       heldRef.current.add(k);
       setKeysDown([...heldRef.current]);
-      tick();
-      if (intervalRef.current === null) {
-        intervalRef.current = setInterval(tick, REPEAT_MS);
-      }
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
@@ -64,14 +39,9 @@ export function useArrowKeyDegrees(
       if (!heldRef.current.has(e.key)) return;
       heldRef.current.delete(e.key);
       setKeysDown([...heldRef.current]);
-      clearIntervalIfIdle();
     };
 
     const releaseAll = () => {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
       heldRef.current.clear();
       setKeysDown([]);
     };
@@ -86,7 +56,7 @@ export function useArrowKeyDegrees(
       window.removeEventListener('blur', releaseAll);
       releaseAll();
     };
-  }, [mode, setPitch, setYaw, setKeysDown]);
+  }, [mode, setKeysDown]);
 
   return keysDown;
 }

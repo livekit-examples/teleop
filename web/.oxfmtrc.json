@@ -6,7 +6,7 @@
   "tabWidth": 2,
   "printWidth": 100,
   "sortTailwindcss": {
-    "functions": ["clsx", "cva"]
+    "functions": ["clsx", "cva", "cn"]
   },
   "importOrder": [
     "^(react/(.*)$)|^(react$)",

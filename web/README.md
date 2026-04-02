@@ -55,19 +55,22 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## Controls
 
 ### Joystick (Operator mode)
+
 Click and drag the joystick knob to control pan (horizontal) and tilt (vertical). The joystick springs back to center on release.
 
 ### Keyboard (Operator mode)
-| Key   | Action     |
-|-------|------------|
-| Left  | Pan left   |
-| Right | Pan right  |
-| Up    | Tilt up    |
-| Down  | Tilt down  |
+
+| Key   | Action    |
+| ----- | --------- |
+| Left  | Pan left  |
+| Right | Pan right |
+| Up    | Tilt up   |
+| Down  | Tilt down |
 
 Hold a key to repeat the input continuously.
 
 ### Modes
+
 - **View** -- read-only mode, controls are disabled
 - **Operator** -- active control of the robot, locked when another operator is connected
 
