@@ -2,6 +2,8 @@ name: Web
 on:
   workflow_call: {}
   workflow_dispatch: {}
+permissions:
+  contents: read
 jobs:
   web:
     name: Web
@@ -26,5 +28,7 @@ jobs:
         run: pnpm install
       - name: Format check
         run: pnpm format:check
+      - name: Lint check
+        run: pnpm lint
       - name: Ensure build succeeds
         run: pnpm build
