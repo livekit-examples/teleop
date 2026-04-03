@@ -11,6 +11,9 @@ concurrency:
   group: "ci"
   cancel-in-progress: true
 jobs:
+  web:
+    name: Web
+    uses: ./.github/workflows/web.yml
   license-check:
     name: License Check
     uses: ./.github/workflows/license_check.yml
