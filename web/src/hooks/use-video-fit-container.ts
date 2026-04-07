@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
 /**
  * Keeps a `<video>` element fitted within its parent container while preserving
@@ -14,8 +14,8 @@ export function useVideoFitContainer(mainVideoEl: HTMLVideoElement | null, isFul
 
     if (isFullscreen) {
       // eslint-disable-next-line react-hooks/immutability
-      mainVideoEl.style.width = "100%";
-      mainVideoEl.style.height = "100%";
+      mainVideoEl.style.width = '100%';
+      mainVideoEl.style.height = '100%';
       return;
     }
 
@@ -29,11 +29,11 @@ export function useVideoFitContainer(mainVideoEl: HTMLVideoElement | null, isFul
       const videoAspectRatio = mainVideoEl.videoWidth / mainVideoEl.videoHeight;
 
       if (containerAspectRatio > videoAspectRatio) {
-        mainVideoEl.style.width = "auto";
-        mainVideoEl.style.height = "100%";
+        mainVideoEl.style.width = 'auto';
+        mainVideoEl.style.height = '100%';
       } else {
-        mainVideoEl.style.width = "100%";
-        mainVideoEl.style.height = "auto";
+        mainVideoEl.style.width = '100%';
+        mainVideoEl.style.height = 'auto';
       }
     }
 
