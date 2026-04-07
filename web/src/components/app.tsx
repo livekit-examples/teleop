@@ -1,23 +1,23 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ScaleVertical } from '@/components/scale-vertical';
-import { ScaleHorizontal } from '@/components/scale-horizontal';
-import { StatusBar } from '@/components/status-bar';
-import { Joystick } from '@/components/joystick';
-import { useSessionContext, useTracks, VideoTrack } from '@livekit/components-react';
-import { useAcquireControl } from '@/hooks/use-acquire-control';
-import { useControlCmdTrack } from '@/hooks/use-control-cmd-track';
-import { useGyro } from '@/hooks/use-gyro';
-import { usePanTilt } from '@/hooks/use-pan-tilt';
-import { useVideoFitContainer } from '@/hooks/use-video-fit-container';
-import { ConnectionState, Track } from 'livekit-client';
-import { Button } from '@/components/ui/button';
-import { MinimizeIcon, MaximizeIcon, PowerIcon } from 'lucide-react';
-import { motion, AnimatePresence, type Transition } from 'motion/react';
-import { cn } from '@/lib/utils';
+import { useState } from "react";
+import { ScaleVertical } from "@/components/scale-vertical";
+import { ScaleHorizontal } from "@/components/scale-horizontal";
+import { StatusBar } from "@/components/status-bar";
+import { Joystick } from "@/components/joystick";
+import { useSessionContext, useTracks, VideoTrack } from "@livekit/components-react";
+import { useAcquireControl } from "@/hooks/use-acquire-control";
+import { useControlCmdTrack } from "@/hooks/use-control-cmd-track";
+import { useGyro } from "@/hooks/use-gyro";
+import { usePanTilt } from "@/hooks/use-pan-tilt";
+import { useVideoFitContainer } from "@/hooks/use-video-fit-container";
+import { ConnectionState, Track } from "livekit-client";
+import { Button } from "@/components/ui/button";
+import { MinimizeIcon, MaximizeIcon, PowerIcon } from "lucide-react";
+import { motion, AnimatePresence, type Transition } from "motion/react";
+import { cn } from "@/lib/utils";
 
-const ROBOT_IDENTITY = process.env.NEXT_PUBLIC_ROBOT_IDENTITY || '';
+const ROBOT_IDENTITY = process.env.NEXT_PUBLIC_ROBOT_IDENTITY || "";
 
 const ANIMATION_VARIANTS = {
   hidden: { opacity: 0, y: 10 },
@@ -25,7 +25,7 @@ const ANIMATION_VARIANTS = {
 };
 
 const ANIMATION_TRANSITION: Transition = {
-  type: 'spring',
+  type: "spring",
   duration: 0.2,
   bounce: 0.1,
 };
@@ -45,9 +45,9 @@ export function App() {
     isConnected: session.isConnected,
   });
 
-  const { pushControlCmd } = useControlCmdTrack(mode === 'operate' && session.isConnected);
+  const { pushControlCmd } = useControlCmdTrack(mode === "operate" && session.isConnected);
 
-  useVideoFitContainer(mainVideoEl, session.isConnected, isFullscreen);
+  useVideoFitContainer(mainVideoEl, isFullscreen);
 
   return (
     <div className="relative h-dvh">
@@ -73,8 +73,8 @@ export function App() {
               <PowerIcon size={24} className="text-foreground size-5" />
               <span className="opacity-75">
                 {session.connectionState === ConnectionState.Connecting
-                  ? 'Connecting… '
-                  : 'Connect to '}{' '}
+                  ? "Connecting… "
+                  : "Connect to "}{" "}
               </span>
               <span className="text-foreground mr-3 font-bold uppercase">{ROBOT_IDENTITY}</span>
             </Button>
@@ -94,8 +94,8 @@ export function App() {
             }}
             transition={ANIMATION_TRANSITION}
             className={cn(
-              'absolute inset-x-36 top-12 bottom-36',
-              isFullscreen ? 'inset-0' : 'inset-x-36 inset-y-16',
+              "absolute inset-x-36 top-12 bottom-36",
+              isFullscreen ? "inset-0" : "inset-x-36 inset-y-16",
             )}
           >
             <div className="flex h-full w-full items-center justify-center">
@@ -121,27 +121,27 @@ export function App() {
             exit="hidden"
             variants={ANIMATION_VARIANTS}
             transition={ANIMATION_TRANSITION}
-            className="absolute bottom-2 left-2 z-10"
+            className="absolute bottom-4 left-4 z-10"
           >
             <Button
-              type="button"
               size="icon"
+              type="button"
               variant="outline"
-              aria-label={isFullscreen ? 'Minimize Fullscreen' : 'Maximize Fullscreen'}
+              aria-label={isFullscreen ? "Minimize Fullscreen" : "Maximize Fullscreen"}
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="size-10"
+              className="size-8 rounded"
             >
               {isFullscreen ? (
-                <MinimizeIcon size={24} className="text-foreground size-6" />
+                <MinimizeIcon size={24} className="text-foreground size-5" />
               ) : (
-                <MaximizeIcon size={24} className="text-foreground size-6" />
+                <MaximizeIcon size={24} className="text-foreground size-5" />
               )}
             </Button>
           </motion.div>
         )}
 
         {/* Depth video */}
-        {/* {session.isConnected && depthVideoTrack && (
+        {session.isConnected && depthVideoTrack && (
           <motion.div
             key="depth-video-placeholder"
             initial="hidden"
@@ -158,7 +158,7 @@ export function App() {
               <VideoTrack trackRef={depthVideoTrack} className="h-[100px] mix-blend-multiply" />
             </div>
           </motion.div>
-        )} */}
+        )}
 
         {/* Vertical degree scale (pitch) */}
         {session.isConnected && (
@@ -168,15 +168,15 @@ export function App() {
             animate="visible"
             exit="hidden"
             variants={{
-              hidden: { opacity: 0, translateX: -10, translateY: '-50%' },
-              visible: { opacity: 1, translateX: 0, translateY: '-50%' },
+              hidden: { opacity: 0, translateX: -10, translateY: "-50%" },
+              visible: { opacity: 1, translateX: 0, translateY: "-50%" },
             }}
             transition={ANIMATION_TRANSITION}
             className="absolute top-1/2 left-0 z-10"
           >
             <ScaleVertical
               value={tilt}
-              className={cn('h-[500px]', isFullscreen && 'bg-background/60 rounded-r-lg')}
+              className={cn("h-[500px]", isFullscreen && "bg-background/60 rounded-r-lg")}
             />
           </motion.div>
         )}
@@ -189,21 +189,21 @@ export function App() {
             animate="visible"
             exit="hidden"
             variants={{
-              hidden: { opacity: 0, translateY: -10, translateX: '-50%' },
-              visible: { opacity: 1, translateY: 0, translateX: '-50%' },
+              hidden: { opacity: 0, translateY: -10, translateX: "-50%" },
+              visible: { opacity: 1, translateY: 0, translateX: "-50%" },
             }}
             transition={ANIMATION_TRANSITION}
             className="absolute top-0 left-1/2 z-10"
           >
             <ScaleHorizontal
               value={pan}
-              className={cn('w-[700px]', isFullscreen && 'bg-background/60 rounded-b-lg')}
+              className={cn("w-[700px]", isFullscreen && "bg-background/60 rounded-b-lg")}
             />
           </motion.div>
         )}
 
         {/* Joystick */}
-        {session.isConnected && mode === 'operate' && (
+        {session.isConnected && mode === "operate" && (
           <motion.div
             key="joystick"
             initial="hidden"
@@ -233,7 +233,7 @@ export function App() {
           isOperatorModeLocked={isOperatorModeLocked}
           onModeRequest={handleModeRequest}
           onShowDebugInfoChange={setShowDebugInfo}
-          className={cn(isFullscreen && 'bg-background/60')}
+          className={cn(isFullscreen && "bg-background/60")}
         />
 
         {/* Debug info */}
@@ -246,8 +246,8 @@ export function App() {
             variants={ANIMATION_VARIANTS}
             transition={ANIMATION_TRANSITION}
             className={cn(
-              'bg-card text-foreground border-input absolute bottom-14 left-1/2 grid w-120 -translate-x-1/2 grid-cols-3 gap-8 rounded-lg border p-4 font-mono text-xs',
-              isFullscreen && 'bg-background/60',
+              "bg-card text-foreground border-input absolute bottom-14 left-1/2 grid w-120 -translate-x-1/2 grid-cols-3 gap-8 rounded-lg border p-4 font-mono text-xs",
+              isFullscreen && "bg-background/60",
             )}
           >
             <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
@@ -260,7 +260,7 @@ export function App() {
               {/* Gyroscope validity */}
               <div className="opacity-50">valid</div>
               <div className="text-right">
-                {gyro.valid === undefined ? '—' : gyro.valid ? 'yes' : 'no'}
+                {gyro.valid === undefined ? "—" : gyro.valid ? "yes" : "no"}
               </div>
             </div>
 
@@ -268,17 +268,17 @@ export function App() {
               {/* Angular velocity */}
               <div className="opacity-50">ωz</div>
               <div className="text-right">
-                {gyro.gyro_z_dps !== undefined ? gyro.gyro_z_dps.toFixed(2) : '—'}
+                {gyro.gyro_z_dps !== undefined ? gyro.gyro_z_dps.toFixed(2) : "—"}
               </div>
               <div>°/s</div>
               <div className="opacity-50">ωy</div>
               <div className="text-right">
-                {gyro.gyro_y_dps !== undefined ? gyro.gyro_y_dps.toFixed(2) : '—'}
+                {gyro.gyro_y_dps !== undefined ? gyro.gyro_y_dps.toFixed(2) : "—"}
               </div>
               <div>°/s</div>
               <div className="opacity-50">ωx</div>
               <div className="text-right">
-                {gyro.gyro_x_dps !== undefined ? gyro.gyro_x_dps.toFixed(2) : '—'}
+                {gyro.gyro_x_dps !== undefined ? gyro.gyro_x_dps.toFixed(2) : "—"}
               </div>
               <div>°/s</div>
             </div>
@@ -287,17 +287,17 @@ export function App() {
               {/* Angular position */}
               <div className="opacity-50">θx</div>
               <div className="text-right">
-                {gyro.angle_x_deg !== undefined ? gyro.angle_x_deg.toFixed(2) : '—'}
+                {gyro.angle_x_deg !== undefined ? gyro.angle_x_deg.toFixed(2) : "—"}
               </div>
               <div>°</div>
               <div className="opacity-50">θy</div>
               <div className="text-right">
-                {gyro.angle_y_deg !== undefined ? gyro.angle_y_deg.toFixed(2) : '—'}
+                {gyro.angle_y_deg !== undefined ? gyro.angle_y_deg.toFixed(2) : "—"}
               </div>
               <div>°</div>
               <div className="opacity-50">θz</div>
               <div className="text-right">
-                {gyro.angle_z_deg !== undefined ? gyro.angle_z_deg.toFixed(2) : '—'}
+                {gyro.angle_z_deg !== undefined ? gyro.angle_z_deg.toFixed(2) : "—"}
               </div>
               <div>°</div>
             </div>
