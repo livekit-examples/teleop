@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useSessionContext } from '@livekit/components-react';
-import { ConnectionState } from 'livekit-client';
-import { Radio, RadioOff, Gamepad2, BugIcon, BugOffIcon, PowerIcon } from 'lucide-react';
-import { motion } from 'motion/react';
-import { Mode } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { ModeToggle } from '@/components/mode-toggle';
-import { useGamepadConnected } from '@/hooks/use-gamepad-connected';
-import { cn } from '@/lib/utils';
-import { useGyro } from '@/hooks/use-gyro';
-import { Gyroscope } from './gyroscope';
+import { useSessionContext } from "@livekit/components-react";
+import { ConnectionState } from "livekit-client";
+import { Radio, RadioOff, Gamepad2, BugIcon, BugOffIcon, PowerIcon } from "lucide-react";
+import { motion } from "motion/react";
+import { Mode } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
+import { useGamepadConnected } from "@/hooks/use-gamepad-connected";
+import { cn } from "@/lib/utils";
+import { useGyro } from "@/hooks/use-gyro";
+import { Gyroscope } from "./gyroscope";
 
 interface StatusBarProps {
   mode: Mode;
@@ -47,9 +47,9 @@ export function StatusBar({
       }}
       transition={{
         duration: 0.2,
-        ease: 'easeInOut',
+        ease: "easeInOut",
       }}
-      className={cn('fixed inset-x-0 bottom-0', className)}
+      className={cn("fixed inset-x-0 bottom-0", className)}
     >
       <div className="flex items-center justify-between p-2">
         {/* Actions */}
@@ -57,19 +57,19 @@ export function StatusBar({
 
         {/* Connection Status */}
         {isConnectedOrConnecting && (
-          <div className="bg-card dark:border-input flex items-center justify-between gap-1 rounded-lg border p-1">
+          <div className="bg-card dark:border-input flex items-center justify-between gap-1 rounded-md border p-1">
             <Button
+              size="icon"
               type="button"
               variant="outline"
-              size="icon"
               title="Toggle Debug Info"
               onClick={() => onShowDebugInfoChange(!showDebugInfo)}
               className="rounded"
             >
               {showDebugInfo ? (
-                <BugOffIcon size={20} className="text-foreground size-5" />
+                <BugOffIcon size={20} className="text-foreground size-4" />
               ) : (
-                <BugIcon size={20} className="text-foreground size-5" />
+                <BugIcon size={20} className="text-foreground size-4" />
               )}
             </Button>
             <div className="bg-background/50 dark:border-input flex h-8 w-100 items-center justify-between gap-8 rounded border px-3 font-mono text-sm font-light">
@@ -81,8 +81,8 @@ export function StatusBar({
                   {session.connectionState === ConnectionState.Connecting ||
                   session.connectionState === ConnectionState.Reconnecting ||
                   session.connectionState === ConnectionState.SignalReconnecting
-                    ? 'Connecting'
-                    : 'Connected to'}
+                    ? "Connecting"
+                    : "Connected to"}
                 </span>
                 <span className="text-foreground">{roomName}</span>
               </span>
@@ -91,27 +91,27 @@ export function StatusBar({
                 size={20}
                 aria-hidden
                 className={cn(
-                  'shrink-0 transition-colors duration-200',
-                  gamepadConnected ? 'text-foreground' : 'text-foreground/25',
+                  "shrink-0 transition-colors duration-200",
+                  gamepadConnected ? "text-foreground" : "text-foreground/25",
                 )}
               />
             </div>
             <Button
+              size="icon"
               type="button"
               title="Disconnect"
-              size="icon"
               variant="outline"
               onClick={() => session.end()}
               className="rounded"
             >
-              <PowerIcon size={24} className="text-foreground size-5" />
+              <PowerIcon size={24} className="text-foreground size-4" />
             </Button>
           </div>
         )}
 
         <div className="flex w-[300px] items-center justify-end gap-1">
           {/* Gyroscope */}
-          {mode === 'operate' && (
+          {mode === "operate" && (
             <Gyroscope x={gyro.gyro_x_dps} y={gyro.gyro_y_dps} z={gyro.gyro_z_dps} />
           )}
 
