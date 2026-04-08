@@ -1,0 +1,1 @@
+{"version":3,"file":"abort-signal-polyfill.d.ts","sourceRoot":"","sources":["../../../src/utils/abort-signal-polyfill.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AACH,wBAAgB,cAAc,CAAC,OAAO,EAAE,KAAK,CAAC,WAAW,CAAC,GAAG,WAAW,CA0CvE;AAED;;;;GAIG;AACH,wBAAgB,kBAAkB,CAAC,EAAE,EAAE,MAAM,GAAG,WAAW,CAQ1D"}
