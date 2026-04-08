@@ -34,7 +34,7 @@ jobs:
             runs_on: ubuntu-24.04-arm
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       # pan_tilt_demo README + project deps (librealsense is built from source; no apt librealsense2 packages).
       - name: Install Linux dependencies
