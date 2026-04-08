@@ -80,7 +80,7 @@ jobs:
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
-        run: brew install spdlog readline zlib
+        run: brew install spdlog readline zlib fmt
 
       - name: Build pan_tilt_demo
         working-directory: pan_tilt_demo
