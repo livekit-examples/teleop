@@ -16,7 +16,7 @@
 
 #include "pan_tilt_livekit.h"
 
-#include "livekit/lk_log.h"
+#include "ostream_log.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -65,12 +65,12 @@ bool parseServoIdArg(const std::string &raw, u8 *out) {
 }
 
 void printUsage(const char *prog_name) {
-  LK_LOG_INFO(
+  WriteLine(std::cout, 
       "Usage: {} --serial-port <device> [--url <ws-url>] [--token <token>] "
       "[--gyro-bus <int>] [--gyro-address <addr>] [--pan-id <id>] "
       "[--tilt-id <id>] [--calibrate-ofs] [--no-realsense]",
       prog_name);
-  LK_LOG_INFO("Env fallbacks: LIVEKIT_URL, LIVEKIT_TOKEN");
+  WriteLine(std::cout, "Env fallbacks: LIVEKIT_URL, LIVEKIT_TOKEN");
 }
 
 std::optional<PtLiveKitConfig> parseArgs(int argc, char *argv[]) {
@@ -81,7 +81,7 @@ std::optional<PtLiveKitConfig> parseArgs(int argc, char *argv[]) {
     const std::string arg = argv[i];
     auto require_value = [&](const char *flag) -> std::optional<std::string> {
       if (i + 1 >= argc) {
-        LK_LOG_ERROR("[pan_tilt_livekit] Missing value for {}", flag);
+        WriteLine(std::cerr, "[pan_tilt_livekit] Missing value for {}", flag);
         return std::nullopt;
       }
       return std::string(argv[++i]);
@@ -120,7 +120,7 @@ std::optional<PtLiveKitConfig> parseArgs(int argc, char *argv[]) {
         return std::nullopt;
       }
       if (!parseIntArg(*v, &cfg.gyro_bus)) {
-        LK_LOG_ERROR("[pan_tilt_livekit] Invalid --gyro-bus value: {}", *v);
+        WriteLine(std::cerr, "[pan_tilt_livekit] Invalid --gyro-bus value: {}", *v);
         return std::nullopt;
       }
       continue;
@@ -131,7 +131,7 @@ std::optional<PtLiveKitConfig> parseArgs(int argc, char *argv[]) {
         return std::nullopt;
       }
       if (!parseAddressArg(*v, &cfg.gyro_address)) {
-        LK_LOG_ERROR("[pan_tilt_livekit] Invalid --gyro-address value: {}", *v);
+        WriteLine(std::cerr, "[pan_tilt_livekit] Invalid --gyro-address value: {}", *v);
         return std::nullopt;
       }
       continue;
@@ -142,7 +142,7 @@ std::optional<PtLiveKitConfig> parseArgs(int argc, char *argv[]) {
         return std::nullopt;
       }
       if (!parseServoIdArg(*v, &cfg.motor_ids[0])) {
-        LK_LOG_ERROR("[pan_tilt_livekit] Invalid --pan-id value: {}", *v);
+        WriteLine(std::cerr, "[pan_tilt_livekit] Invalid --pan-id value: {}", *v);
         return std::nullopt;
       }
       continue;
@@ -153,7 +153,7 @@ std::optional<PtLiveKitConfig> parseArgs(int argc, char *argv[]) {
         return std::nullopt;
       }
       if (!parseServoIdArg(*v, &cfg.motor_ids[1])) {
-        LK_LOG_ERROR("[pan_tilt_livekit] Invalid --tilt-id value: {}", *v);
+        WriteLine(std::cerr, "[pan_tilt_livekit] Invalid --tilt-id value: {}", *v);
         return std::nullopt;
       }
       continue;
@@ -208,15 +208,15 @@ std::optional<PtLiveKitConfig> parseArgs(int argc, char *argv[]) {
   }
 
   if (cfg.publish_rate_hz <= 0) {
-    LK_LOG_ERROR("[pan_tilt_livekit] publish_rate_hz must be > 0");
+    WriteLine(std::cerr, "[pan_tilt_livekit] publish_rate_hz must be > 0");
     return std::nullopt;
   }
   if (cfg.serial_port.empty() || cfg.url.empty() || cfg.token.empty()) {
-    LK_LOG_ERROR("[pan_tilt_livekit] Missing required args: serial port/url/token");
+    WriteLine(std::cerr, "[pan_tilt_livekit] Missing required args: serial port/url/token");
     return std::nullopt;
   }
   if (cfg.motor_ids[0] == cfg.motor_ids[1]) {
-    LK_LOG_ERROR("[pan_tilt_livekit] pan-id and tilt-id must be unique");
+    WriteLine(std::cerr, "[pan_tilt_livekit] pan-id and tilt-id must be unique");
     return std::nullopt;
   }
   return cfg;
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
     PtLiveKitApp app(*cfg);
     return app.run();
   } catch (const std::exception &e) {
-    LK_LOG_ERROR("[pan_tilt_livekit] Fatal error: {}", e.what());
+    WriteLine(std::cerr, "[pan_tilt_livekit] Fatal error: {}", e.what());
     return 1;
   }
 }

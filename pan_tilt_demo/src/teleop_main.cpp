@@ -42,6 +42,7 @@
  */
 
 #include "livekit/livekit.h"
+#include "ostream_log.h"
 #include "pan_tilt_topics.h"
 
 #include <SDL3/SDL.h>
@@ -188,11 +189,11 @@ struct Args {
 };
 
 void printUsage(const char *prog) {
-  LK_LOG_INFO("Usage: {} [--url <ws-url>] [--token <token>] "
+  WriteLine(std::cout, "Usage: {} [--url <ws-url>] [--token <token>] "
               "[--robot <identity>]",
               prog);
-  LK_LOG_INFO("Env fallbacks: LIVEKIT_URL, LIVEKIT_TOKEN");
-  LK_LOG_INFO("Keyboard (SDL window): A/D pan, W/X tilt, S stop, "
+  WriteLine(std::cout, "Env fallbacks: LIVEKIT_URL, LIVEKIT_TOKEN");
+  WriteLine(std::cout, "Keyboard (SDL window): A/D pan, W/X tilt, S stop, "
               "Space toggle RGB/depth, Q quit");
 }
 
@@ -236,7 +237,7 @@ bool parseArgs(int argc, char *argv[], Args &args) {
   }
 
   if (args.url.empty() || args.token.empty()) {
-    LK_LOG_ERROR("[pt_controller] Missing url/token");
+    WriteLine(std::cerr, "[pt_controller] Missing url/token");
     return false;
   }
   return true;
@@ -258,18 +259,18 @@ public:
     options.dynacast = false;
 
     if (!room_->Connect(args_.url, args_.token, options)) {
-      LK_LOG_ERROR("[pt_controller] Failed to connect to room");
+      WriteLine(std::cerr, "[pt_controller] Failed to connect to room");
       room_.reset();
       livekit::shutdown();
       return 1;
     }
     const auto token_identity = extractTokenIdentity(args_.token);
     if (token_identity.has_value()) {
-      LK_LOG_INFO(
+      WriteLine(std::cout, 
           "[pt_controller] Connected. Local identity='{}', robot identity='{}'",
           *token_identity, args_.robot_identity);
       if (*token_identity == args_.robot_identity) {
-        LK_LOG_ERROR(
+        WriteLine(std::cerr, 
             "[pt_controller] Local identity matches robot identity ('{}'). "
             "Use a token generated with a distinct participant identity "
             "(e.g. --id pt_controller).",
@@ -279,7 +280,7 @@ public:
         return 1;
       }
     } else {
-      LK_LOG_WARN("[pt_controller] Connected. Robot identity='{}' "
+      WriteLine(std::cerr, "[pt_controller] Connected. Robot identity='{}' "
                   "(could not decode local identity from token)",
                   args_.robot_identity);
     }
@@ -289,7 +290,7 @@ public:
         room_->localParticipant()->publishDataTrack(
             pan_tilt_topics::kControlCmdTrack);
     if (!dt_result) {
-      LK_LOG_ERROR("[pt_controller] Failed to publish control_cmd data track");
+      WriteLine(std::cerr, "[pt_controller] Failed to publish control_cmd data track");
       room_.reset();
       livekit::shutdown();
       return 1;
@@ -304,7 +305,7 @@ public:
       return 1;
     }
 
-    LK_LOG_INFO("[pt_controller] Controls: a/d pan, w/x tilt, "
+    WriteLine(std::cout, "[pt_controller] Controls: a/d pan, w/x tilt, "
                 "s stop, space toggle RGB/depth, q quit");
 
     auto next_tick = Clock::now();
@@ -350,7 +351,7 @@ public:
 private:
   bool initSdlInput() {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
-      LK_LOG_ERROR("[pt_controller] SDL_Init failed: {}", SDL_GetError());
+      WriteLine(std::cerr, "[pt_controller] SDL_Init failed: {}", SDL_GetError());
       return false;
     }
 
@@ -358,7 +359,7 @@ private:
         "PT Controller - RGB (Space to switch)",
         kVideoWidth, kVideoHeight, SDL_WINDOW_RESIZABLE);
     if (input_window_ == nullptr) {
-      LK_LOG_ERROR("[pt_controller] SDL_CreateWindow failed: {}",
+      WriteLine(std::cerr, "[pt_controller] SDL_CreateWindow failed: {}",
                    SDL_GetError());
       SDL_Quit();
       return false;
@@ -366,7 +367,7 @@ private:
 
     renderer_ = SDL_CreateRenderer(input_window_, nullptr);
     if (renderer_ == nullptr) {
-      LK_LOG_ERROR("[pt_controller] SDL_CreateRenderer failed: {}",
+      WriteLine(std::cerr, "[pt_controller] SDL_CreateRenderer failed: {}",
                    SDL_GetError());
       SDL_DestroyWindow(input_window_);
       input_window_ = nullptr;
@@ -378,7 +379,7 @@ private:
                                        SDL_TEXTUREACCESS_STREAMING,
                                        kVideoWidth, kVideoHeight);
     if (video_texture_ == nullptr) {
-      LK_LOG_ERROR("[pt_controller] SDL_CreateTexture failed: {}",
+      WriteLine(std::cerr, "[pt_controller] SDL_CreateTexture failed: {}",
                    SDL_GetError());
       SDL_DestroyRenderer(renderer_);
       renderer_ = nullptr;
@@ -390,14 +391,14 @@ private:
 
     SDL_RaiseWindow(input_window_);
     SDL_PumpEvents();
-    LK_LOG_INFO(
+    WriteLine(std::cout, 
         "[pt_controller] SDL window ready ({}x{}). Keep it focused for controls.",
         kVideoWidth, kVideoHeight);
     return true;
   }
 
   void setupStateSubscribers() {
-    LK_LOG_INFO("[pt_controller] Setting up gyro state subscriber");
+    WriteLine(std::cout, "[pt_controller] Setting up gyro state subscriber");
     room_->addOnDataFrameCallback(
         args_.robot_identity, pan_tilt_topics::kGyroStateTrack,
         [this](const std::vector<std::uint8_t> &payload,
@@ -407,11 +408,11 @@ private:
             std::lock_guard<std::mutex> lock(mu_);
             latest_gyro_ = parsed;
           } catch (const std::exception &e) {
-            LK_LOG_WARN("[pt_controller] Bad state.gyro JSON: {}", e.what());
+            WriteLine(std::cerr, "[pt_controller] Bad state.gyro JSON: {}", e.what());
           }
         });
 
-    LK_LOG_INFO("[pt_controller] Setting up pan state subscriber");
+    WriteLine(std::cout, "[pt_controller] Setting up pan state subscriber");
     room_->addOnDataFrameCallback(
         args_.robot_identity, pan_tilt_topics::kPanStateTrack,
         [this](const std::vector<std::uint8_t> &payload,
@@ -421,11 +422,11 @@ private:
             std::lock_guard<std::mutex> lock(mu_);
             latest_pan_ = parsed;
           } catch (const std::exception &e) {
-            LK_LOG_WARN("[pt_controller] Bad state.pan JSON: {}", e.what());
+            WriteLine(std::cerr, "[pt_controller] Bad state.pan JSON: {}", e.what());
           }
         });
 
-    LK_LOG_INFO("[pt_controller] Setting up tilt state subscriber");
+    WriteLine(std::cout, "[pt_controller] Setting up tilt state subscriber");
     room_->addOnDataFrameCallback(
         args_.robot_identity, pan_tilt_topics::kTiltStateTrack,
         [this](const std::vector<std::uint8_t> &payload,
@@ -435,18 +436,18 @@ private:
             std::lock_guard<std::mutex> lock(mu_);
             latest_tilt_ = parsed;
           } catch (const std::exception &e) {
-            LK_LOG_WARN("[pt_controller] Bad state.tilt JSON: {}", e.what());
+            WriteLine(std::cerr, "[pt_controller] Bad state.tilt JSON: {}", e.what());
           }
         });
 
-    LK_LOG_INFO("[pt_controller] Setting up camera.color video subscriber");
+    WriteLine(std::cout, "[pt_controller] Setting up camera.color video subscriber");
     room_->setOnVideoFrameCallback(
         args_.robot_identity, livekit::TrackSource::SOURCE_CAMERA,
         [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
           onVideoFrame(frame, timestamp_us);
         });
 
-    LK_LOG_INFO("[pt_controller] Setting up camera.depth data subscriber");
+    WriteLine(std::cout, "[pt_controller] Setting up camera.depth data subscriber");
     room_->addOnDataFrameCallback(
         args_.robot_identity, pan_tilt_topics::kCameraDepthTrack,
         [this](const std::vector<std::uint8_t> &payload,
@@ -454,7 +455,7 @@ private:
           onDepthFrame(payload, user_timestamp);
         });
 
-    LK_LOG_INFO("[pt_controller] Setting up camera.depth_vis video subscriber");
+    WriteLine(std::cout, "[pt_controller] Setting up camera.depth_vis video subscriber");
     room_->setOnVideoFrameCallback(
         args_.robot_identity, livekit::TrackSource::SOURCE_SCREENSHARE,
         [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
@@ -467,14 +468,14 @@ private:
     const std::size_t expected =
         static_cast<std::size_t>(frame.width()) * frame.height() * 4;
     if (frame.dataSize() != expected) {
-      LK_LOG_DEBUG(
+      WriteLine(std::cout, 
           "[pt_controller] RGB frame size mismatch: {} vs expected {} ({}x{})",
           frame.dataSize(), expected, frame.width(), frame.height());
       return;
     }
     std::lock_guard<std::mutex> lock(video_mu_);
     if (video_frame_count_ == 0) {
-      LK_LOG_INFO("[pt_controller] First RGB frame received ({}x{})",
+      WriteLine(std::cout, "[pt_controller] First RGB frame received ({}x{})",
                   frame.width(), frame.height());
     }
     video_buffer_.assign(frame.data(), frame.data() + frame.dataSize());
@@ -489,14 +490,14 @@ private:
     const std::size_t expected =
         static_cast<std::size_t>(frame.width()) * frame.height() * 4;
     if (frame.dataSize() != expected) {
-      LK_LOG_DEBUG(
+      WriteLine(std::cout, 
           "[pt_controller] Depth vis frame size mismatch: {} vs expected {}",
           frame.dataSize(), expected);
       return;
     }
     std::lock_guard<std::mutex> lock(depth_vis_mu_);
     if (depth_vis_frame_count_ == 0) {
-      LK_LOG_INFO("[pt_controller] First depth_vis frame received ({}x{})",
+      WriteLine(std::cout, "[pt_controller] First depth_vis frame received ({}x{})",
                   frame.width(), frame.height());
     }
     depth_vis_buffer_.assign(frame.data(), frame.data() + frame.dataSize());
@@ -513,7 +514,7 @@ private:
     using pan_tilt_topics::depth_payload::kRawHeaderBytes;
 
     if (payload.size() < kRawHeaderBytes) {
-      LK_LOG_WARN("[pt_controller] Depth frame too small ({} bytes)",
+      WriteLine(std::cerr, "[pt_controller] Depth frame too small ({} bytes)",
                   payload.size());
       return;
     }
@@ -523,7 +524,7 @@ private:
 
     if (first_u32 == kMagicCompressed) {
       if (payload.size() < kCompressedHeaderBytes) {
-        LK_LOG_WARN("[pt_controller] Compressed depth frame too small ({} bytes)",
+        WriteLine(std::cerr, "[pt_controller] Compressed depth frame too small ({} bytes)",
                     payload.size());
         return;
       }
@@ -536,7 +537,7 @@ private:
       const std::size_t expected_unc =
           static_cast<std::size_t>(w) * static_cast<std::size_t>(h) * 2;
       if (unc_u32 != expected_unc) {
-        LK_LOG_WARN(
+        WriteLine(std::cerr, 
             "[pt_controller] Compressed depth uncompressed_len mismatch: {} vs "
             "{}x{}x2",
             unc_u32, w, h);
@@ -550,7 +551,7 @@ private:
           payload.data() + kCompressedHeaderBytes,
           static_cast<uLong>(comp_len));
       if (zr != Z_OK || dest_len != unc_u32) {
-        LK_LOG_WARN("[pt_controller] Depth zlib uncompress failed (zr={}, len={}/{})",
+        WriteLine(std::cerr, "[pt_controller] Depth zlib uncompress failed (zr={}, len={}/{})",
                     zr, static_cast<std::uint64_t>(dest_len),
                     static_cast<std::uint64_t>(unc_u32));
         return;
@@ -570,7 +571,7 @@ private:
     const std::size_t expected_size =
         kRawHeaderBytes + static_cast<std::size_t>(w) * h * 2;
     if (payload.size() != expected_size) {
-      LK_LOG_WARN("[pt_controller] Depth frame size mismatch: {} vs expected {}",
+      WriteLine(std::cerr, "[pt_controller] Depth frame size mismatch: {} vs expected {}",
                   payload.size(), expected_size);
       return;
     }
@@ -621,7 +622,7 @@ private:
       video_texture_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_ABGR8888,
                                          SDL_TEXTUREACCESS_STREAMING, w, h);
       if (video_texture_ == nullptr) {
-        LK_LOG_ERROR("[pt_controller] Failed to recreate texture: {}",
+        WriteLine(std::cerr, "[pt_controller] Failed to recreate texture: {}",
                      SDL_GetError());
         return;
       }
@@ -636,21 +637,21 @@ private:
   }
 
   void acquireControl() {
-    LK_LOG_INFO("[pt_controller] Acquiring control");
+    WriteLine(std::cout, "[pt_controller] Acquiring control");
     for (const std::string method : {pan_tilt_topics::kAcquireControlRpc}) {
       try {
         const auto response = room_->localParticipant()->performRpc(
             args_.robot_identity, method, R"({"acquire":true})", 5.0);
         control_acquired_ = true;
         rpc_method_ = method;
-        LK_LOG_INFO("[pt_controller] Control acquired via '{}' response='{}'",
+        WriteLine(std::cout, "[pt_controller] Control acquired via '{}' response='{}'",
                     method, response);
         return;
       } catch (const std::exception &e) {
-        LK_LOG_ERROR("[pt_controller] {} failed: {}", method, e.what());
+        WriteLine(std::cerr, "[pt_controller] {} failed: {}", method, e.what());
       }
     }
-    LK_LOG_ERROR("[pt_controller] Control not acquired; teleop publishing disabled");
+    WriteLine(std::cerr, "[pt_controller] Control not acquired; teleop publishing disabled");
   }
 
   void releaseControl() {
@@ -660,9 +661,9 @@ private:
     try {
       room_->localParticipant()->performRpc(
           args_.robot_identity, rpc_method_, R"({"acquire":false})", 3.0);
-      LK_LOG_INFO("[pt_controller] Control released");
+      WriteLine(std::cout, "[pt_controller] Control released");
     } catch (const std::exception &e) {
-      LK_LOG_WARN("[pt_controller] Failed to release control: {}", e.what());
+      WriteLine(std::cerr, "[pt_controller] Failed to release control: {}", e.what());
     }
     control_acquired_ = false;
   }
@@ -682,7 +683,7 @@ private:
         if (input_window_ != nullptr) {
           SDL_SetWindowTitle(input_window_, title);
         }
-        LK_LOG_INFO("[pt_controller] View: {}",
+        WriteLine(std::cout, "[pt_controller] View: {}",
                     show_depth_ ? "depth" : "RGB");
       }
     }
@@ -793,15 +794,15 @@ private:
       dvframes = depth_vis_frame_count_;
     }
 
-    LK_LOG_INFO("[pt_controller] cmd pan={:.2f}rad/s tilt={:.2f}rad/s",
+    WriteLine(std::cout, "[pt_controller] cmd pan={:.2f}rad/s tilt={:.2f}rad/s",
                 pan_vel_rad_s, tilt_vel_rad_s);
-    LK_LOG_INFO("[pt_controller] latest gyro: {}",
+    WriteLine(std::cout, "[pt_controller] latest gyro: {}",
                 gyro.has_value() ? gyro->dump() : "n/a");
-    LK_LOG_INFO("[pt_controller] latest pan: {}",
+    WriteLine(std::cout, "[pt_controller] latest pan: {}",
                 pan.has_value() ? pan->dump() : "n/a");
-    LK_LOG_INFO("[pt_controller] latest tilt: {}",
+    WriteLine(std::cout, "[pt_controller] latest tilt: {}",
                 tilt.has_value() ? tilt->dump() : "n/a");
-    LK_LOG_INFO(
+    WriteLine(std::cout, 
         "[pt_controller] video={}, depth={} ({}x{}), depth_vis={}, view={}",
         vframes, dframes, dw, dh, dvframes,
         show_depth_ ? "depth" : "RGB");

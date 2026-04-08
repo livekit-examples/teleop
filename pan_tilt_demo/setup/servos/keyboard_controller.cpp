@@ -117,7 +117,7 @@ class KeyboardController
 
 	void run()
 	{
-		LK_LOG_INFO("[keyboard_controller] Initializing pan/tilt controller");
+		WriteLine(std::cout, "[keyboard_controller] Initializing pan/tilt controller");
 		if (!pan_tilt_.initialize(run_calibration_ofs_)) {
 			throw std::runtime_error("PanTiltController initialization failed");
 		}
@@ -132,15 +132,15 @@ class KeyboardController
 		// 	while (g_running.load()) {
 		// 		auto pan_state = pan_tilt_.pollState()[kPanIndex];
 		// 		auto tilt_state = pan_tilt_.pollState()[kTiltIndex];
-		// 		LK_LOG_INFO("[keyboard_controller] [POLL] [PAN] ticks={}, current(milliamps)={}, speed={}",
+		// 		WriteLine(std::cout, "[keyboard_controller] [POLL] [PAN] ticks={}, current(milliamps)={}, speed={}",
 		// 		            pan_state.position_ticks, pan_state.current_milliamps, pan_state.speed);
-		// 		LK_LOG_INFO("[keyboard_controller] [POLL] [TILT] ticks={}, current(milliamps)={}, speed={}",
+		// 		WriteLine(std::cout, "[keyboard_controller] [POLL] [TILT] ticks={}, current(milliamps)={}, speed={}",
 		// 		            tilt_state.position_ticks, tilt_state.current_milliamps, tilt_state.speed);
 		// 		usleep(10000 * 1000);
 		// 	}
 		// });
 
-		LK_LOG_INFO("[keyboard_controller] Ready. Controls: a=pan CCW, d=pan CW, "
+		WriteLine(std::cout, "[keyboard_controller] Ready. Controls: a=pan CCW, d=pan CW, "
 		            "w=tilt CCW, x=tilt CW, space=stop, q=quit");
 
 		while (g_running.load()) {
@@ -170,28 +170,28 @@ class KeyboardController
 				if (!pan_tilt_.haltMotors()) {
 					throw std::runtime_error("Failed to stop motors");
 				}
-				LK_LOG_INFO("[keyboard_controller] Stopped all motors");
+				WriteLine(std::cout, "[keyboard_controller] Stopped all motors");
 				break;
 			case 'q':
 			case 'Q':
-				LK_LOG_INFO("[keyboard_controller] Quit requested");
+				WriteLine(std::cout, "[keyboard_controller] Quit requested");
 				g_running.store(false);
 				break;
 			case 's':
 			case 'S':
-				LK_LOG_INFO("[keyboard_controller] Stopping all motors");
+				WriteLine(std::cout, "[keyboard_controller] Stopping all motors");
 				if (!pan_tilt_.haltMotors()) {
 					throw std::runtime_error("Failed to halt all motors");
 				}
 				break;
 			default:
-				LK_LOG_DEBUG("[keyboard_controller] Ignoring key '{}'", key);
+				WriteLine(std::cout, "[keyboard_controller] Ignoring key '{}'", key);
 				break;
 			}
 		}
 
 		if (!pan_tilt_.haltMotors()) {
-			LK_LOG_WARN("[keyboard_controller] Failed to stop motors during exit");
+			WriteLine(std::cerr, "[keyboard_controller] Failed to stop motors during exit");
 		}
 	}
 
@@ -201,7 +201,7 @@ class KeyboardController
 		if (!pan_tilt_.setVelocity(kPanIndex, +kVelocityStepsPerSec)) {
 			throw std::runtime_error("Failed to command pan CCW velocity");
 		}
-		LK_LOG_INFO("[keyboard_controller] Pan CCW at {}", kVelocityStepsPerSec);
+		WriteLine(std::cout, "[keyboard_controller] Pan CCW at {}", kVelocityStepsPerSec);
 	}
 
 	void commandPanCw()
@@ -209,7 +209,7 @@ class KeyboardController
 		if (!pan_tilt_.setVelocity(kPanIndex, -kVelocityStepsPerSec)) {
 			throw std::runtime_error("Failed to command pan CW velocity");
 		}
-		LK_LOG_INFO("[keyboard_controller] Pan CW at {}", kVelocityStepsPerSec);
+		WriteLine(std::cout, "[keyboard_controller] Pan CW at {}", kVelocityStepsPerSec);
 	}
 
 	void commandTiltCcw()
@@ -217,7 +217,7 @@ class KeyboardController
 		if (!pan_tilt_.setVelocity(kTiltIndex, +kVelocityStepsPerSec)) {
 			throw std::runtime_error("Failed to command tilt CCW velocity");
 		}
-		LK_LOG_INFO("[keyboard_controller] Tilt CCW at {}", kVelocityStepsPerSec);
+		WriteLine(std::cout, "[keyboard_controller] Tilt CCW at {}", kVelocityStepsPerSec);
 	}
 
 	void commandTiltCw()
@@ -225,7 +225,7 @@ class KeyboardController
 		if (!pan_tilt_.setVelocity(kTiltIndex, -kVelocityStepsPerSec)) {
 			throw std::runtime_error("Failed to command tilt CW velocity");
 		}
-		LK_LOG_INFO("[keyboard_controller] Tilt CW at {}", kVelocityStepsPerSec);
+		WriteLine(std::cout, "[keyboard_controller] Tilt CW at {}", kVelocityStepsPerSec);
 	}
 
 	PanTiltController pan_tilt_;
@@ -237,9 +237,9 @@ int main(int argc, char* argv[])
 {
 	try {
 		if (argc < 2 || argc > 5) {
-			LK_LOG_ERROR("Usage: KeyboardController <serial-port> [pan-id] [tilt-id] [--calibrate-ofs]");
-			LK_LOG_ERROR("Example: KeyboardController /dev/ttyUSB0");
-			LK_LOG_ERROR("Example: KeyboardController /dev/ttyUSB0 1 2");
+			WriteLine(std::cerr, "Usage: KeyboardController <serial-port> [pan-id] [tilt-id] [--calibrate-ofs]");
+			WriteLine(std::cerr, "Example: KeyboardController /dev/ttyUSB0");
+			WriteLine(std::cerr, "Example: KeyboardController /dev/ttyUSB0 1 2");
 			return 1;
 		}
 
@@ -281,7 +281,7 @@ int main(int argc, char* argv[])
 			throw std::runtime_error("pan-id and tilt-id must be unique");
 		}
 
-		LK_LOG_INFO("[keyboard_controller] Starting on {} with pan-id={} tilt-id={} "
+		WriteLine(std::cout, "[keyboard_controller] Starting on {} with pan-id={} tilt-id={} "
 		            "velocity={}",
 		            serial_port, pan_id, tilt_id, kVelocityStepsPerSec);
 
@@ -290,11 +290,11 @@ int main(int argc, char* argv[])
 		                              run_calibration_ofs);
 		controller.run();
 		disableRawMode();
-		LK_LOG_INFO("[keyboard_controller] Exiting");
+		WriteLine(std::cout, "[keyboard_controller] Exiting");
 		return 0;
 	} catch (const std::exception& e) {
 		disableRawMode();
-		LK_LOG_ERROR("[keyboard_controller] {}", e.what());
+		WriteLine(std::cerr, "[keyboard_controller] {}", e.what());
 		return 1;
 	}
 }

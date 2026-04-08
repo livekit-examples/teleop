@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
     std::signal(SIGINT, handleSignal);
     std::signal(SIGTERM, handleSignal);
 
-    LK_LOG_INFO("[gyro_test] Starting GYRO test (bus={}, address=0x{:x}, "
+    WriteLine(std::cout, "[gyro_test] Starting GYRO test (bus={}, address=0x{:x}, "
                 "period={}ms)",
                 bus, address, period_ms);
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     }
     gyro.start();
 
-    LK_LOG_INFO("[gyro_test] Streaming RPY. Press Ctrl+C to stop.");
+    WriteLine(std::cout, "[gyro_test] Streaming RPY. Press Ctrl+C to stop.");
 
     while (g_running.load()) {
       const GYROData data = gyro.getLastGYROVal();
@@ -71,21 +71,21 @@ int main(int argc, char *argv[]) {
         const double pitch_deg = data.angle_y_deg;
         const double yaw_deg = data.angle_z_deg;
 
-        LK_LOG_INFO(
+        WriteLine(std::cout, 
             "[gyro_test] RPY(deg): roll={:.2f}, pitch={:.2f}, yaw={:.2f}",
             roll_deg, pitch_deg, yaw_deg);
       } else {
-        LK_LOG_WARN("[gyro_test] GYRO data not valid yet");
+        WriteLine(std::cerr, "[gyro_test] GYRO data not valid yet");
       }
 
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     gyro.stop();
-    LK_LOG_INFO("[gyro_test] Exiting");
+    WriteLine(std::cout, "[gyro_test] Exiting");
     return 0;
   } catch (const std::exception &e) {
-    LK_LOG_ERROR("[gyro_test] {}", e.what());
+    WriteLine(std::cerr, "[gyro_test] {}", e.what());
     return 1;
   }
 }
