@@ -49,6 +49,7 @@ jobs:
             libusb-1.0-0-dev \
             libudev-dev \
             libgtk-3-dev \
+            libxss-dev \
             git \
             wget \
             cmake \

@@ -52,6 +52,19 @@ FetchContent_Declare(SDL3
 set(SDL_TEST     OFF CACHE BOOL "" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SDL_INSTALL  OFF CACHE BOOL "" FORCE)
+if(APPLE)
+  # SDL should use Cocoa on macOS. Explicitly disable X11 feature probes so
+  # Apple builds do not fail on Linux-only optional packages like XSCRNSAVER.
+  set(SDL_X11              OFF CACHE BOOL "" FORCE)
+  set(SDL_X11_XCURSOR      OFF CACHE BOOL "" FORCE)
+  set(SDL_X11_XDBE         OFF CACHE BOOL "" FORCE)
+  set(SDL_X11_XFIXES       OFF CACHE BOOL "" FORCE)
+  set(SDL_X11_XINPUT       OFF CACHE BOOL "" FORCE)
+  set(SDL_X11_XRANDR       OFF CACHE BOOL "" FORCE)
+  set(SDL_X11_XSCRNSAVER   OFF CACHE BOOL "" FORCE)
+  set(SDL_X11_XSHAPE       OFF CACHE BOOL "" FORCE)
+  set(SDL_X11_XSYNC        OFF CACHE BOOL "" FORCE)
+endif()
 
 # ---- nlohmann/json ---------------------------------------------------------
 FetchContent_Declare(nlohmann_json
