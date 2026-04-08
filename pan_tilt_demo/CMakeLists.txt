@@ -23,6 +23,7 @@ else()
   )
 endif()
 find_package(LiveKit CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 
 include(Dependencies)
