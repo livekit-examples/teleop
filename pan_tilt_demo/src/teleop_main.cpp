@@ -182,6 +182,34 @@ std::optional<std::string> extractTokenIdentity(const std::string &jwt) {
   return std::nullopt;
 }
 
+const char *videoBufferTypeToString(livekit::VideoBufferType type) {
+  switch (type) {
+  case livekit::VideoBufferType::RGBA:
+    return "RGBA";
+  case livekit::VideoBufferType::ABGR:
+    return "ABGR";
+  case livekit::VideoBufferType::ARGB:
+    return "ARGB";
+  case livekit::VideoBufferType::BGRA:
+    return "BGRA";
+  case livekit::VideoBufferType::RGB24:
+    return "RGB24";
+  case livekit::VideoBufferType::I420:
+    return "I420";
+  case livekit::VideoBufferType::I420A:
+    return "I420A";
+  case livekit::VideoBufferType::I422:
+    return "I422";
+  case livekit::VideoBufferType::I444:
+    return "I444";
+  case livekit::VideoBufferType::I010:
+    return "I010";
+  case livekit::VideoBufferType::NV12:
+    return "NV12";
+  }
+  return "UNKNOWN";
+}
+
 struct Args {
   std::string url;
   std::string token;
@@ -441,11 +469,14 @@ private:
         });
 
     WriteLine(std::cout, "[pt_controller] Setting up camera.color video subscriber");
+    livekit::VideoStream::Options color_video_opts;
+    color_video_opts.format = livekit::VideoBufferType::RGBA;
     room_->setOnVideoFrameCallback(
         args_.robot_identity, livekit::TrackSource::SOURCE_CAMERA,
         [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
           onVideoFrame(frame, timestamp_us);
-        });
+        },
+        color_video_opts);
 
     WriteLine(std::cout, "[pt_controller] Setting up camera.depth data subscriber");
     room_->addOnDataFrameCallback(
@@ -456,21 +487,36 @@ private:
         });
 
     WriteLine(std::cout, "[pt_controller] Setting up camera.depth_vis video subscriber");
+    livekit::VideoStream::Options depth_vis_video_opts;
+    depth_vis_video_opts.format = livekit::VideoBufferType::RGBA;
     room_->setOnVideoFrameCallback(
         args_.robot_identity, livekit::TrackSource::SOURCE_SCREENSHARE,
         [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
           onDepthVisFrame(frame, timestamp_us);
-        });
+        },
+        depth_vis_video_opts);
   }
 
   void onVideoFrame(const livekit::VideoFrame &frame,
                      std::int64_t timestamp_us) {
+    const auto frame_type = frame.type();
+    if (!have_logged_video_type_ || frame_type != last_video_type_) {
+      WriteLine(std::cout,
+                "[pt_controller] RGB frame type now {} ({}x{}, {} bytes)",
+                videoBufferTypeToString(frame_type), frame.width(),
+                frame.height(), frame.dataSize());
+      last_video_type_ = frame_type;
+      have_logged_video_type_ = true;
+    }
+
     const std::size_t expected =
         static_cast<std::size_t>(frame.width()) * frame.height() * 4;
     if (frame.dataSize() != expected) {
       WriteLine(std::cout, 
-          "[pt_controller] RGB frame size mismatch: {} vs expected {} ({}x{})",
-          frame.dataSize(), expected, frame.width(), frame.height());
+          "[pt_controller] RGB frame size mismatch: {} vs expected {} ({}x{}, "
+          "type={})",
+          frame.dataSize(), expected, frame.width(), frame.height(),
+          videoBufferTypeToString(frame_type));
       return;
     }
     std::lock_guard<std::mutex> lock(video_mu_);
@@ -487,12 +533,25 @@ private:
 
   void onDepthVisFrame(const livekit::VideoFrame &frame,
                        std::int64_t timestamp_us) {
+    const auto frame_type = frame.type();
+    if (!have_logged_depth_vis_type_ || frame_type != last_depth_vis_type_) {
+      WriteLine(
+          std::cout,
+          "[pt_controller] Depth vis frame type now {} ({}x{}, {} bytes)",
+          videoBufferTypeToString(frame_type), frame.width(), frame.height(),
+          frame.dataSize());
+      last_depth_vis_type_ = frame_type;
+      have_logged_depth_vis_type_ = true;
+    }
+
     const std::size_t expected =
         static_cast<std::size_t>(frame.width()) * frame.height() * 4;
     if (frame.dataSize() != expected) {
       WriteLine(std::cout, 
-          "[pt_controller] Depth vis frame size mismatch: {} vs expected {}",
-          frame.dataSize(), expected);
+          "[pt_controller] Depth vis frame size mismatch: {} vs expected {} "
+          "({}x{}, type={})",
+          frame.dataSize(), expected, frame.width(), frame.height(),
+          videoBufferTypeToString(frame_type));
       return;
     }
     std::lock_guard<std::mutex> lock(depth_vis_mu_);
@@ -833,6 +892,8 @@ private:
   int video_height_{0};
   std::uint64_t video_frame_count_{0};
   std::uint64_t last_rendered_frame_count_{0};
+  livekit::VideoBufferType last_video_type_{livekit::VideoBufferType::RGBA};
+  bool have_logged_video_type_{false};
 
   std::mutex depth_mu_;
   std::vector<std::uint8_t> depth_buffer_;
@@ -846,6 +907,8 @@ private:
   int depth_vis_height_{0};
   std::uint64_t depth_vis_frame_count_{0};
   std::uint64_t last_rendered_depth_vis_count_{0};
+  livekit::VideoBufferType last_depth_vis_type_{livekit::VideoBufferType::RGBA};
+  bool have_logged_depth_vis_type_{false};
 
   std::mutex cmd_mu_;
   double pan_vel_rad_s_{0.0};
