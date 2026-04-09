@@ -17,7 +17,7 @@
 #ifndef L3G4200D_GYRO_H
 #define L3G4200D_GYRO_H
 
-#include "livekit/lk_log.h"
+#include "ostream_log.h"
 
 #include <atomic>
 #include <chrono>
@@ -90,24 +90,24 @@ public:
     std::string dev = "/dev/i2c-" + std::to_string(bus_);
     fd_ = ::open(dev.c_str(), O_RDWR);
     if (fd_ < 0) {
-      LK_LOG_ERROR("[gyro] Failed to open I2C device {}", dev);
+      WriteLine(std::cerr, "[gyro] Failed to open I2C device {}", dev);
       return false;
     }
 
     if (::ioctl(fd_, I2C_SLAVE, address_) < 0) {
-      LK_LOG_ERROR("[gyro] Failed to set I2C slave address {:#x}", address_);
+      WriteLine(std::cerr, "[gyro] Failed to set I2C slave address {:#x}", address_);
       close();
       return false;
     }
 
     uint8_t who = readReg(kL3G4200D_WHO_AM_I);
     if (who != kL3G4200D_WHO_AM_I_VALUE) {
-      LK_LOG_ERROR("[gyro] Unexpected WHO_AM_I: {:#x} (expected {:#x})", who,
+      WriteLine(std::cerr, "[gyro] Unexpected WHO_AM_I: {:#x} (expected {:#x})", who,
                    kL3G4200D_WHO_AM_I_VALUE);
       close();
       return false;
     }
-    LK_LOG_INFO("[gyro] L3G4200D detected on /dev/i2c-{} addr {:#x}", bus_,
+    WriteLine(std::cout, "[gyro] L3G4200D detected on /dev/i2c-{} addr {:#x}", bus_,
                 address_);
 
     writeReg(kL3G4200D_CTRL_REG1, kL3G4200D_CTRL_REG1_INIT);
@@ -115,7 +115,7 @@ public:
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    LK_LOG_INFO("[gyro] Gyroscope initialized (95 Hz, 2000 dps full-scale)");
+    WriteLine(std::cout, "[gyro] Gyroscope initialized (95 Hz, 2000 dps full-scale)");
     return true;
   }
 
@@ -123,7 +123,7 @@ public:
     if (running_.exchange(true))
       return;
     poll_thread_ = std::thread(&L3G4200D_GYRO::pollLoop, this);
-    LK_LOG_INFO("[gyro] Background polling started ({}ms interval)",
+    WriteLine(std::cout, "[gyro] Background polling started ({}ms interval)",
                 poll_interval_.count());
   }
 
@@ -133,7 +133,7 @@ public:
     if (poll_thread_.joinable())
       poll_thread_.join();
     close();
-    LK_LOG_INFO("[gyro] Stopped");
+    WriteLine(std::cout, "[gyro] Stopped");
   }
 
   GYROData getLastGYROVal() const {
@@ -185,18 +185,18 @@ private:
   void writeReg(uint8_t reg, uint8_t value) {
     uint8_t buf[2] = {reg, value};
     if (::write(fd_, buf, 2) != 2) {
-      LK_LOG_WARN("[gyro] I2C write failed for register {:#x}", reg);
+      WriteLine(std::cerr, "[gyro] I2C write failed for register {:#x}", reg);
     }
   }
 
   uint8_t readReg(uint8_t reg) {
     if (::write(fd_, &reg, 1) != 1) {
-      LK_LOG_WARN("[gyro] I2C write (reg addr) failed for {:#x}", reg);
+      WriteLine(std::cerr, "[gyro] I2C write (reg addr) failed for {:#x}", reg);
       return 0;
     }
     uint8_t value = 0;
     if (::read(fd_, &value, 1) != 1) {
-      LK_LOG_WARN("[gyro] I2C read failed for register {:#x}", reg);
+      WriteLine(std::cerr, "[gyro] I2C read failed for register {:#x}", reg);
     }
     return value;
   }
@@ -214,7 +214,7 @@ private:
   bool readGyro(double &gx, double &gy, double &gz) {
     uint8_t raw[6];
     if (!readBlock(kL3G4200D_OUT_X_L | kI2C_AUTO_INCREMENT, raw, 6)) {
-      LK_LOG_DEBUG("[gyro] Failed to read gyro data block");
+      WriteLine(std::cout, "[gyro] Failed to read gyro data block");
       return false;
     }
 
@@ -248,12 +248,12 @@ private:
         data_.angle_z_deg += gz * dt;
         data_.valid = true;
         if (recovered) {
-          LK_LOG_INFO("[gyro] Gyro stream recovered after read failures");
+          WriteLine(std::cout, "[gyro] Gyro stream recovered after read failures");
         }
       } else {
         const PollHealthMonitor::MissState miss = health_monitor_.onMiss();
         if (miss.crossed_threshold) {
-          LK_LOG_ERROR(
+          WriteLine(std::cerr, 
               "[gyro] Missed {} consecutive gyro reads; returning invalid data",
               miss.consecutive_misses);
         }

@@ -77,19 +77,19 @@ bool PanTiltController::initialize(const bool run_calibration_ofs) {
 
 bool PanTiltController::homeMotors() {
   const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
-  LK_LOG_INFO("[pan_tilt] Homing both motors to {} ticks", kHomeTicks);
+  WriteLine(std::cout, "[pan_tilt] Homing both motors to {} ticks", kHomeTicks);
   for (int i = 0; i < kMotorCount; ++i) {
     const int id = motorId(i);
     if (!sms_sts_.WritePosEx(static_cast<u8>(id), static_cast<s16>(kHomeTicks),
                              kDefaultMoveSpeed, kDefaultMoveAcc)) {
-      LK_LOG_ERROR("[pan_tilt] Home WritePosEx failed for ID {}", id);
+      WriteLine(std::cerr, "[pan_tilt] Home WritePosEx failed for ID {}", id);
       return false;
     }
   }
 
   for (int i = 0; i < kMotorCount; ++i) {
     if (!waitForMotorPositionMoveComplete(i, kHomeTicks, 3000)) {
-      LK_LOG_ERROR("[pan_tilt] Home move failed for ID {}", motorId(i));
+      WriteLine(std::cerr, "[pan_tilt] Home move failed for ID {}", motorId(i));
       return false;
     }
   }
@@ -108,10 +108,10 @@ bool PanTiltController::setMotorAngle(const int motor_index,
   const int target_ticks = wrapTicks(angleRadToTicks(absolute_angle_rad));
   if (!sms_sts_.WritePosEx(static_cast<u8>(id), static_cast<s16>(target_ticks),
                            speed, kDefaultMoveAcc)) {
-    LK_LOG_ERROR("[pan_tilt] setMotorAngle failed for ID {}", id);
+    WriteLine(std::cerr, "[pan_tilt] setMotorAngle failed for ID {}", id);
     return false;
   }
-  LK_LOG_DEBUG("[pan_tilt] setMotorAngle ID {} -> {} rad ({} ticks)", id,
+  WriteLine(std::cout, "[pan_tilt] setMotorAngle ID {} -> {} rad ({} ticks)", id,
                absolute_angle_rad, target_ticks);
   return true;
 }
@@ -139,7 +139,7 @@ bool PanTiltController::setMotorAngleRelative(const int motor_index,
   const int id = motorId(motor_index);
   const int current_ticks = sms_sts_.ReadPos(static_cast<u8>(id));
   if (current_ticks < 0) {
-    LK_LOG_ERROR("[pan_tilt] ReadPos failed for ID {}", id);
+    WriteLine(std::cerr, "[pan_tilt] ReadPos failed for ID {}", id);
     return false;
   }
 
@@ -147,11 +147,11 @@ bool PanTiltController::setMotorAngleRelative(const int motor_index,
   const int target_ticks = wrapTicks(current_ticks + delta_ticks);
   if (!sms_sts_.WritePosEx(static_cast<u8>(id), static_cast<s16>(target_ticks),
                            speed, kDefaultMoveAcc)) {
-    LK_LOG_ERROR("[pan_tilt] setMotorAngleRelative failed for ID {}", id);
+    WriteLine(std::cerr, "[pan_tilt] setMotorAngleRelative failed for ID {}", id);
     return false;
   }
 
-  LK_LOG_DEBUG("[pan_tilt] Relative move ID {}: {} rad ({} -> {} ticks)", id,
+  WriteLine(std::cout, "[pan_tilt] Relative move ID {}: {} rad ({} -> {} ticks)", id,
                relative_angle_rad, current_ticks, target_ticks);
   return true;
 }
@@ -167,7 +167,7 @@ bool PanTiltController::setMotorAngleRelativeBlocking(
   const int id = motorId(motor_index);
   const int current_ticks = sms_sts_.ReadPos(static_cast<u8>(id));
   if (current_ticks < 0) {
-    LK_LOG_ERROR("[pan_tilt] setMotorAngleRelativeBlocking ReadPos failed for ID {}",
+    WriteLine(std::cerr, "[pan_tilt] setMotorAngleRelativeBlocking ReadPos failed for ID {}",
                  id);
     return false;
   }
@@ -185,18 +185,18 @@ bool PanTiltController::setVelocity(const int motor_index,
     return false;
   }
   if (velocity_steps_per_sec < -3400 || velocity_steps_per_sec > 3400) {
-    LK_LOG_ERROR("[pan_tilt] Velocity {} out of range [-3400, 3400]",
+    WriteLine(std::cerr, "[pan_tilt] Velocity {} out of range [-3400, 3400]",
                  velocity_steps_per_sec);
     return false;
   }
   const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
   const int id = motorId(motor_index);
   if (!sms_sts_.InitMotor(static_cast<u8>(id), SMS_STS_MODE_WHEEL_CLOSED, 1)) {
-    LK_LOG_ERROR("[pan_tilt] Failed to set wheel mode for ID {}", id);
+    WriteLine(std::cerr, "[pan_tilt] Failed to set wheel mode for ID {}", id);
     return false;
   }
   if (!sms_sts_.WriteSpe(static_cast<u8>(id), velocity_steps_per_sec, acc)) {
-    LK_LOG_ERROR("[pan_tilt] setVelocity WriteSpe failed for ID {}", id);
+    WriteLine(std::cerr, "[pan_tilt] setVelocity WriteSpe failed for ID {}", id);
     return false;
   }
 
@@ -204,7 +204,7 @@ bool PanTiltController::setVelocity(const int motor_index,
     last_user_input_velocity_set_time_.store(std::chrono::steady_clock::now());
   }
 
-  LK_LOG_DEBUG("[pan_tilt] setVelocity ID {} -> {} steps/s", id,
+  WriteLine(std::cout, "[pan_tilt] setVelocity ID {} -> {} steps/s", id,
                velocity_steps_per_sec);
   return true;
 }
@@ -212,11 +212,11 @@ bool PanTiltController::setVelocity(const int motor_index,
 bool PanTiltController::haltMotors(const u8 acc) {
   for (int i = 0; i < kMotorCount; ++i) {
     if (!setVelocity(i, 0, acc)) {
-      LK_LOG_ERROR("[pan_tilt] halt failed for motor index {}", i);
+      WriteLine(std::cerr, "[pan_tilt] halt failed for motor index {}", i);
       return false;
     }
   }
-  LK_LOG_DEBUG("[pan_tilt] halt complete");
+  WriteLine(std::cout, "[pan_tilt] halt complete");
   return true;
 }
 
@@ -231,7 +231,7 @@ PanTiltController::pollState() {
     state.motor_id = id;
 
     if (!sms_sts_.FeedBack(id)) {
-      LK_LOG_WARN("[pan_tilt] FeedBack failed while polling ID {}", id);
+      WriteLine(std::cerr, "[pan_tilt] FeedBack failed while polling ID {}", id);
       continue;
     }
 
@@ -247,7 +247,7 @@ PanTiltController::pollState() {
                    state.temperature_celsius >= 0 && state.moving >= 0 &&
                    state.current_milliamps >= 0);
     if (!state.valid) {
-      LK_LOG_WARN("[pan_tilt] State decode incomplete for ID {}", id);
+      WriteLine(std::cerr, "[pan_tilt] State decode incomplete for ID {}", id);
     }
   }
 
@@ -266,7 +266,7 @@ bool PanTiltController::waitForMotorPositionMoveComplete(
   while (true) {
     if (std::chrono::steady_clock::now() - start >
         std::chrono::milliseconds(timeout_ms)) {
-      LK_LOG_ERROR(
+      WriteLine(std::cerr, 
           "[pan_tilt] waitForMotorPositionMoveComplete timeout for ID {}", id);
       return false;
     }
@@ -274,7 +274,7 @@ bool PanTiltController::waitForMotorPositionMoveComplete(
     const auto states = pollState();
     const ServoState &state = states[motor_index];
     if (!state.valid) {
-      LK_LOG_ERROR("[pan_tilt] waitForMotorPositionMoveComplete failed while polling ID {}",
+      WriteLine(std::cerr, "[pan_tilt] waitForMotorPositionMoveComplete failed while polling ID {}",
                    id);
       return false;
     }
@@ -296,9 +296,9 @@ bool PanTiltController::waitForMotorPositionMoveComplete(
 
 bool PanTiltController::open() {
   const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
-  LK_LOG_INFO("[pan_tilt] Opening {} @ {} baud", serial_port_, baud_);
+  WriteLine(std::cout, "[pan_tilt] Opening {} @ {} baud", serial_port_, baud_);
   if (!sms_sts_.begin(baud_, serial_port_.c_str())) {
-    LK_LOG_ERROR("[pan_tilt] Failed to init SMS/STS bus");
+    WriteLine(std::cerr, "[pan_tilt] Failed to init SMS/STS bus");
     return false;
   }
   sms_sts_.Level = 1;
@@ -314,7 +314,7 @@ void PanTiltController::startWatchdogThread() {
   watchdog_stop_requested_.store(false);
   watchdog_thread_ = std::thread(&PanTiltController::watchdogThreadMain, this);
   watchdog_running_.store(true);
-  LK_LOG_INFO("[pan_tilt] Current watchdog started at {} Hz", kWatchdogRateHz);
+  WriteLine(std::cout, "[pan_tilt] Current watchdog started at {} Hz", kWatchdogRateHz);
 }
 
 void PanTiltController::stopWatchdogThread() {
@@ -327,7 +327,7 @@ void PanTiltController::stopWatchdogThread() {
     watchdog_thread_.join();
   }
   watchdog_running_.store(false);
-  LK_LOG_INFO("[pan_tilt] Current watchdog stopped");
+  WriteLine(std::cout, "[pan_tilt] Current watchdog stopped");
 }
 
 void PanTiltController::watchdogThreadMain() {
@@ -343,7 +343,7 @@ void PanTiltController::watchdogThreadMain() {
     const auto time_since_last_user_input_velocity_set = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_user_input_velocity_set_time_.load());
     if (time_since_last_user_input_velocity_set.count() > 300) {
       if (count % 10 == 0) {
-        LK_LOG_WARN("[pan_tilt] Time since last user input velocity set: {} ms", time_since_last_user_input_velocity_set.count());
+        WriteLine(std::cerr, "[pan_tilt] Time since last user input velocity set: {} ms", time_since_last_user_input_velocity_set.count());
       }
       haltMotors();
     }
@@ -359,23 +359,23 @@ void PanTiltController::watchdogThreadMain() {
         const int id = motorId(i);
 
         if (overcurrent_sample_counts[i] == 1) {
-          LK_LOG_WARN(
+          WriteLine(std::cerr, 
               "[pan_tilt] Overcurrent detected on ID {}: {} mA > {} mA; halting motors",
               id, current_milliamps, kCurrentLimitMilliamps);
           if (!haltMotors()) {
-            LK_LOG_ERROR("[pan_tilt] Failed to halt motors after overcurrent");
+            WriteLine(std::cerr, "[pan_tilt] Failed to halt motors after overcurrent");
           }
         }
 
         if (!torque_cut_applied &&
             overcurrent_sample_counts[i] >=
                 kPersistentOvercurrentSamplesBeforeTorqueCut) {
-          LK_LOG_ERROR(
+          WriteLine(std::cerr, 
               "[pan_tilt] Persistent overcurrent on ID {} after halt; disabling torque",
               id);
           for (int m = 0; m < kMotorCount; ++m) {
             if (!disableMotorTorque(m)) {
-              LK_LOG_ERROR("[pan_tilt] Failed to disable torque for motor index {}",
+              WriteLine(std::cerr, "[pan_tilt] Failed to disable torque for motor index {}",
                            m);
             }
           }
@@ -426,11 +426,11 @@ bool PanTiltController::disableMotorTorque(const int motor_index) {
   const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
   const int id = motorId(motor_index);
   if (!sms_sts_.EnableTorque(static_cast<u8>(id), 0)) {
-    LK_LOG_ERROR("[pan_tilt] EnableTorque(OFF) failed for ID {}", id);
+    WriteLine(std::cerr, "[pan_tilt] EnableTorque(OFF) failed for ID {}", id);
     return false;
   }
 
-  LK_LOG_WARN("[pan_tilt] Torque disabled for ID {}", id);
+  WriteLine(std::cerr, "[pan_tilt] Torque disabled for ID {}", id);
   return true;
 }
 
@@ -439,10 +439,10 @@ bool PanTiltController::initMotors() {
   for (int i = 0; i < kMotorCount; ++i) {
     const int id = motorId(i);
     if (!sms_sts_.InitMotor(static_cast<u8>(id), SMS_STS_MODE_SERVO, 1)) {
-      LK_LOG_ERROR("[pan_tilt] InitMotor failed for ID {}", id);
+      WriteLine(std::cerr, "[pan_tilt] InitMotor failed for ID {}", id);
       return false;
     }
-    LK_LOG_INFO("[pan_tilt] InitMotor OK for ID {}", id);
+    WriteLine(std::cout, "[pan_tilt] InitMotor OK for ID {}", id);
   }
   return true;
 }
@@ -453,10 +453,10 @@ bool PanTiltController::pingMotors() {
     const int id = motorId(i);
     const int ping_id = sms_sts_.Ping(static_cast<u8>(id));
     if (ping_id != id) {
-      LK_LOG_ERROR("[pan_tilt] Ping failed for ID {}", id);
+      WriteLine(std::cerr, "[pan_tilt] Ping failed for ID {}", id);
       return false;
     }
-    LK_LOG_INFO("[pan_tilt] Ping OK for ID {}", ping_id);
+    WriteLine(std::cout, "[pan_tilt] Ping OK for ID {}", ping_id);
   }
   return true;
 }
@@ -466,11 +466,11 @@ bool PanTiltController::ensureFeedback() {
   for (int i = 0; i < kMotorCount; ++i) {
     const ServoState &state = states[i];
     if (!state.valid) {
-      LK_LOG_ERROR("[pan_tilt] Feedback validation failed for ID {}",
+      WriteLine(std::cerr, "[pan_tilt] Feedback validation failed for ID {}",
                    state.motor_id);
       return false;
     }
-    LK_LOG_INFO("[pan_tilt] Feedback OK for ID {} (pos={} voltage={} temp={})",
+    WriteLine(std::cout, "[pan_tilt] Feedback OK for ID {} (pos={} voltage={} temp={})",
                 state.motor_id, state.position_ticks, state.voltage_01v,
                 state.temperature_celsius);
   }
@@ -482,17 +482,17 @@ bool PanTiltController::runCalibrationOfs() {
   for (int i = 0; i < kMotorCount; ++i) {
     const int id = motorId(i);
     if (!sms_sts_.CalibrationOfs(static_cast<u8>(id))) {
-      LK_LOG_ERROR("[pan_tilt] CalibrationOfs failed for ID {}", id);
+      WriteLine(std::cerr, "[pan_tilt] CalibrationOfs failed for ID {}", id);
       return false;
     }
-    LK_LOG_INFO("[pan_tilt] CalibrationOfs OK for ID {}", id);
+    WriteLine(std::cout, "[pan_tilt] CalibrationOfs OK for ID {}", id);
   }
   return true;
 }
 
 bool PanTiltController::isValidMotorIndex(const int motor_index) const {
   if (motor_index < 0 || motor_index >= kMotorCount) {
-    LK_LOG_ERROR("[pan_tilt] Invalid motor index {}", motor_index);
+    WriteLine(std::cerr, "[pan_tilt] Invalid motor index {}", motor_index);
     return false;
   }
   return true;

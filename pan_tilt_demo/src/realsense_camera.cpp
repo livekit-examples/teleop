@@ -16,7 +16,7 @@
 
 #include "realsense_camera.h"
 
-#include "livekit/lk_log.h"
+#include "ostream_log.h"
 
 #include <chrono>
 #include <cstring>
@@ -40,12 +40,12 @@ bool RealsenseCamera::start() {
   try {
     pipe_.start(rs_cfg);
   } catch (const rs2::error &e) {
-    LK_LOG_ERROR("[realsense_camera] Failed to start pipeline: {}", e.what());
+    WriteLine(std::cerr, "[realsense_camera] Failed to start pipeline: {}", e.what());
     return false;
   }
 
   running_ = true;
-  LK_LOG_INFO("[realsense_camera] Pipeline started ({}x{} @ {} fps)",
+  WriteLine(std::cout, "[realsense_camera] Pipeline started ({}x{} @ {} fps)",
               cfg_.width, cfg_.height, cfg_.fps);
   return true;
 }
@@ -57,10 +57,10 @@ void RealsenseCamera::stop() {
   try {
     pipe_.stop();
   } catch (const rs2::error &e) {
-    LK_LOG_WARN("[realsense_camera] Error stopping pipeline: {}", e.what());
+    WriteLine(std::cerr, "[realsense_camera] Error stopping pipeline: {}", e.what());
   }
   running_ = false;
-  LK_LOG_INFO("[realsense_camera] Pipeline stopped");
+  WriteLine(std::cout, "[realsense_camera] Pipeline stopped");
 }
 
 RealsenseCamera::Frame RealsenseCamera::poll() {
