@@ -7,7 +7,12 @@ In this project `servo` and `motor` are used interchangeably.
 # Building
 This project uses cmake to build and depends on LiveKit SDK, SCServo, SDL3, and
 librealsense2. LiveKit SDK, SCServo, and SDL3 are downloaded and built by cmake.
-librealsense2 must be installed on the system (see "RealSense Camera" below).
+librealsense2 must be installed on the system by following the upstream
+Ubuntu source-install instructions from Intel RealSense
+([installation.md](https://github.com/realsenseai/librealsense/blob/master/doc/installation.md)).
+After `sudo make install`, this project will find the SDK from `/usr/local` by
+default. If you install librealsense2 into a different prefix, pass
+`-DREALSENSE_LOCAL_INSTALL_DIR=<install-prefix>` to `./build.sh`.
 ```
 # Build the project
 ./build.sh
@@ -20,6 +25,9 @@ librealsense2 must be installed on the system (see "RealSense Camera" below).
 #   cmake --install <sdk-build-dir> --prefix ~/livekit-sdk-local
 # Then point the build at that prefix:
 ./build.sh -DLIVEKIT_LOCAL_SDK_DIR=$HOME/livekit-sdk-local
+
+# If librealsense2 was installed into a custom prefix:
+./build.sh -DREALSENSE_LOCAL_INSTALL_DIR=$HOME/librealsense-local
 ```
 
 # Running
@@ -42,10 +50,33 @@ PanTiltRobot uses an Intel RealSense D415 RGB-D camera. The RealSense SDK
 
 ### Installing librealsense2
 
-On Jetson (Ubuntu/L4T):
+Follow the upstream Intel RealSense Ubuntu install guide:
+<https://github.com/realsenseai/librealsense/blob/master/doc/installation.md>
+
+The project now expects the source-install flow from that guide rather than the
+`librealsense2-dev` apt package. The high-level sequence is:
+
 ```
-sudo apt-get install librealsense2-dev librealsense2-utils
+sudo apt-get update && sudo apt-get upgrade
+sudo apt-get install libssl-dev libusb-1.0-0-dev libudev-dev pkg-config libgtk-3-dev
+sudo apt-get install git wget cmake build-essential
+sudo apt-get install libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev at
+
+git clone https://github.com/realsenseai/librealsense.git
+cd librealsense
+./scripts/setup_udev_rules.sh
+
+# Ubuntu 20/22/24 with supported HWE/LTS kernels:
+./scripts/patch-realsense-ubuntu-lts-hwe.sh
+
+mkdir build && cd build
+cmake ../ -DCMAKE_BUILD_TYPE=Release
+make -j$(($(nproc)-1))
+sudo make install
 ```
+
+The upstream document also covers the older Ubuntu 20 non-HWE patch script,
+supported kernel versions, optional example builds, and troubleshooting notes.
 
 Verify the camera is detected:
 ```

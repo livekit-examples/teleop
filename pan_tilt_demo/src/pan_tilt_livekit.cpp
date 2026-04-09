@@ -17,7 +17,7 @@
 #include "pan_tilt_livekit.h"
 #include "pan_tilt_topics.h"
 
-#include "livekit/lk_log.h"
+#include "ostream_log.h"
 #include "livekit/track.h"
 
 #include <nlohmann/json.hpp>
@@ -134,22 +134,22 @@ PtLiveKitApp::~PtLiveKitApp() { shutdown(); }
 void PtLiveKitApp::requestStop() { g_running_.store(false); }
 
 bool PtLiveKitApp::initializeHardware() {
-  LK_LOG_INFO(
+  WriteLine(std::cout, 
       "[pan_tilt_livekit] Initializing pan/tilt on {} (pan-id={}, tilt-id={})",
       config_.serial_port, config_.motor_ids[0], config_.motor_ids[1]);
   if (!pan_tilt_.initialize(config_.run_calibration_ofs)) {
-    LK_LOG_ERROR("[pan_tilt_livekit] PanTiltController initialize failed");
+    WriteLine(std::cerr, "[pan_tilt_livekit] PanTiltController initialize failed");
     return false;
   }
   if (!pan_tilt_.haltMotors()) {
-    LK_LOG_ERROR("[pan_tilt_livekit] Failed to zero motor velocities at startup");
+    WriteLine(std::cerr, "[pan_tilt_livekit] Failed to zero motor velocities at startup");
     return false;
   }
 
-  LK_LOG_INFO("[pan_tilt_livekit] Initializing GYRO on bus={} addr={:#x}",
+  WriteLine(std::cout, "[pan_tilt_livekit] Initializing GYRO on bus={} addr={:#x}",
               config_.gyro_bus, config_.gyro_address);
   if (!gyro_.init()) {
-    LK_LOG_ERROR("[pan_tilt_livekit] GYRO init failed");
+    WriteLine(std::cerr, "[pan_tilt_livekit] GYRO init failed");
     return false;
   }
   gyro_.start();
@@ -157,7 +157,7 @@ bool PtLiveKitApp::initializeHardware() {
   if (config_.enable_realsense) {
     camera_ = std::make_unique<RealsenseCamera>(config_.realsense_cfg);
     if (!camera_->start()) {
-      LK_LOG_ERROR("[pan_tilt_livekit] RealSense camera failed to start");
+      WriteLine(std::cerr, "[pan_tilt_livekit] RealSense camera failed to start");
       return false;
     }
   }
@@ -174,9 +174,9 @@ bool PtLiveKitApp::connectAndPublishTracks() {
   options.auto_subscribe = true;
   options.dynacast = false;
 
-  LK_LOG_INFO("[pan_tilt_livekit] Connecting to {}", config_.url);
+  WriteLine(std::cout, "[pan_tilt_livekit] Connecting to {}", config_.url);
   if (!room_->Connect(config_.url, config_.token, options)) {
-    LK_LOG_ERROR("[pan_tilt_livekit] Failed to connect to LiveKit");
+    WriteLine(std::cerr, "[pan_tilt_livekit] Failed to connect to LiveKit");
     return false;
   }
 
@@ -184,7 +184,7 @@ bool PtLiveKitApp::connectAndPublishTracks() {
 
   auto gyro_result = lp->publishDataTrack(pan_tilt_topics::kGyroStateTrack);
   if (!gyro_result) {
-    LK_LOG_ERROR("[pan_tilt_livekit] Failed to publish data track '{}'",
+    WriteLine(std::cerr, "[pan_tilt_livekit] Failed to publish data track '{}'",
                  pan_tilt_topics::kGyroStateTrack);
     return false;
   }
@@ -192,7 +192,7 @@ bool PtLiveKitApp::connectAndPublishTracks() {
 
   auto pan_result = lp->publishDataTrack(pan_tilt_topics::kPanStateTrack);
   if (!pan_result) {
-    LK_LOG_ERROR("[pan_tilt_livekit] Failed to publish data track '{}'",
+    WriteLine(std::cerr, "[pan_tilt_livekit] Failed to publish data track '{}'",
                  pan_tilt_topics::kPanStateTrack);
     return false;
   }
@@ -200,13 +200,13 @@ bool PtLiveKitApp::connectAndPublishTracks() {
 
   auto tilt_result = lp->publishDataTrack(pan_tilt_topics::kTiltStateTrack);
   if (!tilt_result) {
-    LK_LOG_ERROR("[pan_tilt_livekit] Failed to publish data track '{}'",
+    WriteLine(std::cerr, "[pan_tilt_livekit] Failed to publish data track '{}'",
                  pan_tilt_topics::kTiltStateTrack);
     return false;
   }
   tracks_.tilt_state = std::move(tilt_result).value();
 
-  LK_LOG_INFO("[pan_tilt_livekit] Published data tracks: {}, {}, {}",
+  WriteLine(std::cout, "[pan_tilt_livekit] Published data tracks: {}, {}, {}",
               pan_tilt_topics::kGyroStateTrack, pan_tilt_topics::kPanStateTrack,
               pan_tilt_topics::kTiltStateTrack);
 
@@ -220,7 +220,7 @@ bool PtLiveKitApp::connectAndPublishTracks() {
     auto depth_result =
         lp->publishDataTrack(pan_tilt_topics::kCameraDepthTrack);
     if (!depth_result) {
-      LK_LOG_ERROR("[pan_tilt_livekit] Failed to publish data track '{}'",
+      WriteLine(std::cerr, "[pan_tilt_livekit] Failed to publish data track '{}'",
                    pan_tilt_topics::kCameraDepthTrack);
       return false;
     }
@@ -232,7 +232,7 @@ bool PtLiveKitApp::connectAndPublishTracks() {
                           tracks_.camera_depth_vis_source,
                           livekit::TrackSource::SOURCE_SCREENSHARE);
 
-    LK_LOG_INFO(
+    WriteLine(std::cout, 
         "[pan_tilt_livekit] Published camera tracks: {} (video), {} (data), {} (video)",
         pan_tilt_topics::kCameraColorTrack, pan_tilt_topics::kCameraDepthTrack,
         pan_tilt_topics::kCameraDepthVisTrack);
@@ -250,11 +250,11 @@ bool PtLiveKitApp::registerAcquireControlRpc() {
           return handleAcquireControlRpc(data);
         });
     rpc_registered_ = true;
-    LK_LOG_INFO("[pan_tilt_livekit] Registered RPC method '{}'",
+    WriteLine(std::cout, "[pan_tilt_livekit] Registered RPC method '{}'",
                 pan_tilt_topics::kAcquireControlRpc);
     return true;
   } catch (const std::exception &e) {
-    LK_LOG_ERROR("[pan_tilt_livekit] Failed to register RPC '{}': {}",
+    WriteLine(std::cerr, "[pan_tilt_livekit] Failed to register RPC '{}': {}",
                  pan_tilt_topics::kAcquireControlRpc, e.what());
     return false;
   }
@@ -263,7 +263,7 @@ bool PtLiveKitApp::registerAcquireControlRpc() {
 std::optional<std::string>
 PtLiveKitApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
   if (data.caller_identity.empty()) {
-    LK_LOG_ERROR("[pan_tilt_livekit] acquire_control called with empty caller identity");
+    WriteLine(std::cerr, "[pan_tilt_livekit] acquire_control called with empty caller identity");
     return std::nullopt;
   }
 
@@ -279,7 +279,7 @@ PtLiveKitApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
         release_requested = !request.at("acquire").get<bool>();
       }
     } catch (const std::exception &e) {
-      LK_LOG_WARN("[pan_tilt_livekit] Invalid acquire_control payload from '{}': {}",
+      WriteLine(std::cerr, "[pan_tilt_livekit] Invalid acquire_control payload from '{}': {}",
                   data.caller_identity, e.what());
       throw std::runtime_error(
           "invalid acquire_control payload; expected JSON boolean field "
@@ -334,13 +334,13 @@ PtLiveKitApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
         controller_identity_.clear();
       }
     }
-    LK_LOG_ERROR(
+    WriteLine(std::cerr, 
         "[pan_tilt_livekit] Failed subscribing controller '{}' to '{}': {}",
         data.caller_identity, pan_tilt_topics::kControlCmdTrack, e.what());
     throw std::runtime_error("failed to subscribe controller to control_cmd");
   }
 
-  LK_LOG_INFO("[pan_tilt_livekit] Controller acquired by '{}'", data.caller_identity);
+  WriteLine(std::cout, "[pan_tilt_livekit] Controller acquired by '{}'", data.caller_identity);
   return std::optional<std::string>{"control acquired by " +
                                     data.caller_identity};
 }
@@ -360,7 +360,7 @@ void PtLiveKitApp::clearController() {
     room_->removeOnDataFrameCallback(control_cmd_callback_id_);
     control_cmd_callback_id_ = 0;
   }
-  LK_LOG_INFO("[pan_tilt_livekit] Controller '{}' released", previous_controller);
+  WriteLine(std::cout, "[pan_tilt_livekit] Controller '{}' released", previous_controller);
 }
 
 void PtLiveKitApp::onControlCmdPayload(
@@ -375,22 +375,22 @@ void PtLiveKitApp::onControlCmdPayload(
         radPerSecToServoStepsPerSec(tilt_vel_rad_s);
 
     if (!pan_tilt_.setVelocity(kPanIndex, pan_steps_s)) {
-      LK_LOG_ERROR(
+      WriteLine(std::cerr, 
           "[pan_tilt_livekit] Failed setting pan velocity (rad/s={}, steps/s={})",
           pan_vel_rad_s, pan_steps_s);
       return;
     }
     if (!pan_tilt_.setVelocity(kTiltIndex, tilt_steps_s)) {
-      LK_LOG_ERROR(
+      WriteLine(std::cerr, 
           "[pan_tilt_livekit] Failed setting tilt velocity (rad/s={}, steps/s={})",
           tilt_vel_rad_s, tilt_steps_s);
       return;
     }
 
-    LK_LOG_DEBUG("[pan_tilt_livekit] control_cmd pan={} rad/s tilt={} rad/s",
+    WriteLine(std::cout, "[pan_tilt_livekit] control_cmd pan={} rad/s tilt={} rad/s",
                  pan_vel_rad_s, tilt_vel_rad_s);
   } catch (const std::exception &e) {
-    LK_LOG_WARN("[pan_tilt_livekit] Invalid control_cmd payload: {}", e.what());
+    WriteLine(std::cerr, "[pan_tilt_livekit] Invalid control_cmd payload: {}", e.what());
   }
 }
 
@@ -459,7 +459,7 @@ void PtLiveKitApp::processDepthSendJob(const DepthSendJob &job) {
                 comp_len);
   } else {
     if (zr != Z_OK) {
-      LK_LOG_WARN("[pan_tilt_livekit] zlib compress2 failed ({}), sending raw",
+      WriteLine(std::cerr, "[pan_tilt_livekit] zlib compress2 failed ({}), sending raw",
                   zr);
     }
     payload.resize(raw_wire);
@@ -502,7 +502,7 @@ void PtLiveKitApp::startDepthWorker() {
   }
   depth_worker_stop_.store(false);
   depth_worker_thread_ = std::thread(&PtLiveKitApp::depthWorkerLoop, this);
-  LK_LOG_INFO("[pan_tilt_livekit] camera.depth send worker started");
+  WriteLine(std::cout, "[pan_tilt_livekit] camera.depth send worker started");
 }
 
 void PtLiveKitApp::stopDepthWorker() {
@@ -512,7 +512,7 @@ void PtLiveKitApp::stopDepthWorker() {
   depth_worker_stop_.store(true);
   depth_cv_.notify_all();
   depth_worker_thread_.join();
-  LK_LOG_INFO("[pan_tilt_livekit] camera.depth send worker stopped");
+  WriteLine(std::cout, "[pan_tilt_livekit] camera.depth send worker stopped");
 }
 
 void PtLiveKitApp::publishCameraTick() {
@@ -624,7 +624,7 @@ int PtLiveKitApp::run() {
 
   constexpr auto kMinLoopDuration = std::chrono::milliseconds(5);
 
-  LK_LOG_INFO("[pan_tilt_livekit] Running publish loop at {} Hz{}",
+  WriteLine(std::cout, "[pan_tilt_livekit] Running publish loop at {} Hz{}",
               config_.publish_rate_hz,
               camera_ ? " (with RealSense camera)" : "");
   while (g_running_.load()) {
@@ -658,12 +658,12 @@ void PtLiveKitApp::logPublishDiagnosticsIfDue() {
   long long rss_kb = -1;
   long long vsz_kb = -1;
   if (!readProcSelfMemoryKb(&rss_kb, &vsz_kb)) {
-    LK_LOG_WARN(
+    WriteLine(std::cerr, 
         "[pan_tilt_livekit] could not read /proc/self/status (VmRSS/VmSize)");
     return;
   }
 
-  LK_LOG_INFO(
+  WriteLine(std::cout, 
       "[pan_tilt_livekit] mem VmRSS={} kB VmSize={} kB publish_total "
       "{}={} {}={} {}={} {}={} {}={} {}={}",
       rss_kb, vsz_kb, pan_tilt_topics::kGyroStateTrack,
@@ -699,7 +699,7 @@ void PtLiveKitApp::shutdown() {
       room_->localParticipant()->unregisterRpcMethod(
           pan_tilt_topics::kAcquireControlRpc);
     } catch (const std::exception &e) {
-      LK_LOG_WARN("[pan_tilt_livekit] RPC unregister skipped: {}", e.what());
+      WriteLine(std::cerr, "[pan_tilt_livekit] RPC unregister skipped: {}", e.what());
     }
     rpc_registered_ = false;
   }
@@ -707,7 +707,7 @@ void PtLiveKitApp::shutdown() {
   try {
     clearController();
   } catch (const std::exception &e) {
-    LK_LOG_WARN("[pan_tilt_livekit] Failed to clear controller callback: {}",
+    WriteLine(std::cerr, "[pan_tilt_livekit] Failed to clear controller callback: {}",
                 e.what());
   }
 
@@ -716,7 +716,7 @@ void PtLiveKitApp::shutdown() {
   }
 
   if (!pan_tilt_.haltMotors()) {
-    LK_LOG_WARN("[pan_tilt_livekit] Failed to halt motors during shutdown");
+    WriteLine(std::cerr, "[pan_tilt_livekit] Failed to halt motors during shutdown");
   }
   gyro_.stop();
 
