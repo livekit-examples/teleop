@@ -1,6 +1,6 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -9,14 +9,14 @@
   --color-foreground: var(--foreground);
 
   --font-sans:
-    var(--font-lk-sans), ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    var(--font-lk-sans), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-mono:
-    var(--font-lk-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
+    var(--font-lk-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   --font-display:
-    var(--font-lk-display), ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    var(--font-lk-display), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -80,6 +80,8 @@
   --foreground: oklch(var(--color-fgAccent1));
   --card: oklch(var(--color-fgAccent1) / 0.15);
   --card-foreground: oklch(var(--color-fgAccent1));
+  --popover: oklch(var(--color-fgAccent1) / 0.15);
+  --popover-foreground: oklch(var(--color-fgAccent1));
   --primary: oklch(var(--color-bgAccent1));
   --primary-foreground: oklch(var(--color-fgAccent1));
   --secondary: oklch(var(--color-bg2));
@@ -97,7 +99,7 @@
   --chart-3: oklch(var(--color-chart3));
   --chart-4: oklch(var(--color-chart4));
   --chart-5: oklch(var(--color-chart5));
-  --radius: 0.625rem;
+  --radius: 0.333rem;
   --sidebar: oklch(var(--color-bg2));
   --sidebar-foreground: oklch(var(--color-fg1));
   --sidebar-primary: oklch(var(--color-bgAccent1));
