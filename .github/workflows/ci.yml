@@ -121,6 +121,12 @@ jobs:
             libssl-dev \
             libcamera-dev \
             libpng-dev \
+            libx11-dev \
+            libxext-dev \
+            libxrandr-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxss-dev \
             git \
             wget \
             cmake \
