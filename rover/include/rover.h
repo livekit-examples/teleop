@@ -37,7 +37,7 @@ class RoverSerialBus;
  * The app owns the LiveKit room connection, optional camera, and serial bus
  * used to bridge local rover hardware with remote teleoperation clients.
  */
-class RoverApp {
+class RoverApp : public livekit::RoomDelegate {
 public:
   /**
    * @brief Creates the rover runtime using the provided configuration.
@@ -106,6 +106,11 @@ private:
   void checkControlWatchdog();
   /** @brief Performs one-time teardown of room, RPC, camera, and serial state. */
   void shutdown();
+
+  // livekit::RoomDelegate overrides
+  void onParticipantDisconnected(
+      livekit::Room &room,
+      const livekit::ParticipantDisconnectedEvent &event) override;
 
   static std::atomic<bool>
       g_running_; ///< Process-wide stop flag toggled by signal handlers.

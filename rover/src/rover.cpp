@@ -77,6 +77,7 @@ bool RoverApp::connectAndPublishTracks() {
   livekit::initialize();
 
   room_ = std::make_unique<livekit::Room>();
+  room_->setDelegate(this);
 
   livekit::RoomOptions options;
   options.auto_subscribe = true;
@@ -232,6 +233,26 @@ void RoverApp::clearController() {
     control_cmd_callback_id_ = 0;
   }
   std::cout << "[rover] Controller '" << previous_controller << "' released\n";
+}
+
+void RoverApp::onParticipantDisconnected(
+    livekit::Room & /*room*/,
+    const livekit::ParticipantDisconnectedEvent &event) {
+  if (event.participant == nullptr) {
+    return;
+  }
+  const std::string &identity = event.participant->identity();
+  bool was_controller = false;
+  {
+    std::lock_guard<std::mutex> lock(controller_mutex_);
+    was_controller = (controller_identity_ == identity);
+  }
+  if (was_controller) {
+    clearController();
+    sendStopCommand();
+    std::cout << "[rover] Controller '" << identity
+              << "' disconnected — control released\n";
+  }
 }
 
 void RoverApp::onControlCmdPayload(const std::vector<std::uint8_t> &payload) {
