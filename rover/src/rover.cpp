@@ -20,6 +20,8 @@
 #include "rover_topics.h"
 #include "teleop_msgs.h"
 
+#include "livekit/remote_data_track.h"
+
 #include <chrono>
 #include <csignal>
 #include <exception>
@@ -197,7 +199,11 @@ RoverApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
     control_cmd_callback_id_ = room_->addOnDataFrameCallback(
         data.caller_identity, control_track,
         [this](const std::vector<std::uint8_t> &payload,
-               std::optional<std::uint64_t>) { onControlCmdPayload(payload); });
+               std::optional<std::uint64_t>) {
+          onControlCmdPayload(payload);
+        });
+    std::cout << "[rover] Subscribed to data track '" << control_track
+              << "' from '" << data.caller_identity << "'\n";
   } catch (const std::exception &e) {
     {
       std::lock_guard<std::mutex> lock(controller_mutex_);
@@ -235,6 +241,20 @@ void RoverApp::clearController() {
   std::cout << "[rover] Controller '" << previous_controller << "' released\n";
 }
 
+void RoverApp::onDataTrackPublished(
+    livekit::Room & /*room*/,
+    const livekit::DataTrackPublishedEvent &event) {
+  if (event.track == nullptr) {
+    std::cout << "[rover] Remote data track published is nullptr\n";
+    return;
+  }
+
+  const auto &info = event.track->info();
+  std::cout << "[rover] Remote data track published by '"
+            << event.track->publisherIdentity() << "' track '" << info.name
+            << " (sid=" << info.sid << ")\n";
+}
+
 void RoverApp::onParticipantDisconnected(
     livekit::Room & /*room*/,
     const livekit::ParticipantDisconnectedEvent &event) {
@@ -267,10 +287,6 @@ void RoverApp::onControlCmdPayload(const std::vector<std::uint8_t> &payload) {
     std::lock_guard<std::mutex> lock(last_control_cmd_mutex_);
     last_control_cmd_time_ = std::chrono::steady_clock::now();
   }
-
-  std::cout << "[rover] Received control_cmd throttle_rps="
-            << control_cmd.throttle_rps
-            << " steering_rps=" << control_cmd.steering_rps << "\n";
 
   if (serial_bus_ != nullptr && serial_bus_->isOpen() &&
       !serial_bus_->sendControlCommand(control_cmd)) {
@@ -360,7 +376,7 @@ int RoverApp::run() {
         if (tracks_.imu != nullptr) {
           (void)tracks_.imu->tryPush(teleop_msgs::toPayload(*imu_msg));
           ++imu_publish_count_;
-          if ((imu_publish_count_ % 30U) == 0U) {
+          if ((imu_publish_count_ % 100U) == 0U) {
             std::cout << "[rover] IMU #" << imu_publish_count_ << ": "
                       << teleop_msgs::toJson(*imu_msg).dump() << "\n";
           }

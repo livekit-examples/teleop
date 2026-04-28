@@ -108,6 +108,9 @@ private:
   void shutdown();
 
   // livekit::RoomDelegate overrides
+  void onDataTrackPublished(
+      livekit::Room &room,
+      const livekit::DataTrackPublishedEvent &event) override;
   void onParticipantDisconnected(
       livekit::Room &room,
       const livekit::ParticipantDisconnectedEvent &event) override;
