@@ -128,6 +128,7 @@ private:
   std::mutex controller_mutex_; ///< Guards access to the active controller.
   std::string
       controller_identity_; ///< Identity of the operator holding control.
+  std::mutex control_cmd_callback_mutex_; ///< Guards control callback id updates.
   livekit::DataFrameCallbackId
       control_cmd_callback_id_{0}; ///< Subscription id for control commands.
   bool rpc_registered_{false}; ///< True after the control RPC is registered.

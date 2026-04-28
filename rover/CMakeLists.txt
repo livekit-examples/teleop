@@ -80,6 +80,16 @@ target_link_libraries(RoverController PRIVATE
 )
 target_link_directories(RoverController PRIVATE "${_lk_lib_dir}")
 
+add_executable(SimpleParticipant
+  src/simple_participant.cpp
+)
+target_include_directories(SimpleParticipant PRIVATE include)
+target_link_libraries(SimpleParticipant PRIVATE
+  LiveKit::livekit
+  ZLIB::ZLIB
+)
+target_link_directories(SimpleParticipant PRIVATE "${_lk_lib_dir}")
+
 enable_testing()
 
 add_executable(TeleopMsgsTest

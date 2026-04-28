@@ -192,16 +192,19 @@ RoverApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
 
   try {
     // Replace any stale subscription before binding the new active controller.
-    if (control_cmd_callback_id_ != 0) {
-      room_->removeOnDataFrameCallback(control_cmd_callback_id_);
-      control_cmd_callback_id_ = 0;
+    {
+      std::lock_guard<std::mutex> lock(control_cmd_callback_mutex_);
+      if (control_cmd_callback_id_ != 0) {
+        room_->removeOnDataFrameCallback(control_cmd_callback_id_);
+        control_cmd_callback_id_ = 0;
+      }
+      control_cmd_callback_id_ = room_->addOnDataFrameCallback(
+          data.caller_identity, control_track,
+          [this](const std::vector<std::uint8_t> &payload,
+                 std::optional<std::uint64_t>) {
+            onControlCmdPayload(payload);
+          });
     }
-    control_cmd_callback_id_ = room_->addOnDataFrameCallback(
-        data.caller_identity, control_track,
-        [this](const std::vector<std::uint8_t> &payload,
-               std::optional<std::uint64_t>) {
-          onControlCmdPayload(payload);
-        });
     std::cout << "[rover] Subscribed to data track '" << control_track
               << "' from '" << data.caller_identity << "'\n";
   } catch (const std::exception &e) {
@@ -234,9 +237,12 @@ void RoverApp::clearController() {
     controller_identity_.clear();
   }
 
-  if (control_cmd_callback_id_ != 0) {
-    room_->removeOnDataFrameCallback(control_cmd_callback_id_);
-    control_cmd_callback_id_ = 0;
+  {
+    std::lock_guard<std::mutex> lock(control_cmd_callback_mutex_);
+    if (control_cmd_callback_id_ != 0) {
+      room_->removeOnDataFrameCallback(control_cmd_callback_id_);
+      control_cmd_callback_id_ = 0;
+    }
   }
   std::cout << "[rover] Controller '" << previous_controller << "' released\n";
 }

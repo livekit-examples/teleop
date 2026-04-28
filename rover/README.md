@@ -25,6 +25,7 @@ CMake skips the SDK download and prepends that install prefix to
 Build output:
 - `build/RoverRobot`
 - `build/RoverController`
+- `build/SimpleParticipant`
 - `build/TeleopMsgsTest`
 
 Robot usage:
@@ -37,6 +38,12 @@ Controller usage:
 
 ```bash
 ./build/RoverController --url <ws-url> --token <token> --rover-id <identity>
+```
+
+Simple participant usage:
+
+```bash
+./build/SimpleParticipant --url <ws-url> --token <token>
 ```
 
 Both binaries also support `LIVEKIT_URL` and `LIVEKIT_TOKEN`.
