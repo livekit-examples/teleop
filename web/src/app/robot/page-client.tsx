@@ -40,6 +40,25 @@ const ANIMATION_TRANSITION: Transition = {
 export function App() {
   const router = useRouter();
   const session = useSessionContext();
+
+  // Declare the connection lifecycle effect first so its cleanup runs *last*.
+  // Subsequent hooks (useGyro, useControlCmdTrack, etc.) tear down their
+  // subscriptions before session.end() closes the room, so SDK abort handlers
+  // don't fire against a torn-down PC manager.
+  useEffect(() => {
+    session.start().catch((err: unknown) => {
+      toast.error("Failed to connect to robot", {
+        id: "robot-connect-error",
+        description: err instanceof Error ? err.message : String(err),
+      });
+      router.push("/");
+    });
+
+    return () => {
+      session.end();
+    };
+  }, []);
+
   const gyro = useGyro(ROBOT_IDENTITY);
   const { pan, tilt } = usePanTilt(ROBOT_IDENTITY);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -55,20 +74,6 @@ export function App() {
   const { pushControlCmd } = useControlCmdTrack(
     mode === "operate" && session.isConnected,
   );
-
-  useEffect(() => {
-    session.start().catch((err: unknown) => {
-      toast.error("Failed to connect to robot", {
-        id: "robot-connect-error",
-        description: err instanceof Error ? err.message : String(err),
-      });
-      router.push("/");
-    });
-
-    return () => {
-      session.end();
-    };
-  }, []);
 
   const validLabel =
     gyro.valid === undefined ? null : gyro.valid ? "yes" : "no";

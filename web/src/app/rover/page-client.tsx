@@ -10,6 +10,7 @@ import { useSessionContext } from "@livekit/components-react";
 import { useAcquireControl } from "@/hooks/use-acquire-control";
 import { useRoverControlCmdTrack } from "@/hooks/use-rover-control-cmd-track";
 import { useImu } from "@/hooks/use-imu";
+import { useRoverDebugListener } from "@/hooks/use-rover-debug-listener";
 import { Button } from "@/components/ui/button";
 import { MinimizeIcon, MaximizeIcon } from "lucide-react";
 import { motion, AnimatePresence, type Transition } from "motion/react";
@@ -19,6 +20,9 @@ import { toast } from "sonner";
 import { VideoDialog } from "@/components/video-dialog";
 
 const ROVER_ID = process.env.NEXT_PUBLIC_ROVER_IDENTITY || "";
+const DEBUG_LIVEKIT_URL = process.env.NEXT_PUBLIC_ROVER_LIVEKIT_URL || "";
+const DEBUG_LIVEKIT_TOKEN =
+  process.env.NEXT_PUBLIC_ROVER_DEBUG_LIVEKIT_TOKEN || "";
 
 const ANIMATION_VARIANTS = {
   hidden: { opacity: 0, y: 10 },
@@ -33,10 +37,31 @@ const ANIMATION_TRANSITION: Transition = {
 
 export function App() {
   const router = useRouter();
-  const imu = useImu(ROVER_ID);
   const session = useSessionContext();
+
+  // Declare the connection lifecycle effect first so its cleanup runs *last*.
+  // Subsequent hooks (useImu, useRoverControlCmdTrack, etc.) tear down their
+  // subscriptions before session.end() closes the room, so SDK abort handlers
+  // don't fire against a torn-down PC manager.
+  useEffect(() => {
+    session.start().catch((err: unknown) => {
+      toast.error("Failed to connect to rover", {
+        id: "rover-connect-error",
+        description: err instanceof Error ? err.message : String(err),
+      });
+      router.push("/");
+    });
+
+    return () => {
+      session.end();
+    };
+  }, []);
+
+  const imu = useImu(ROVER_ID);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+
+  useRoverDebugListener(DEBUG_LIVEKIT_URL, DEBUG_LIVEKIT_TOKEN);
 
   const { mode, isRpcPending, isOperatorModeLocked, handleModeRequest } =
     useAcquireControl({
@@ -57,20 +82,6 @@ export function App() {
     },
     [pushControlCmd],
   );
-
-  useEffect(() => {
-    session.start().catch((err: unknown) => {
-      toast.error("Failed to connect to rover", {
-        id: "rover-connect-error",
-        description: err instanceof Error ? err.message : String(err),
-      });
-      router.push("/");
-    });
-
-    return () => {
-      session.end();
-    };
-  }, []);
 
   const handleDisconnect = () => {
     session.end();
