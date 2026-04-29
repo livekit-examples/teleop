@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { GaugeIcon, PowerIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StatusBar } from "@/components/status-bar";
@@ -15,8 +15,8 @@ import { MinimizeIcon, MaximizeIcon } from "lucide-react";
 import { motion, AnimatePresence, type Transition } from "motion/react";
 import { cn } from "@/lib/utils";
 import { RAD_TO_DEG, roverArducamTrackName } from "@/lib/rover";
-import { toast } from "sonner";
 import { VideoDialog } from "@/components/video-dialog";
+import { useConnection } from "@/hooks/use-connection";
 
 const ROVER_ID = process.env.NEXT_PUBLIC_ROVER_IDENTITY || "";
 const ROVER_CAMERA_TRACK_NAME = roverArducamTrackName(ROVER_ID);
@@ -33,24 +33,9 @@ const ANIMATION_TRANSITION: Transition = {
 };
 
 export function App() {
+  useConnection();
   const router = useRouter();
   const session = useSessionContext();
-
-  // Declare the connection lifecycle effect first so its cleanup runs *last*
-  useEffect(() => {
-    session.start().catch((err: unknown) => {
-      toast.error("Failed to connect to rover", {
-        id: "rover-connect-error",
-        description: err instanceof Error ? err.message : String(err),
-      });
-      router.push("/");
-    });
-
-    return () => {
-      session.end();
-    };
-  }, []);
-
   const imu = useImu(ROVER_ID);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);

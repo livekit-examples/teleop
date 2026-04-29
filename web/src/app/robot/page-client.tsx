@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ScaleVertical } from "@/components/scale-vertical";
 import { ScaleHorizontal } from "@/components/scale-horizontal";
 import { StatusBar } from "@/components/status-bar";
@@ -21,8 +21,8 @@ import { MinimizeIcon, MaximizeIcon, PowerIcon, GaugeIcon } from "lucide-react";
 import { motion, AnimatePresence, type Transition } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { VideoDialog } from "@/components/video-dialog";
+import { useConnection } from "@/hooks/use-connection";
 
 const ROBOT_IDENTITY = process.env.NEXT_PUBLIC_ROBOT_IDENTITY || "";
 
@@ -38,24 +38,10 @@ const ANIMATION_TRANSITION: Transition = {
 };
 
 export function App() {
+  useConnection();
+
   const router = useRouter();
   const session = useSessionContext();
-
-  // Declare the connection lifecycle effect first so its cleanup runs *last*
-  useEffect(() => {
-    session.start().catch((err: unknown) => {
-      toast.error("Failed to connect to robot", {
-        id: "robot-connect-error",
-        description: err instanceof Error ? err.message : String(err),
-      });
-      router.push("/");
-    });
-
-    return () => {
-      session.end();
-    };
-  }, []);
-
   const gyro = useGyro(ROBOT_IDENTITY);
   const { pan, tilt } = usePanTilt(ROBOT_IDENTITY);
   const [isFullscreen, setIsFullscreen] = useState(false);
