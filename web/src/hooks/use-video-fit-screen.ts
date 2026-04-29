@@ -1,8 +1,8 @@
-import { TrackReference } from "@livekit/components-react";
-import { useLayoutEffect, useMemo, useState } from "react";
+import { TrackReference } from '@livekit/components-react';
+import { useLayoutEffect, useMemo, useState } from 'react';
 
 function getViewportSize() {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return { width: 0, height: 0 };
   }
   return { width: window.innerWidth, height: window.innerHeight };
@@ -25,8 +25,8 @@ export function useVideoFitScreen(
     }
 
     onResize();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
   const { width, height } = useMemo(() => {

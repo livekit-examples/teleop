@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 export interface DebugRow {
   label: string;
@@ -22,9 +22,9 @@ interface DebugPanelProps {
 function formatValue({ value, unit, precision = 2 }: DebugRow): string {
   let formatted: string;
   if (value === null || value === undefined) {
-    formatted = "—";
-  } else if (typeof value === "number") {
-    formatted = Number.isFinite(value) ? value.toFixed(precision) : "—";
+    formatted = '—';
+  } else if (typeof value === 'number') {
+    formatted = Number.isFinite(value) ? value.toFixed(precision) : '—';
   } else {
     formatted = value;
   }
@@ -35,24 +35,19 @@ export function DebugPanel({ rows, className }: DebugPanelProps) {
   return (
     <div
       className={cn(
-        "bg-surface text-foreground border-input w-48 rounded-lg border font-mono text-xs",
+        'bg-surface text-foreground border-input w-48 rounded-lg border font-mono text-xs',
         className,
       )}
     >
       <table className="w-full">
         <tbody>
           {rows.map((row) => (
-            <tr
-              key={row.label}
-              className="border-input/50 border-b last:border-b-0"
-            >
+            <tr key={row.label} className="border-input/50 border-b last:border-b-0">
               <th scope="row" className="px-3 py-1 text-left font-normal">
                 {row.label}
               </th>
-              <td className=" py-1 text-right whitespace-nowrap">
-                {formatValue(row)}
-              </td>
-              <td className=" py-1 text-left whitespace-nowrap">{row.unit}</td>
+              <td className="py-1 text-right whitespace-nowrap">{formatValue(row)}</td>
+              <td className="py-1 text-left whitespace-nowrap">{row.unit}</td>
             </tr>
           ))}
         </tbody>

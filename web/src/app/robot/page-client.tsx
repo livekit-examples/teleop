@@ -1,30 +1,26 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { ScaleVertical } from "@/components/scale-vertical";
-import { ScaleHorizontal } from "@/components/scale-horizontal";
-import { StatusBar } from "@/components/status-bar";
-import { Joystick } from "@/components/joystick";
-import { DebugPanel, type DebugRow } from "@/components/debug-panel";
-import {
-  useSessionContext,
-  useTracks,
-  VideoTrack,
-} from "@livekit/components-react";
-import { useAcquireControl } from "@/hooks/use-acquire-control";
-import { useControlCmdTrack } from "@/hooks/use-control-cmd-track";
-import { useGyro } from "@/hooks/use-gyro";
-import { usePanTilt } from "@/hooks/use-pan-tilt";
-import { Track } from "livekit-client";
-import { Button } from "@/components/ui/button";
-import { MinimizeIcon, MaximizeIcon, PowerIcon, GaugeIcon } from "lucide-react";
-import { motion, AnimatePresence, type Transition } from "motion/react";
-import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
-import { VideoDialog } from "@/components/video-dialog";
-import { useConnection } from "@/hooks/use-connection";
+import { useState } from 'react';
+import { ScaleVertical } from '@/components/scale-vertical';
+import { ScaleHorizontal } from '@/components/scale-horizontal';
+import { StatusBar } from '@/components/status-bar';
+import { Joystick } from '@/components/joystick';
+import { DebugPanel, type DebugRow } from '@/components/debug-panel';
+import { useSessionContext, useTracks, VideoTrack } from '@livekit/components-react';
+import { useAcquireControl } from '@/hooks/use-acquire-control';
+import { useControlCmdTrack } from '@/hooks/use-control-cmd-track';
+import { useGyro } from '@/hooks/use-gyro';
+import { usePanTilt } from '@/hooks/use-pan-tilt';
+import { Track } from 'livekit-client';
+import { Button } from '@/components/ui/button';
+import { MinimizeIcon, MaximizeIcon, PowerIcon, GaugeIcon } from 'lucide-react';
+import { motion, AnimatePresence, type Transition } from 'motion/react';
+import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { VideoDialog } from '@/components/video-dialog';
+import { useConnection } from '@/hooks/use-connection';
 
-const ROBOT_IDENTITY = process.env.NEXT_PUBLIC_ROBOT_IDENTITY || "";
+const ROBOT_IDENTITY = process.env.NEXT_PUBLIC_ROBOT_IDENTITY || '';
 
 const ANIMATION_VARIANTS = {
   hidden: { opacity: 0, y: 10 },
@@ -32,7 +28,7 @@ const ANIMATION_VARIANTS = {
 };
 
 const ANIMATION_TRANSITION: Transition = {
-  type: "spring",
+  type: 'spring',
   duration: 0.2,
   bounce: 0.1,
 };
@@ -48,33 +44,29 @@ export function App() {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [depthVideoTrack] = useTracks([Track.Source.ScreenShare]);
 
-  const { mode, isRpcPending, isOperatorModeLocked, handleModeRequest } =
-    useAcquireControl({
-      identity: ROBOT_IDENTITY,
-      isConnected: session.isConnected,
-    });
+  const { mode, isRpcPending, isOperatorModeLocked, handleModeRequest } = useAcquireControl({
+    identity: ROBOT_IDENTITY,
+    isConnected: session.isConnected,
+  });
 
-  const { pushControlCmd } = useControlCmdTrack(
-    mode === "operate" && session.isConnected,
-  );
+  const { pushControlCmd } = useControlCmdTrack(mode === 'operate' && session.isConnected);
 
-  const validLabel =
-    gyro.valid === undefined ? null : gyro.valid ? "yes" : "no";
+  const validLabel = gyro.valid === undefined ? null : gyro.valid ? 'yes' : 'no';
 
   const debugRows: DebugRow[] = [
-    { label: "isValid", value: validLabel },
-    { label: "Pan", value: pan, unit: "°" },
-    { label: "Tilt", value: tilt, unit: "°" },
-    { label: "ωz", value: gyro.gyro_z_dps, unit: "°/s" },
-    { label: "ωy", value: gyro.gyro_y_dps, unit: "°/s" },
-    { label: "ωx", value: gyro.gyro_x_dps, unit: "°/s" },
-    { label: "θx", value: gyro.angle_x_deg, unit: "°" },
-    { label: "θy", value: gyro.angle_y_deg, unit: "°" },
-    { label: "θz", value: gyro.angle_z_deg, unit: "°" },
+    { label: 'isValid', value: validLabel },
+    { label: 'Pan', value: pan, unit: '°' },
+    { label: 'Tilt', value: tilt, unit: '°' },
+    { label: 'ωz', value: gyro.gyro_z_dps, unit: '°/s' },
+    { label: 'ωy', value: gyro.gyro_y_dps, unit: '°/s' },
+    { label: 'ωx', value: gyro.gyro_x_dps, unit: '°/s' },
+    { label: 'θx', value: gyro.angle_x_deg, unit: '°' },
+    { label: 'θy', value: gyro.angle_y_deg, unit: '°' },
+    { label: 'θz', value: gyro.angle_z_deg, unit: '°' },
   ];
 
   const handleDisconnect = () => {
-    router.push("/");
+    router.push('/');
   };
 
   const actions = [
@@ -94,7 +86,7 @@ export function App() {
       size="icon"
       type="button"
       variant="outline"
-      aria-label={isFullscreen ? "Minimize Fullscreen" : "Maximize Fullscreen"}
+      aria-label={isFullscreen ? 'Minimize Fullscreen' : 'Maximize Fullscreen'}
       onClick={() => setIsFullscreen(!isFullscreen)}
       className="size-8 rounded"
     >
@@ -120,9 +112,7 @@ export function App() {
     <div className="relative h-dvh">
       <AnimatePresence>
         {/* Fullscreen video */}
-        {session.isConnected && (
-          <VideoDialog isFullscreen={isFullscreen} insetX={64} insetY={64} />
-        )}
+        {session.isConnected && <VideoDialog isFullscreen={isFullscreen} insetX={64} insetY={64} />}
 
         {/* Depth video */}
         {session.isConnected && depthVideoTrack && (
@@ -139,10 +129,7 @@ export function App() {
             className="absolute top-6 right-6 z-10 overflow-hidden rounded border"
           >
             <div className="bg-foreground">
-              <VideoTrack
-                trackRef={depthVideoTrack}
-                className="h-[100px] mix-blend-multiply"
-              />
+              <VideoTrack trackRef={depthVideoTrack} className="h-[100px] mix-blend-multiply" />
             </div>
           </motion.div>
         )}
@@ -155,8 +142,8 @@ export function App() {
             animate="visible"
             exit="hidden"
             variants={{
-              hidden: { opacity: 0, translateX: -10, translateY: "-50%" },
-              visible: { opacity: 1, translateX: 0, translateY: "-50%" },
+              hidden: { opacity: 0, translateX: -10, translateY: '-50%' },
+              visible: { opacity: 1, translateX: 0, translateY: '-50%' },
             }}
             transition={ANIMATION_TRANSITION}
             className="absolute top-1/2 left-0 z-10 rounded-r-lg"
@@ -173,8 +160,8 @@ export function App() {
             animate="visible"
             exit="hidden"
             variants={{
-              hidden: { opacity: 0, translateY: -10, translateX: "-50%" },
-              visible: { opacity: 1, translateY: 0, translateX: "-50%" },
+              hidden: { opacity: 0, translateY: -10, translateX: '-50%' },
+              visible: { opacity: 1, translateY: 0, translateX: '-50%' },
             }}
             transition={ANIMATION_TRANSITION}
             className="absolute top-0 left-1/2 z-10 rounded-b-lg"
@@ -184,7 +171,7 @@ export function App() {
         )}
 
         {/* Joystick */}
-        {session.isConnected && mode === "operate" && (
+        {session.isConnected && mode === 'operate' && (
           <motion.div
             key="joystick"
             initial="hidden"

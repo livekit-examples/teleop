@@ -1,9 +1,9 @@
-import { useMemo } from "react";
-import { Track } from "livekit-client";
-import { cn } from "@/lib/utils";
-import { Dialog } from "@/components/dialog";
-import { VideoTrack, useTracks } from "@livekit/components-react";
-import { useVideoFitScreen } from "@/hooks/use-video-fit-screen";
+import { useMemo } from 'react';
+import { Track } from 'livekit-client';
+import { cn } from '@/lib/utils';
+import { Dialog } from '@/components/dialog';
+import { VideoTrack, useTracks } from '@livekit/components-react';
+import { useVideoFitScreen } from '@/hooks/use-video-fit-screen';
 
 interface VideoDialogProps {
   insetX?: number;
@@ -39,12 +39,7 @@ export function VideoDialog({
     });
   }, [participantIdentity, trackName, videoTracks]);
 
-  const { width, height } = useVideoFitScreen(
-    insetX,
-    insetY,
-    isFullscreen,
-    mainVideoTrack ?? null,
-  );
+  const { width, height } = useVideoFitScreen(insetX, insetY, isFullscreen, mainVideoTrack ?? null);
 
   const expectedTrackLabel = trackName ?? source;
   const dimensions = mainVideoTrack?.publication.dimensions;
@@ -56,16 +51,11 @@ export function VideoDialog({
       dimensions && `${dimensions.width}x${dimensions.height}`,
     ]
       .filter(Boolean)
-      .join(" | ");
+      .join(' | ');
 
   return (
-    <div
-      className={cn(
-        "fixed inset-0 flex items-center justify-center",
-        className,
-      )}
-    >
-      <Dialog className="grow flex items-center justify-center">
+    <div className={cn('fixed inset-0 flex items-center justify-center', className)}>
+      <Dialog className="flex grow items-center justify-center">
         {mainVideoTrack ? (
           <div className="relative">
             <VideoTrack
@@ -73,18 +63,18 @@ export function VideoDialog({
               height={height}
               trackRef={mainVideoTrack}
               className={cn(
-                "rounded-md starting:opacity-0 transition-opacity opacity-100",
-                isFullscreen && "fixed inset-0 object-cover z-40 w-dvw h-dvh",
+                'rounded-md opacity-100 transition-opacity starting:opacity-0',
+                isFullscreen && 'fixed inset-0 z-40 h-dvh w-dvw object-cover',
               )}
             />
             {showTrackInfo && trackInfo && (
-              <div className="absolute bottom-2 left-2 rounded bg-background/70 px-2 py-1 font-mono text-xs text-foreground backdrop-blur">
+              <div className="bg-background/70 text-foreground absolute bottom-2 left-2 rounded px-2 py-1 font-mono text-xs backdrop-blur">
                 {trackInfo}
               </div>
             )}
           </div>
         ) : (
-          <div className="rounded border bg-background/60 px-4 py-3 font-mono text-xs uppercase text-muted-foreground">
+          <div className="bg-background/60 text-muted-foreground rounded border px-4 py-3 font-mono text-xs uppercase">
             Waiting for {expectedTrackLabel}
           </div>
         )}

@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { cn } from '@/lib/utils';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { ScaleValue } from "./scale-value";
+import { ScaleValue } from './scale-value';
 
 const DEGREE_RANGE = 360;
 const DEGREE_INCREMENT = 45;
@@ -49,9 +49,9 @@ export function ScaleVertical({
   const stripHeight = degreeRange * pxPerDeg;
 
   return (
-    <div className={cn("relative select-none h-[500px]", className)}>
+    <div className={cn('relative h-[500px] select-none', className)}>
       {isFullscreen && (
-        <div className="absolute inset-y-0 left-0 w-12 bg-surface-2 rounded-r-lg border border-l-transparent border-input" />
+        <div className="bg-surface-2 border-input absolute inset-y-0 left-0 w-12 rounded-r-lg border border-l-transparent" />
       )}
       {/* Vertical scale — strip translates so current value stays centered */}
       <div className="h-full w-12">
@@ -79,9 +79,7 @@ export function ScaleVertical({
                   <span className="text-foreground shrink-0 text-right font-mono text-xs leading-6 whitespace-nowrap">
                     {deg}°
                   </span>
-                  <div
-                    className={cn(`bg-input h-0.5`, isZero ? "w-3" : "w-1.5")}
-                  />
+                  <div className={cn(`bg-input h-0.5`, isZero ? 'w-3' : 'w-1.5')} />
                 </div>
               );
             })}

@@ -1,8 +1,8 @@
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 interface ScaleValueProps {
   value: number;
-  orientation: "vertical" | "horizontal";
+  orientation: 'vertical' | 'horizontal';
   className?: string;
 }
 
@@ -10,8 +10,8 @@ export function ScaleValue({ value, orientation, className }: ScaleValueProps) {
   return (
     <div
       className={cn(
-        "text-foreground items-center justify-center font-mono",
-        orientation === "vertical" ? "flex flex-col" : "flex flex-row",
+        'text-foreground items-center justify-center font-mono',
+        orientation === 'vertical' ? 'flex flex-col' : 'flex flex-row',
         className,
       )}
     >
@@ -24,12 +24,12 @@ export function ScaleValue({ value, orientation, className }: ScaleValueProps) {
         <span className="z-10 whitespace-pre">
           {value >= 0 ? ` ${value.toFixed(1)}°` : `${value.toFixed(1)}°`}
         </span>
-        {orientation === "vertical" && (
+        {orientation === 'vertical' && (
           <div className="pointer-events-none absolute top-1/2 left-1 -translate-x-full -translate-y-1/2">
             <div className="border-l-foreground size-0 border-x-6 border-y-4 border-transparent" />
           </div>
         )}
-        {orientation === "horizontal" && (
+        {orientation === 'horizontal' && (
           <div className="pointer-events-none absolute top-1 left-1/2 -translate-x-1/2 -translate-y-full">
             <div className="border-t-foreground size-0 border-x-4 border-y-6 border-transparent" />
           </div>

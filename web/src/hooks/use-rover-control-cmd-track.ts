@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef } from "react";
-import { useLocalParticipant } from "@livekit/components-react";
-import { controlCmdJson, roverControlCmdTopic } from "@/lib/rover";
-import type { LocalParticipant } from "livekit-client";
+import { useCallback, useEffect, useRef } from 'react';
+import { useLocalParticipant } from '@livekit/components-react';
+import { controlCmdJson, roverControlCmdTopic } from '@/lib/rover';
+import type { LocalParticipant } from 'livekit-client';
 
-type LocalDataTrack = Awaited<ReturnType<LocalParticipant["publishDataTrack"]>>;
+type LocalDataTrack = Awaited<ReturnType<LocalParticipant['publishDataTrack']>>;
 
 async function pushFrame(track: LocalDataTrack, throttle_rps: number, steering_rps: number) {
   const json = controlCmdJson(throttle_rps, steering_rps);
   const payload = new TextEncoder().encode(json);
-  console.log("[control_cmd] pushing frame", json);
+  console.log('[control_cmd] pushing frame', json);
   return await track.tryPush({ payload });
 }
 
@@ -34,7 +34,7 @@ export function useRoverControlCmdTrack(roverId: string, enabled: boolean) {
     void (async () => {
       try {
         const track = await localParticipant.publishDataTrack({ name: topic });
-        console.log("![control_cmd] published track", track.info?.name);
+        console.log('![control_cmd] published track', track.info?.name);
         publishedTrack = track;
         if (cancelled) {
           void track.unpublish().catch(() => {});
@@ -42,7 +42,7 @@ export function useRoverControlCmdTrack(roverId: string, enabled: boolean) {
         }
         trackRef.current = track;
       } catch (e) {
-        console.warn("[control_cmd] publishDataTrack failed:", e);
+        console.warn('[control_cmd] publishDataTrack failed:', e);
       }
     })();
 
@@ -58,7 +58,7 @@ export function useRoverControlCmdTrack(roverId: string, enabled: boolean) {
   const pushControlCmd = useCallback((throttle_rps: number, steering_rps: number) => {
     const track = trackRef.current;
     if (!track?.isPublished()) {
-      console.log("[control_cmd] skip: track not published", {
+      console.log('[control_cmd] skip: track not published', {
         hasTrack: Boolean(track),
         throttle_rps,
         steering_rps,
@@ -66,7 +66,7 @@ export function useRoverControlCmdTrack(roverId: string, enabled: boolean) {
       return;
     }
     void pushFrame(track, throttle_rps, steering_rps).catch((err: unknown) => {
-      console.warn("[control_cmd] pushFrame failed:", err);
+      console.warn('[control_cmd] pushFrame failed:', err);
     });
   }, []);
 

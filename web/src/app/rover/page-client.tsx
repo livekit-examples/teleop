@@ -1,24 +1,24 @@
-"use client";
+'use client';
 
-import { useCallback, useState } from "react";
-import { GaugeIcon, PowerIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { StatusBar } from "@/components/status-bar";
-import { Joystick } from "@/components/joystick";
-import { DebugPanel, type DebugRow } from "@/components/debug-panel";
-import { useSessionContext } from "@livekit/components-react";
-import { useAcquireControl } from "@/hooks/use-acquire-control";
-import { useRoverControlCmdTrack } from "@/hooks/use-rover-control-cmd-track";
-import { useImu } from "@/hooks/use-imu";
-import { Button } from "@/components/ui/button";
-import { MinimizeIcon, MaximizeIcon } from "lucide-react";
-import { motion, AnimatePresence, type Transition } from "motion/react";
-import { cn } from "@/lib/utils";
-import { RAD_TO_DEG, roverArducamTrackName } from "@/lib/rover";
-import { VideoDialog } from "@/components/video-dialog";
-import { useConnection } from "@/hooks/use-connection";
+import { useCallback, useState } from 'react';
+import { GaugeIcon, PowerIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { StatusBar } from '@/components/status-bar';
+import { Joystick } from '@/components/joystick';
+import { DebugPanel, type DebugRow } from '@/components/debug-panel';
+import { useSessionContext } from '@livekit/components-react';
+import { useAcquireControl } from '@/hooks/use-acquire-control';
+import { useRoverControlCmdTrack } from '@/hooks/use-rover-control-cmd-track';
+import { useImu } from '@/hooks/use-imu';
+import { Button } from '@/components/ui/button';
+import { MinimizeIcon, MaximizeIcon } from 'lucide-react';
+import { motion, AnimatePresence, type Transition } from 'motion/react';
+import { cn } from '@/lib/utils';
+import { RAD_TO_DEG, roverArducamTrackName } from '@/lib/rover';
+import { VideoDialog } from '@/components/video-dialog';
+import { useConnection } from '@/hooks/use-connection';
 
-const ROVER_ID = process.env.NEXT_PUBLIC_ROVER_IDENTITY || "";
+const ROVER_ID = process.env.NEXT_PUBLIC_ROVER_IDENTITY || '';
 const ROVER_CAMERA_TRACK_NAME = roverArducamTrackName(ROVER_ID);
 
 const ANIMATION_VARIANTS = {
@@ -27,7 +27,7 @@ const ANIMATION_VARIANTS = {
 };
 
 const ANIMATION_TRANSITION: Transition = {
-  type: "spring",
+  type: 'spring',
   duration: 0.2,
   bounce: 0.1,
 };
@@ -40,15 +40,14 @@ export function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
 
-  const { mode, isRpcPending, isOperatorModeLocked, handleModeRequest } =
-    useAcquireControl({
-      identity: ROVER_ID,
-      isConnected: session.isConnected,
-    });
+  const { mode, isRpcPending, isOperatorModeLocked, handleModeRequest } = useAcquireControl({
+    identity: ROVER_ID,
+    isConnected: session.isConnected,
+  });
 
   const { pushControlCmd } = useRoverControlCmdTrack(
     ROVER_ID,
-    mode === "operate" && session.isConnected,
+    mode === 'operate' && session.isConnected,
   );
 
   // Joystick emits (horizontal, vertical) as (pan_vel, tilt_vel).
@@ -61,7 +60,7 @@ export function App() {
   );
 
   const handleDisconnect = () => {
-    router.push("/");
+    router.push('/');
   };
 
   const pitchDeg = imu ? imu.orientation_rad.pitch * RAD_TO_DEG : 0;
@@ -69,19 +68,19 @@ export function App() {
   const rollDeg = imu ? imu.orientation_rad.roll * RAD_TO_DEG : 0;
 
   const debugRows: DebugRow[] = [
-    { label: "roll", value: imu ? rollDeg : null, unit: "°" },
-    { label: "pitch", value: imu ? pitchDeg : null, unit: "°" },
-    { label: "yaw", value: imu ? yawDeg : null, unit: "°" },
-    { label: "ωx", value: imu?.gyro_dps.x, unit: "°/s" },
-    { label: "ωy", value: imu?.gyro_dps.y, unit: "°/s" },
-    { label: "ωz", value: imu?.gyro_dps.z, unit: "°/s" },
-    { label: "ax", value: imu?.accel_mg.x, unit: "mg" },
-    { label: "ay", value: imu?.accel_mg.y, unit: "mg" },
-    { label: "az", value: imu?.accel_mg.z, unit: "mg" },
-    { label: "mx", value: imu?.mag_ut.x, unit: "µT" },
-    { label: "my", value: imu?.mag_ut.y, unit: "µT" },
-    { label: "mz", value: imu?.mag_ut.z, unit: "µT" },
-    { label: "temp", value: imu?.temperature_c, unit: "°C" },
+    { label: 'roll', value: imu ? rollDeg : null, unit: '°' },
+    { label: 'pitch', value: imu ? pitchDeg : null, unit: '°' },
+    { label: 'yaw', value: imu ? yawDeg : null, unit: '°' },
+    { label: 'ωx', value: imu?.gyro_dps.x, unit: '°/s' },
+    { label: 'ωy', value: imu?.gyro_dps.y, unit: '°/s' },
+    { label: 'ωz', value: imu?.gyro_dps.z, unit: '°/s' },
+    { label: 'ax', value: imu?.accel_mg.x, unit: 'mg' },
+    { label: 'ay', value: imu?.accel_mg.y, unit: 'mg' },
+    { label: 'az', value: imu?.accel_mg.z, unit: 'mg' },
+    { label: 'mx', value: imu?.mag_ut.x, unit: 'µT' },
+    { label: 'my', value: imu?.mag_ut.y, unit: 'µT' },
+    { label: 'mz', value: imu?.mag_ut.z, unit: 'µT' },
+    { label: 'temp', value: imu?.temperature_c, unit: '°C' },
   ];
 
   const actions = [
@@ -101,7 +100,7 @@ export function App() {
       size="icon"
       type="button"
       variant="outline"
-      aria-label={isFullscreen ? "Minimize Fullscreen" : "Maximize Fullscreen"}
+      aria-label={isFullscreen ? 'Minimize Fullscreen' : 'Maximize Fullscreen'}
       onClick={() => setIsFullscreen(!isFullscreen)}
       className="size-8 rounded"
     >
@@ -118,10 +117,7 @@ export function App() {
       variant="outline"
       title="Toggle Debug Info"
       onClick={() => setShowDebugInfo(!showDebugInfo)}
-      className={cn(
-        "rounded",
-        showDebugInfo ? "bg-foreground/10" : "bg-background/50",
-      )}
+      className={cn('rounded', showDebugInfo ? 'bg-foreground/10' : 'bg-background/50')}
     >
       <GaugeIcon className="text-foreground size-5" />
     </Button>,
@@ -143,7 +139,7 @@ export function App() {
         )}
 
         {/* Joystick — vertical = throttle, horizontal = steering */}
-        {session.isConnected && mode === "operate" && (
+        {session.isConnected && mode === 'operate' && (
           <motion.div
             key="joystick"
             initial="hidden"

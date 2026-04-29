@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocalParticipant } from "@livekit/components-react";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocalParticipant } from '@livekit/components-react';
 import {
   isSeatHeldByOther,
   parseAcquireControlResponse,
   ACQUIRE_CONTROL_METHOD,
   ACQUIRE_CONTROL_PAYLOAD,
   RELEASE_CONTROL_PAYLOAD,
-} from "@/lib/acquire-control";
-import { RpcError } from "livekit-client";
-import { Mode } from "@/lib/types";
+} from '@/lib/acquire-control';
+import { RpcError } from 'livekit-client';
+import { Mode } from '@/lib/types';
 
 let warnedMissingRobotIdentity = false;
 
@@ -26,23 +26,23 @@ export interface UseAcquireControlOptions {
  * Automatically releases control on unmount if currently in operate mode.
  */
 export function useAcquireControl({ identity, isConnected }: UseAcquireControlOptions) {
-  const [mode, setMode] = useState<Mode>("view");
+  const [mode, setMode] = useState<Mode>('view');
   const { localParticipant } = useLocalParticipant();
   const [isOperatorModeLocked, setIsOperatorModeLocked] = useState(false);
   const [isRpcPending, setIsRpcPending] = useState(false);
 
   const handleModeRequest = async (next: Mode) => {
-    if (next === "operate") {
+    if (next === 'operate') {
       const ok = await acquireOperator();
-      console.log("![acquire_control] acquireOperator", ok);
+      console.log('![acquire_control] acquireOperator', ok);
 
       if (ok) {
-        setMode("operate");
-        localParticipant.publishDataTrack({ name: "ready" });
+        setMode('operate');
+        localParticipant.publishDataTrack({ name: 'ready' });
       }
     } else {
       await releaseOperator();
-      setMode("view");
+      setMode('view');
     }
   };
 
@@ -50,10 +50,10 @@ export function useAcquireControl({ identity, isConnected }: UseAcquireControlOp
 
   const acquireOperator = useCallback(async (): Promise<boolean> => {
     if (!identity) {
-      if (!warnedMissingRobotIdentity && typeof window !== "undefined") {
+      if (!warnedMissingRobotIdentity && typeof window !== 'undefined') {
         warnedMissingRobotIdentity = true;
         console.warn(
-          "[acquire_control] identity was not provided; cannot acquire operator control.",
+          '[acquire_control] identity was not provided; cannot acquire operator control.',
         );
       }
       return false;
@@ -75,12 +75,12 @@ export function useAcquireControl({ identity, isConnected }: UseAcquireControlOp
 
       if (locked) return false;
 
-      return parsed.kind === "acquired" || parsed.kind === "already_controller";
+      return parsed.kind === 'acquired' || parsed.kind === 'already_controller';
     } catch (e) {
       if (e instanceof RpcError) {
-        console.warn("[acquire_control] RPC failed:", e.message);
+        console.warn('[acquire_control] RPC failed:', e.message);
       } else {
-        console.warn("[acquire_control] RPC failed:", e);
+        console.warn('[acquire_control] RPC failed:', e);
       }
       return false;
     } finally {
@@ -104,9 +104,9 @@ export function useAcquireControl({ identity, isConnected }: UseAcquireControlOp
       setIsOperatorModeLocked(isOperatorModeLocked);
     } catch (e) {
       if (e instanceof RpcError) {
-        console.warn("[acquire_control] release RPC failed:", e.message);
+        console.warn('[acquire_control] release RPC failed:', e.message);
       } else {
-        console.warn("[acquire_control] release RPC failed:", e);
+        console.warn('[acquire_control] release RPC failed:', e);
       }
     } finally {
       setIsRpcPending(false);
@@ -119,7 +119,7 @@ export function useAcquireControl({ identity, isConnected }: UseAcquireControlOp
 
   useEffect(() => {
     return () => {
-      if (modeRef.current === "operate") {
+      if (modeRef.current === 'operate') {
         void releaseOperator();
       }
     };
