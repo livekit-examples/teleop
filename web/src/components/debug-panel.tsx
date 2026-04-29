@@ -28,14 +28,14 @@ function formatValue({ value, unit, precision = 2 }: DebugRow): string {
   } else {
     formatted = value;
   }
-  return unit ? `${formatted} ${unit}` : formatted;
+  return unit ? `${formatted}` : formatted;
 }
 
 export function DebugPanel({ rows, className }: DebugPanelProps) {
   return (
     <div
       className={cn(
-        "bg-background/30 text-foreground border-input w-full rounded-lg border font-mono text-xs backdrop-blur-lg",
+        "bg-surface text-foreground border-input w-48 rounded-lg border font-mono text-xs",
         className,
       )}
     >
@@ -49,9 +49,10 @@ export function DebugPanel({ rows, className }: DebugPanelProps) {
               <th scope="row" className="px-3 py-1 text-left font-normal">
                 {row.label}
               </th>
-              <td className="px-3 py-1 text-right whitespace-nowrap">
+              <td className=" py-1 text-right whitespace-nowrap">
                 {formatValue(row)}
               </td>
+              <td className=" py-1 text-left whitespace-nowrap">{row.unit}</td>
             </tr>
           ))}
         </tbody>

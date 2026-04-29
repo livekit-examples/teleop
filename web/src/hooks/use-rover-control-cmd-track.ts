@@ -8,6 +8,7 @@ type LocalDataTrack = Awaited<ReturnType<LocalParticipant["publishDataTrack"]>>;
 async function pushFrame(track: LocalDataTrack, throttle_rps: number, steering_rps: number) {
   const json = controlCmdJson(throttle_rps, steering_rps);
   const payload = new TextEncoder().encode(json);
+  console.log("[control_cmd] pushing frame", json);
   return await track.tryPush({ payload });
 }
 

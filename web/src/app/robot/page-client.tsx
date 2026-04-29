@@ -41,10 +41,7 @@ export function App() {
   const router = useRouter();
   const session = useSessionContext();
 
-  // Declare the connection lifecycle effect first so its cleanup runs *last*.
-  // Subsequent hooks (useGyro, useControlCmdTrack, etc.) tear down their
-  // subscriptions before session.end() closes the room, so SDK abort handlers
-  // don't fire against a torn-down PC manager.
+  // Declare the connection lifecycle effect first so its cleanup runs *last*
   useEffect(() => {
     session.start().catch((err: unknown) => {
       toast.error("Failed to connect to robot", {
@@ -79,9 +76,9 @@ export function App() {
     gyro.valid === undefined ? null : gyro.valid ? "yes" : "no";
 
   const debugRows: DebugRow[] = [
+    { label: "isValid", value: validLabel },
     { label: "Pan", value: pan, unit: "°" },
     { label: "Tilt", value: tilt, unit: "°" },
-    { label: "valid", value: validLabel },
     { label: "ωz", value: gyro.gyro_z_dps, unit: "°/s" },
     { label: "ωy", value: gyro.gyro_y_dps, unit: "°/s" },
     { label: "ωx", value: gyro.gyro_x_dps, unit: "°/s" },
@@ -91,10 +88,7 @@ export function App() {
   ];
 
   const handleDisconnect = () => {
-    session.end();
-    setTimeout(() => {
-      router.push("/");
-    }, 300);
+    router.push("/");
   };
 
   const actions = [
@@ -179,16 +173,9 @@ export function App() {
               visible: { opacity: 1, translateX: 0, translateY: "-50%" },
             }}
             transition={ANIMATION_TRANSITION}
-            className="absolute top-1/2 left-0 z-10"
+            className="absolute top-1/2 left-0 z-10 rounded-r-lg"
           >
-            <ScaleVertical
-              value={tilt}
-              className={cn(
-                "h-[500px]",
-                isFullscreen &&
-                  "bg-background/30 rounded-r-lg backdrop-blur-lg",
-              )}
-            />
+            <ScaleVertical isFullscreen={isFullscreen} value={tilt} />
           </motion.div>
         )}
 
@@ -204,16 +191,9 @@ export function App() {
               visible: { opacity: 1, translateY: 0, translateX: "-50%" },
             }}
             transition={ANIMATION_TRANSITION}
-            className="absolute top-0 left-1/2 z-10"
+            className="absolute top-0 left-1/2 z-10 rounded-b-lg"
           >
-            <ScaleHorizontal
-              value={pan}
-              className={cn(
-                "w-[700px]",
-                isFullscreen &&
-                  "bg-background/30 rounded-b-lg backdrop-blur-lg",
-              )}
-            />
+            <ScaleHorizontal isFullscreen={isFullscreen} value={pan} />
           </motion.div>
         )}
 
@@ -225,15 +205,15 @@ export function App() {
             animate="visible"
             exit="hidden"
             variants={{
-              hidden: { opacity: 0, x: 10 },
-              visible: { opacity: 1, x: 0 },
+              hidden: { opacity: 0, translateY: 10 },
+              visible: { opacity: 1, translateY: 0 },
             }}
             transition={ANIMATION_TRANSITION}
           >
             <Joystick
               mode={mode}
               onVelocities={pushControlCmd}
-              className="absolute right-2 bottom-16 z-20 bg-black"
+              className="absolute right-2 bottom-12 z-20"
             />
           </motion.div>
         )}
@@ -248,7 +228,6 @@ export function App() {
           showDebugInfo={showDebugInfo}
           isOperatorModeLocked={isOperatorModeLocked}
           onModeRequest={handleModeRequest}
-          className={cn(isFullscreen && "bg-background/60")}
         />
 
         {/* Debug info */}
@@ -260,12 +239,9 @@ export function App() {
             exit="hidden"
             variants={ANIMATION_VARIANTS}
             transition={ANIMATION_TRANSITION}
-            className="absolute bottom-14 left-2 w-96"
+            className="absolute bottom-12 left-2 w-96"
           >
-            <DebugPanel
-              rows={debugRows}
-              className={cn(isFullscreen && "bg-background/60")}
-            />
+            <DebugPanel rows={debugRows} />
           </motion.div>
         )}
       </AnimatePresence>

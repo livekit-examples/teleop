@@ -36,10 +36,7 @@ export function App() {
   const router = useRouter();
   const session = useSessionContext();
 
-  // Declare the connection lifecycle effect first so its cleanup runs *last*.
-  // Subsequent hooks (useImu, useRoverControlCmdTrack, etc.) tear down their
-  // subscriptions before session.end() closes the room, so SDK abort handlers
-  // don't fire against a torn-down PC manager.
+  // Declare the connection lifecycle effect first so its cleanup runs *last*
   useEffect(() => {
     session.start().catch((err: unknown) => {
       toast.error("Failed to connect to rover", {
@@ -79,10 +76,7 @@ export function App() {
   );
 
   const handleDisconnect = () => {
-    session.end();
-    setTimeout(() => {
-      router.push("/");
-    }, 300);
+    router.push("/");
   };
 
   const pitchDeg = imu ? imu.orientation_rad.pitch * RAD_TO_DEG : 0;
@@ -155,7 +149,7 @@ export function App() {
         {session.isConnected && (
           <VideoDialog
             isFullscreen={isFullscreen}
-            insetX={36}
+            insetX={64}
             insetY={64}
             participantIdentity={ROVER_ID}
             showTrackInfo={showDebugInfo}
@@ -179,7 +173,7 @@ export function App() {
             <Joystick
               mode={mode}
               onVelocities={handleVelocities}
-              className="absolute right-2 bottom-14 z-20 bg-black"
+              className="absolute right-2 bottom-12 z-20"
             />
           </motion.div>
         )}
@@ -205,7 +199,7 @@ export function App() {
             exit="hidden"
             variants={ANIMATION_VARIANTS}
             transition={ANIMATION_TRANSITION}
-            className="absolute bottom-14 left-2 w-96"
+            className="absolute bottom-12 left-2 w-96"
           >
             <DebugPanel rows={debugRows} />
           </motion.div>

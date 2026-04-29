@@ -52,11 +52,11 @@ export function StatusBar({
       }}
       className={cn("fixed inset-x-0 bottom-0 z-50", className)}
     >
-      <div className="flex items-center justify-between p-2">
+      <div className="flex items-center justify-between ">
         {/* Actions */}
         <div className="flex w-[300px] items-center justify-start gap-1">
           {actions && (
-            <div className="bg-card flex items-center gap-1 dark:border-input rounded-xl border p-1 backdrop-blur-lg">
+            <div className="bg-surface flex items-center gap-1 dark:border-input rounded-tr-xl border border-b-0 border-l-0 p-1">
               {actions}
             </div>
           )}
@@ -64,8 +64,8 @@ export function StatusBar({
 
         {/* Connection Status */}
         {isConnectedOrConnecting && (
-          <div className="bg-card dark:border-input flex items-center justify-between gap-1 rounded-xl border p-1 backdrop-blur-lg">
-            <div className="bg-background/50 dark:border-input flex h-8 w-100 items-center justify-between gap-8 rounded border px-3 font-mono text-sm font-light">
+          <div className="bg-surface dark:border-input flex items-center justify-between gap-1 rounded-t-xl border border-b-0 p-1">
+            <div className="bg-card dark:border-input flex h-8 w-100 items-center justify-between gap-8 rounded border px-3 font-mono text-sm font-light">
               <Radio className="text-foreground shrink-0 group-hover:hidden size-5" />
               <RadioOff className="text-foreground hidden shrink-0 group-hover:block size-5" />
 
@@ -104,6 +104,7 @@ export function StatusBar({
             onModeRequest={onModeRequest}
             isOperatorModeLocked={isOperatorModeLocked}
             isRpcPending={isRpcPending}
+            className="rounded-br-none rounded-tr-none rounded-bl-none border-b-0 border-r-0"
           />
         </div>
       </div>

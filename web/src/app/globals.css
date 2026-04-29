@@ -145,3 +145,12 @@
     @apply cursor-pointer;
   }
 }
+
+@layer utilities {
+  .bg-surface {
+    @apply bg-card backdrop-blur-lg backdrop-brightness-25;
+  }
+  .bg-surface-2 {
+    @apply bg-primary-foreground/5 backdrop-blur-lg backdrop-brightness-75;
+  }
+}
