@@ -10,19 +10,16 @@ import { useSessionContext } from "@livekit/components-react";
 import { useAcquireControl } from "@/hooks/use-acquire-control";
 import { useRoverControlCmdTrack } from "@/hooks/use-rover-control-cmd-track";
 import { useImu } from "@/hooks/use-imu";
-import { useRoverDebugListener } from "@/hooks/use-rover-debug-listener";
 import { Button } from "@/components/ui/button";
 import { MinimizeIcon, MaximizeIcon } from "lucide-react";
 import { motion, AnimatePresence, type Transition } from "motion/react";
 import { cn } from "@/lib/utils";
-import { RAD_TO_DEG } from "@/lib/rover";
+import { RAD_TO_DEG, roverArducamTrackName } from "@/lib/rover";
 import { toast } from "sonner";
 import { VideoDialog } from "@/components/video-dialog";
 
 const ROVER_ID = process.env.NEXT_PUBLIC_ROVER_IDENTITY || "";
-const DEBUG_LIVEKIT_URL = process.env.NEXT_PUBLIC_ROVER_LIVEKIT_URL || "";
-const DEBUG_LIVEKIT_TOKEN =
-  process.env.NEXT_PUBLIC_ROVER_DEBUG_LIVEKIT_TOKEN || "";
+const ROVER_CAMERA_TRACK_NAME = roverArducamTrackName(ROVER_ID);
 
 const ANIMATION_VARIANTS = {
   hidden: { opacity: 0, y: 10 },
@@ -60,8 +57,6 @@ export function App() {
   const imu = useImu(ROVER_ID);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
-
-  useRoverDebugListener(DEBUG_LIVEKIT_URL, DEBUG_LIVEKIT_TOKEN);
 
   const { mode, isRpcPending, isOperatorModeLocked, handleModeRequest } =
     useAcquireControl({
@@ -158,7 +153,14 @@ export function App() {
       <AnimatePresence>
         {/* Fullscreen video */}
         {session.isConnected && (
-          <VideoDialog isFullscreen={isFullscreen} insetX={36} insetY={64} />
+          <VideoDialog
+            isFullscreen={isFullscreen}
+            insetX={36}
+            insetY={64}
+            participantIdentity={ROVER_ID}
+            showTrackInfo={showDebugInfo}
+            trackName={ROVER_CAMERA_TRACK_NAME}
+          />
         )}
 
         {/* Joystick — vertical = throttle, horizontal = steering */}

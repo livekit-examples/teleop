@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Track } from "livekit-client";
 import { cn } from "@/lib/utils";
 import { Dialog } from "@/components/dialog";
@@ -8,6 +9,10 @@ interface VideoDialogProps {
   insetX?: number;
   insetY?: number;
   isFullscreen?: boolean;
+  participantIdentity?: string;
+  showTrackInfo?: boolean;
+  source?: Track.Source;
+  trackName?: string;
   className?: string;
 }
 
@@ -15,18 +20,43 @@ export function VideoDialog({
   isFullscreen = false,
   insetX = 0,
   insetY = 0,
+  participantIdentity,
+  showTrackInfo = false,
+  source = Track.Source.Camera,
+  trackName,
   className,
 }: VideoDialogProps) {
-  const [mainVideoTrack] = useTracks([Track.Source.Camera]);
+  const videoTracks = useTracks([source], { onlySubscribed: true });
+  const mainVideoTrack = useMemo(() => {
+    return videoTracks.find((trackRef) => {
+      if (participantIdentity && trackRef.participant.identity !== participantIdentity) {
+        return false;
+      }
+      if (trackName && trackRef.publication.trackName !== trackName) {
+        return false;
+      }
+      return true;
+    });
+  }, [participantIdentity, trackName, videoTracks]);
 
   const { width, height } = useVideoFitScreen(
     insetX,
     insetY,
     isFullscreen,
-    mainVideoTrack,
+    mainVideoTrack ?? null,
   );
 
-  if (!mainVideoTrack) return null;
+  const expectedTrackLabel = trackName ?? source;
+  const dimensions = mainVideoTrack?.publication.dimensions;
+  const trackInfo =
+    mainVideoTrack &&
+    [
+      mainVideoTrack.publication.trackName,
+      mainVideoTrack.publication.mimeType,
+      dimensions && `${dimensions.width}x${dimensions.height}`,
+    ]
+      .filter(Boolean)
+      .join(" | ");
 
   return (
     <div
@@ -36,15 +66,28 @@ export function VideoDialog({
       )}
     >
       <Dialog className="grow flex items-center justify-center">
-        <VideoTrack
-          width={width}
-          height={height}
-          trackRef={mainVideoTrack}
-          className={cn(
-            "rounded-md starting:opacity-0 transition-opacity opacity-100",
-            isFullscreen && "fixed inset-0 object-cover z-40 w-dvw h-dvh",
-          )}
-        />
+        {mainVideoTrack ? (
+          <div className="relative">
+            <VideoTrack
+              width={width}
+              height={height}
+              trackRef={mainVideoTrack}
+              className={cn(
+                "rounded-md starting:opacity-0 transition-opacity opacity-100",
+                isFullscreen && "fixed inset-0 object-cover z-40 w-dvw h-dvh",
+              )}
+            />
+            {showTrackInfo && trackInfo && (
+              <div className="absolute bottom-2 left-2 rounded bg-background/70 px-2 py-1 font-mono text-xs text-foreground backdrop-blur">
+                {trackInfo}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded border bg-background/60 px-4 py-3 font-mono text-xs uppercase text-muted-foreground">
+            Waiting for {expectedTrackLabel}
+          </div>
+        )}
       </Dialog>
     </div>
   );
