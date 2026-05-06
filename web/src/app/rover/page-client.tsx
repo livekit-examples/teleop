@@ -33,7 +33,6 @@ const ANIMATION_TRANSITION: Transition = {
 };
 
 export function App() {
-  useConnection();
   const router = useRouter();
   const session = useSessionContext();
   const imu = useImu(ROVER_ID);
@@ -49,6 +48,11 @@ export function App() {
     ROVER_ID,
     mode === 'operate' && session.isConnected,
   );
+
+  // Registered last so its cleanup (session.end) runs after useAcquireControl's
+  // release RPC and any data-track teardown — passive effect cleanups fire in
+  // registration order, so disconnect must come last.
+  useConnection();
 
   // Joystick emits (horizontal, vertical) as (pan_vel, tilt_vel).
   // Map to rover: horizontal -> steering_rps; vertical up -> throttle forward.

@@ -34,8 +34,6 @@ const ANIMATION_TRANSITION: Transition = {
 };
 
 export function App() {
-  useConnection();
-
   const router = useRouter();
   const session = useSessionContext();
   const gyro = useGyro(ROBOT_IDENTITY);
@@ -50,6 +48,11 @@ export function App() {
   });
 
   const { pushControlCmd } = useControlCmdTrack(mode === 'operate' && session.isConnected);
+
+  // Registered last so its cleanup (session.end) runs after useAcquireControl's
+  // release RPC and any data-track teardown — passive effect cleanups fire in
+  // registration order, so disconnect must come last.
+  useConnection();
 
   const validLabel = gyro.valid === undefined ? null : gyro.valid ? 'yes' : 'no';
 
