@@ -6,6 +6,7 @@ import Image from 'next/image';
 
 import logo from '../../public/logo.svg';
 import { displayFont, monoFont, sansFont } from '@/lib/fonts';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'TeleOps UI',
@@ -23,7 +24,7 @@ export default function RootLayout({
       className={cn(sansFont.variable, displayFont.variable, monoFont.variable, 'dark')}
     >
       <body
-        className="min-h-screen overflow-hidden bg-size-[33dvh_33dvh] bg-center font-sans"
+        className="min-h-screen overflow-hidden bg-size-[33dvh_33dvh] bg-center font-mono"
         style={{
           backgroundImage: [
             'linear-gradient(0deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)',
@@ -40,6 +41,7 @@ export default function RootLayout({
         </header>
 
         {children}
+        <Toaster />
       </body>
     </html>
   );

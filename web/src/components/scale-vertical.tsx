@@ -12,12 +12,14 @@ interface DegreeScaleVerticalProps {
   value?: number;
   degreeRange?: number;
   degreeIncrement?: number;
+  isFullscreen?: boolean;
   className?: string;
 }
 export function ScaleVertical({
   value = 0,
   degreeRange = DEGREE_RANGE,
   degreeIncrement = DEGREE_INCREMENT,
+  isFullscreen = false,
   className,
 }: DegreeScaleVerticalProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -47,7 +49,10 @@ export function ScaleVertical({
   const stripHeight = degreeRange * pxPerDeg;
 
   return (
-    <div className={cn('relative p-1 select-none', className)}>
+    <div className={cn('relative h-[500px] select-none', className)}>
+      {isFullscreen && (
+        <div className="bg-surface-2 border-input absolute inset-y-0 left-0 w-12 rounded-r-lg border border-l-transparent" />
+      )}
       {/* Vertical scale — strip translates so current value stays centered */}
       <div className="h-full w-12">
         <div
@@ -74,7 +79,7 @@ export function ScaleVertical({
                   <span className="text-foreground shrink-0 text-right font-mono text-xs leading-6 whitespace-nowrap">
                     {deg}°
                   </span>
-                  <div className={cn(`bg-input h-0.5`, isZero ? 'w-3' : 'w-1')} />
+                  <div className={cn(`bg-input h-0.5`, isZero ? 'w-3' : 'w-1.5')} />
                 </div>
               );
             })}
@@ -85,7 +90,7 @@ export function ScaleVertical({
       <ScaleValue
         value={value}
         orientation="vertical"
-        className="absolute top-1/2 right-0 translate-x-full -translate-y-1/2"
+        className="absolute top-1/2 -right-0.5 translate-x-full -translate-y-1/2"
       />
     </div>
   );

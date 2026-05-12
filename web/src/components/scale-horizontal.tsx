@@ -11,6 +11,7 @@ interface DegreeScaleHorizontalProps {
   value?: number;
   degreeRange?: number;
   degreeIncrement?: number;
+  isFullscreen?: boolean;
   className?: string;
 }
 
@@ -18,6 +19,7 @@ export function ScaleHorizontal({
   value = 0,
   degreeRange = DEGREE_RANGE,
   degreeIncrement = DEGREE_INCREMENT,
+  isFullscreen = false,
   className,
 }: DegreeScaleHorizontalProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -47,9 +49,12 @@ export function ScaleHorizontal({
   const stripWidth = degreeRange * pxPerDeg;
 
   return (
-    <div className={cn('relative p-1 select-none', className)}>
+    <div className={cn('relative w-[700px] select-none', className)}>
+      {isFullscreen && (
+        <div className="bg-surface-2 border-input absolute inset-x-0 top-0 h-10 rounded-b-lg border border-t-transparent" />
+      )}
       {/* Horizontal scale — strip translates so current value stays centered */}
-      <div className="h-12 w-full">
+      <div className="h-10 w-full">
         <div
           ref={viewportRef}
           data-slot="scale"
@@ -75,7 +80,7 @@ export function ScaleHorizontal({
                   <span className="text-foreground shrink-0 font-mono text-xs leading-6 whitespace-pre">
                     {deg >= 0 ? ` ${deg}°` : `${deg}°`}
                   </span>
-                  <div className={cn(`bg-input w-0.5`, isZero ? 'h-3' : 'h-2')} />
+                  <div className={cn(`bg-input w-0.5`, isZero ? 'h-3' : 'h-1.5')} />
                 </div>
               );
             })}
@@ -86,7 +91,7 @@ export function ScaleHorizontal({
       <ScaleValue
         value={value}
         orientation="horizontal"
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full"
+        className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full"
       />
     </div>
   );

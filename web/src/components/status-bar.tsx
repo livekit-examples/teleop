@@ -1,39 +1,39 @@
 'use client';
 
+import { ReactElement } from 'react';
 import { useSessionContext } from '@livekit/components-react';
 import { ConnectionState } from 'livekit-client';
-import { Radio, RadioOff, Gamepad2, BugIcon, BugOffIcon, PowerIcon } from 'lucide-react';
+import { Radio, RadioOff, Gamepad2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Mode } from '@/lib/types';
-import { Button } from '@/components/ui/button';
+import { type ButtonProps } from '@/components/ui/button';
 import { ModeToggle } from '@/components/mode-toggle';
 import { useGamepadConnected } from '@/hooks/use-gamepad-connected';
 import { cn } from '@/lib/utils';
-import { useGyro } from '@/hooks/use-gyro';
-import { Gyroscope } from './gyroscope';
+// import { useGyro } from "@/hooks/use-gyro";
+// import { Gyroscope } from "./gyroscope";
 
 interface StatusBarProps {
   mode: Mode;
+  actions?: ReactElement<ButtonProps>[];
   robotIdentity: string;
   isRpcPending?: boolean;
   showDebugInfo?: boolean;
   isOperatorModeLocked?: boolean;
-  onShowDebugInfoChange?: (show: boolean) => void;
   onModeRequest?: (next: Mode) => void | Promise<void>;
   className?: string;
 }
 
 export function StatusBar({
   mode,
-  robotIdentity,
+  actions,
+  // robotIdentity,
   isRpcPending = false,
-  showDebugInfo = false,
   isOperatorModeLocked = false,
   onModeRequest = () => {},
-  onShowDebugInfoChange = () => {},
   className,
 }: StatusBarProps) {
-  const gyro = useGyro(robotIdentity);
+  // const gyro = useGyro(robotIdentity);
   const session = useSessionContext();
   const gamepadConnected = useGamepadConnected();
   const roomName = session.room?.name;
@@ -49,32 +49,24 @@ export function StatusBar({
         duration: 0.2,
         ease: 'easeInOut',
       }}
-      className={cn('fixed inset-x-0 bottom-0', className)}
+      className={cn('fixed inset-x-0 bottom-0 z-50', className)}
     >
-      <div className="flex items-center justify-between p-2">
+      <div className="flex items-center justify-between">
         {/* Actions */}
-        <div className="flex w-[300px] items-center justify-start"></div>
+        <div className="flex w-[300px] items-center justify-start gap-1">
+          {actions && (
+            <div className="bg-surface dark:border-input flex items-center gap-1 rounded-tr-xl border border-b-0 border-l-0 p-1">
+              {actions}
+            </div>
+          )}
+        </div>
 
         {/* Connection Status */}
         {isConnectedOrConnecting && (
-          <div className="bg-card dark:border-input flex items-center justify-between gap-1 rounded-md border p-1">
-            <Button
-              size="icon"
-              type="button"
-              variant="outline"
-              title="Toggle Debug Info"
-              onClick={() => onShowDebugInfoChange(!showDebugInfo)}
-              className="rounded"
-            >
-              {showDebugInfo ? (
-                <BugOffIcon size={20} className="text-foreground size-4" />
-              ) : (
-                <BugIcon size={20} className="text-foreground size-4" />
-              )}
-            </Button>
-            <div className="bg-background/50 dark:border-input flex h-8 w-100 items-center justify-between gap-8 rounded border px-3 font-mono text-sm font-light">
-              <Radio size={20} className="text-foreground shrink-0 group-hover:hidden" />
-              <RadioOff size={20} className="text-foreground hidden shrink-0 group-hover:block" />
+          <div className="bg-surface dark:border-input flex items-center justify-between gap-1 rounded-t-xl border border-b-0 p-1">
+            <div className="bg-card dark:border-input flex h-8 w-100 items-center justify-between gap-8 rounded border px-3 font-mono text-sm font-light">
+              <Radio className="text-foreground size-5 shrink-0 group-hover:hidden" />
+              <RadioOff className="text-foreground hidden size-5 shrink-0 group-hover:block" />
 
               <span className="flex gap-2 whitespace-nowrap">
                 <span className="text-foreground/50 uppercase">
@@ -96,24 +88,14 @@ export function StatusBar({
                 )}
               />
             </div>
-            <Button
-              size="icon"
-              type="button"
-              title="Disconnect"
-              variant="outline"
-              onClick={() => session.end()}
-              className="rounded"
-            >
-              <PowerIcon size={24} className="text-foreground size-4" />
-            </Button>
           </div>
         )}
 
         <div className="flex w-[300px] items-center justify-end gap-1">
           {/* Gyroscope */}
-          {mode === 'operate' && (
+          {/* {mode === 'operate' && (
             <Gyroscope x={gyro.gyro_x_dps} y={gyro.gyro_y_dps} z={gyro.gyro_z_dps} />
-          )}
+          )} */}
 
           {/* Mode Toggle */}
           <ModeToggle
@@ -121,6 +103,7 @@ export function StatusBar({
             onModeRequest={onModeRequest}
             isOperatorModeLocked={isOperatorModeLocked}
             isRpcPending={isRpcPending}
+            className="rounded-tr-none rounded-br-none rounded-bl-none border-r-0 border-b-0"
           />
         </div>
       </div>

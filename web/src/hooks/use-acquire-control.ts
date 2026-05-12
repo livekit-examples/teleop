@@ -34,7 +34,12 @@ export function useAcquireControl({ identity, isConnected }: UseAcquireControlOp
   const handleModeRequest = async (next: Mode) => {
     if (next === 'operate') {
       const ok = await acquireOperator();
-      if (ok) setMode('operate');
+      console.log('![acquire_control] acquireOperator', ok);
+
+      if (ok) {
+        setMode('operate');
+        localParticipant.publishDataTrack({ name: 'ready' });
+      }
     } else {
       await releaseOperator();
       setMode('view');
@@ -62,6 +67,7 @@ export function useAcquireControl({ identity, isConnected }: UseAcquireControlOp
         method: ACQUIRE_CONTROL_METHOD,
         payload: ACQUIRE_CONTROL_PAYLOAD,
       });
+
       const parsed = parseAcquireControlResponse(response, localParticipant.identity);
       const locked = isSeatHeldByOther(parsed.kind);
 

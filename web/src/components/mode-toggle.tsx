@@ -9,6 +9,7 @@ interface ModeToggleProps {
   onModeRequest: (next: Mode) => void | Promise<void>;
   isOperatorModeLocked: boolean;
   isRpcPending: boolean;
+  className?: string;
 }
 
 export function ModeToggle({
@@ -16,11 +17,17 @@ export function ModeToggle({
   onModeRequest,
   isOperatorModeLocked,
   isRpcPending,
+  className,
 }: ModeToggleProps) {
   const disabled = isRpcPending;
 
   return (
-    <div className="bg-card dark:border-input flex h-10 w-[250px] items-center justify-center rounded-md border p-1">
+    <div
+      className={cn(
+        'bg-surface dark:border-input flex h-10 w-[250px] items-center justify-center rounded-xl border p-1',
+        className,
+      )}
+    >
       <div className="relative h-full grow">
         <motion.div
           animate={{ x: mode === 'view' ? 0 : '100%' }}
@@ -34,8 +41,8 @@ export function ModeToggle({
             variant="ghost"
             onClick={() => void onModeRequest('view')}
             className={cn(
-              `z-20 h-full font-mono text-xs transition-opacity hover:opacity-100`,
-              mode !== 'view' ? 'opacity-50' : 'opacity-100',
+              `backdrop-none z-20 h-full bg-transparent! font-mono text-xs uppercase transition-opacity hover:bg-transparent!`,
+              // mode !== "view" ? "opacity-50" : "opacity-100",
             )}
           >
             Viewer
@@ -46,8 +53,8 @@ export function ModeToggle({
             disabled={disabled || isOperatorModeLocked}
             onClick={() => void onModeRequest('operate')}
             className={cn(
-              `z-20 h-8 font-mono text-xs transition-opacity hover:opacity-100`,
-              mode !== 'operate' ? 'opacity-50' : 'opacity-100',
+              `backdrop-none z-20 h-8 bg-transparent! font-mono text-xs uppercase transition-opacity hover:bg-transparent!`,
+              // mode !== "operate" ? "opacity-50" : "opacity-100",
             )}
           >
             Controller

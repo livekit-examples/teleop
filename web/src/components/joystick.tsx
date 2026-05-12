@@ -132,10 +132,10 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
   };
 
   return (
-    <div className={cn('relative size-20 rounded-lg', className)}>
+    <div className={cn('bg-surface relative size-20 rounded-lg', className)}>
       <div
         className={cn(
-          'bg-card text-foreground border-muted-foreground absolute inset-0 grid grid-cols-[auto_40px_auto] grid-rows-[auto_40px_auto] rounded-lg border opacity-100 transition-[colors,opacity]',
+          'bg-input/30 text-foreground border-foreground/50 absolute inset-0 grid grid-cols-[auto_40px_auto] grid-rows-[auto_40px_auto] rounded-lg border opacity-100 transition-[colors,opacity]',
           disabled && 'cursor-not-allowed opacity-30',
         )}
       >
@@ -176,7 +176,7 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
               dragMomentum={false}
               onDragEnd={onDragEnd}
               className={cn(
-                'bg-card border-muted-foreground pointer-events-auto size-10 cursor-grab touch-none rounded-full border transition-colors will-change-transform active:cursor-grabbing',
+                'bg-primary-foreground/50 border-foreground pointer-events-auto size-10 cursor-grab touch-none rounded-full border transition-colors will-change-transform active:cursor-grabbing',
                 disabled && 'pointer-events-none',
               )}
             />

@@ -24,10 +24,15 @@ A browser-based teleoperation interface for controlling the pan/tilt robot via L
 Create a `.env.local` file in the `web/` directory:
 
 ```bash
-# Required: LiveKit server URL and a pre-generated participant token
-NEXT_PUBLIC_LIVEKIT_URL=wss://<your-livekit-server>
-NEXT_PUBLIC_LIVEKIT_TOKEN=<your-participant-token>
+# Robot (arm) — LiveKit credentials and participant identity
 NEXT_PUBLIC_ROBOT_IDENTITY=pt_robot
+NEXT_PUBLIC_ROBOT_LIVEKIT_URL=wss://<your-livekit-server>
+NEXT_PUBLIC_ROBOT_LIVEKIT_TOKEN=<your-participant-token>
+
+# Rover — LiveKit credentials and participant identity
+NEXT_PUBLIC_ROVER_IDENTITY=rover-1
+NEXT_PUBLIC_ROVER_LIVEKIT_URL=wss://<your-livekit-server>
+NEXT_PUBLIC_ROVER_LIVEKIT_TOKEN=<your-participant-token>
 ```
 
 For local development with the token generation API:
