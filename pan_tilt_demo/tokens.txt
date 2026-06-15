@@ -1,0 +1,31 @@
+lk token create --api-secret AiSeL08D8qeGIPi3N6CnMNacxxmxEenRUWSQsl74IXcB --api-key API2BcShjDvyUfP -r test -i pt_robot --join --valid-for 99999h --room=robo_room --grant '{"canPublish":true,"canSubscribe":true,"canPublishData":true}'
+Using url, api-key, api-secret from environment
+valid for (mins):  5999940
+Token grants:
+{
+  "roomJoin": true,
+  "room": "robo_room",
+  "canPublish": true,
+  "canSubscribe": true,
+  "canPublishData": true
+}
+
+Project URL: wss://robokit-fs38xq6a.staging.livekit.cloud
+Access token:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIxMzQzNzA3MTgsImlkZW50aXR5IjoicHRfcm9ib3QiLCJpc3MiOiJBUEkyQmNTaGpEdnlVZlAiLCJuYW1lIjoicHRfcm9ib3QiLCJuYmYiOjE3NzQzNzQzMTgsInN1YiI6InB0X3JvYm90IiwidmlkZW8iOnsiY2FuUHVibGlzaCI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZSwicm9vbSI6InJvYm9fcm9vbSIsInJvb21Kb2luIjp0cnVlfX0.ebJyRNw5zLwhNUX_5meEIDEm5OeKQu48x1rZS5dGrag
+
+lk token create --api-secret AiSeL08D8qeGIPi3N6CnMNacxxmxEenRUWSQsl74IXcB --api-key API2BcShjDvyUfP -r test -i teleop_controller --join --valid-for 99999h --room=robo_room --grant '{"canPublish":true,"canSubscribe":true,"canPublishData":true}'
+Using url, api-key, api-secret from environment
+valid for (mins):  5999940
+Token grants:
+{
+  "roomJoin": true,
+  "room": "robo_room",
+  "canPublish": true,
+  "canSubscribe": true,
+  "canPublishData": true
+}
+
+Project URL: wss://robokit-fs38xq6a.staging.livekit.cloud
+Access token:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIxMzQzNzA3MjksImlkZW50aXR5IjoidGVsZW9wX2NvbnRyb2xsZXIiLCJpc3MiOiJBUEkyQmNTaGpEdnlVZlAiLCJuYW1lIjoidGVsZW9wX2NvbnRyb2xsZXIiLCJuYmYiOjE3NzQzNzQzMjksInN1YiI6InRlbGVvcF9jb250cm9sbGVyIiwidmlkZW8iOnsiY2FuUHVibGlzaCI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZSwicm9vbSI6InJvYm9fcm9vbSIsInJvb21Kb2luIjp0cnVlfX0.kZ5r17L6CCkoVFrmmCrzDLqvpJJdYbhRkiErRA8ILAo

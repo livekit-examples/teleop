@@ -175,12 +175,16 @@ bool PtLiveKitApp::connectAndPublishTracks() {
   options.dynacast = false;
 
   WriteLine(std::cout, "[pan_tilt_livekit] Connecting to {}", config_.url);
-  if (!room_->Connect(config_.url, config_.token, options)) {
+  if (!room_->connect(config_.url, config_.token, options)) {
     WriteLine(std::cerr, "[pan_tilt_livekit] Failed to connect to LiveKit");
     return false;
   }
 
-  auto *lp = room_->localParticipant();
+  auto lp = room_->localParticipant().lock();
+  if (!lp) {
+    WriteLine(std::cerr, "[pan_tilt_livekit] No local participant after connect");
+    return false;
+  }
 
   auto gyro_result = lp->publishDataTrack(pan_tilt_topics::kGyroStateTrack);
   if (!gyro_result) {
@@ -242,8 +246,14 @@ bool PtLiveKitApp::connectAndPublishTracks() {
 }
 
 bool PtLiveKitApp::registerAcquireControlRpc() {
+  auto lp = room_->localParticipant().lock();
+  if (!lp) {
+    WriteLine(std::cerr, "[pan_tilt_livekit] No local participant for RPC registration");
+    return false;
+  }
+
   try {
-    room_->localParticipant()->registerRpcMethod(
+    lp->registerRpcMethod(
         pan_tilt_topics::kAcquireControlRpc,
         [this](const livekit::RpcInvocationData &data)
             -> std::optional<std::string> {
@@ -695,11 +705,12 @@ void PtLiveKitApp::shutdown() {
   stopDepthWorker();
 
   if (rpc_registered_ && room_) {
-    try {
-      room_->localParticipant()->unregisterRpcMethod(
-          pan_tilt_topics::kAcquireControlRpc);
-    } catch (const std::exception &e) {
-      WriteLine(std::cerr, "[pan_tilt_livekit] RPC unregister skipped: {}", e.what());
+    if (auto lp = room_->localParticipant().lock()) {
+      try {
+        lp->unregisterRpcMethod(pan_tilt_topics::kAcquireControlRpc);
+      } catch (const std::exception &e) {
+        WriteLine(std::cerr, "[pan_tilt_livekit] RPC unregister skipped: {}", e.what());
+      }
     }
     rpc_registered_ = false;
   }

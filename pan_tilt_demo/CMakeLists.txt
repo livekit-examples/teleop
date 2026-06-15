@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # --- Dependencies ---
-set(LIVEKIT_SDK_VERSION "latest" CACHE STRING "LiveKit C++ SDK version to download")
+set(LIVEKIT_SDK_VERSION "1.1.1" CACHE STRING "LiveKit C++ SDK version to download")
 set(LIVEKIT_LOCAL_SDK_DIR "" CACHE PATH "Path to a local LiveKit SDK install prefix (skips download)")
 
 if(LIVEKIT_LOCAL_SDK_DIR)

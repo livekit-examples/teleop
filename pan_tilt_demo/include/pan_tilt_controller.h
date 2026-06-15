@@ -24,7 +24,7 @@
 #include <string>
 #include <thread>
 
-#include "SCServo.h"
+#include "scservo/SCServo.h"
 #include "ostream_log.h"
 
 /**

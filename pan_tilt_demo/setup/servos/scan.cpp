@@ -27,7 +27,7 @@
  *   ./Scan /dev/ttyUSB0
  */
 
-#include "SCServo.h"
+#include "scservo/SCServo.h"
 #include <iostream>
 
 SMS_STS sm_st;
