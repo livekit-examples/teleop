@@ -243,8 +243,8 @@ participant identity that holds control).
 
 | Field  | Type   | Unit | Description |
 |--------|--------|------|-------------|
-| `pan`  | number | rad  | Absolute pan angle as an offset from center/home (positive = left) |
-| `tilt` | number | rad  | Absolute tilt angle as an offset from center/home (positive = up) |
+| `pan`  | number | rad  | Absolute pan angle as an offset from center/home (positive = right) |
+| `tilt` | number | rad  | Absolute tilt angle as an offset from center/home (positive = down) |
 
 Both fields are optional and applied independently — a payload may carry only
 `pan`, only `tilt`, or both.

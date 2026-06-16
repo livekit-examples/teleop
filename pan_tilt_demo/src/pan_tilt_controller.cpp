@@ -206,8 +206,9 @@ bool PanTiltController::setMotorAngleFromHome(const int motor_index,
   if (clamped_rad != angle_from_home_rad) {
     WriteLine(std::cerr,
               "[pan_tilt] Position request {} rad clamped to {} rad (limits) "
-              "for motor index {}",
-              angle_from_home_rad, clamped_rad, motor_index);
+              "for motor {}",
+              angle_from_home_rad, clamped_rad, (motor_index == 0 ? "pan" : "tilt"));
+         
   }
 
   const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
