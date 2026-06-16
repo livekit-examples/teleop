@@ -57,6 +57,17 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Rover vs Pan/Tilt Robot
+
+The Rover and Robot are two different physical devices which can be controlled by this project. To switch between them, use the respective `ROBOT` or `ROVER` keyword in the .env.local file:
+
+```
+LiveKit credentials and participant identity
+NEXT_PUBLIC_<ROVER/ROBOT>_IDENTITY=robot_or_rover_identity
+NEXT_PUBLIC_<ROVER/ROBOT>_LIVEKIT_URL=wss://<your-livekit-server>
+NEXT_PUBLIC_<ROVER/ROBOT>_LIVEKIT_TOKEN=<your-participant-token>
+```
+
 ## Controls
 
 ### Joystick (Operator mode)
