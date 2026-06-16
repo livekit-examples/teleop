@@ -70,9 +70,13 @@ struct PtLiveKitConfig {
  * - `camera.color` RGBA video from the RealSense (when enabled)
  * - `camera.depth_vis` grayscale depth visualization (when enabled)
  *
- * Incoming control DataTrack:
- * - `control_cmd` payload JSON:
+ * Incoming control DataTracks:
+ * - `control_cmd` payload JSON (velocity teleop, deadman-guarded):
  *   `{"pan_vel": <rad/s>, "tilt_vel": <rad/s>}`
+ * - `control_pos` payload JSON (absolute position tracking, e.g. mirroring an
+ *   AR phone pose; latest value wins and is held without timing out):
+ *   `{"pan": <rad from center>, "tilt": <rad from center>}`. Targets are
+ *   clamped to the controller's per-axis software limits.
  *
  * RPC method:
  * - `acquire_control` (spelling intentionally matches requested API)
@@ -126,6 +130,7 @@ private:
   std::optional<std::string>
   handleAcquireControlRpc(const livekit::RpcInvocationData &data);
   void onControlCmdPayload(const std::vector<std::uint8_t> &payload);
+  void onControlPosPayload(const std::vector<std::uint8_t> &payload);
   void publishStateTick();
   void publishCameraTick();
   void startDepthWorker();
@@ -158,6 +163,7 @@ private:
   std::mutex controller_mutex_;
   std::string controller_identity_;
   livekit::DataFrameCallbackId control_cmd_callback_id_{0};
+  livekit::DataFrameCallbackId control_pos_callback_id_{0};
   bool rpc_registered_{false};
   bool shutdown_done_{false};
 };

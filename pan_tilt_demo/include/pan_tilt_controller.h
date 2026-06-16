@@ -54,8 +54,22 @@ public:
   static constexpr int kHomeTicks = 2048;
   static constexpr u16 kDefaultMoveSpeed =
       1000; //  Moving speed (0-3400 steps/s)
+  // Moderately high speed used for absolute position tracking (e.g. mirroring
+  // an AR phone pose) so the robot responds quickly while staying well below
+  // the 3400 steps/s hardware ceiling.
+  static constexpr u16 kPositionMoveSpeed = 2400;
   static constexpr u8 kDefaultMoveAcc = 50;
   static constexpr int kCurrentLimitMilliamps = 100;
+
+  // Software safety limits for absolute position commands, measured as an
+  // offset from the home/center tick. Commands outside this range are clamped.
+  // Index 0 = pan, index 1 = tilt (see kMotorCount ordering used throughout).
+  static constexpr double kPanMinAngleFromHomeRad = -kPi * 75.0 / 180.0; // -75 deg
+  static constexpr double kPanMaxAngleFromHomeRad = kPi * 75.0 / 180.0;  // +75 deg
+  // Tilt travels only in the negative direction from home; the positive side
+  // is a hard stop at home (the 0 deg limit). Driving positive torques out.
+  static constexpr double kTiltMaxAngleFromHomeRad = 0.0;                // 0 deg
+  static constexpr double kTiltMinAngleFromHomeRad = -kPi / 2.0;         // -90 deg
 
   /**
    * @brief Snapshot of a single servo's most recent state.
@@ -106,6 +120,17 @@ public:
   bool homeMotors();
 
   /**
+   * @brief Sweep both motors through the four corners of the software limit
+   * box, then return home.
+   *
+   * Moves (blocking, in order) to: max tilt/max pan, max tilt/min pan,
+   * min tilt/min pan, min tilt/max pan, then calls homeMotors(). Useful as a
+   * startup self-test to verify the full range of motion is unobstructed.
+   * @return true if every corner is reached and the final home succeeds.
+   */
+  bool exerciseLimits();
+
+  /**
    * @brief Set absolute angle for a motor index (radians).
    * @param motor_index 0=pan, 1=tilt
    * @param absolute_angle_rad Absolute target angle in radians.
@@ -113,6 +138,25 @@ public:
    */
   bool setMotorAngle(int motor_index, double absolute_angle_rad,
                      u16 speed = kDefaultMoveSpeed);
+
+  /**
+   * @brief Set an absolute angle measured from the home/center position.
+   *
+   * Intended for absolute position tracking (e.g. mirroring an external pose
+   * source such as an AR phone). The requested offset is clamped to the
+   * per-axis software safety limits before being commanded, the target motor
+   * is switched into servo/position mode if needed, and the position is held
+   * indefinitely (it does not time out). While any position is held, the
+   * velocity deadman watchdog is suspended; overcurrent protection still
+   * applies.
+   * @param motor_index 0=pan, 1=tilt
+   * @param angle_from_home_rad Target offset from home in radians (clamped to
+   * the per-axis limits).
+   * @param speed Optional move speed in ticks/s.
+   * @return true on success, false on invalid index or hardware failure.
+   */
+  bool setMotorAngleFromHome(int motor_index, double angle_from_home_rad,
+                             u16 speed = kPositionMoveSpeed);
 
   /**
    * @brief Blocking absolute move for a motor index (radians).
@@ -256,6 +300,31 @@ private:
    * @return true on success, false on failure
    */
   bool disableMotorTorque(int motor_index);
+  /**
+   * @brief Ensure a motor is in servo/position mode before a position command.
+   *
+   * Tracks the last commanded bus mode per motor and only re-initializes the
+   * motor when transitioning out of wheel/velocity mode, avoiding redundant
+   * mode switches when streaming position commands at a high rate.
+   * @param motor_index The motor index
+   * @return true on success, false on failure
+   */
+  bool ensureServoMode(int motor_index);
+  /**
+   * @brief Clamp an offset-from-home angle to the per-axis software limits.
+   * @param motor_index The motor index (0=pan, 1=tilt)
+   * @param angle_from_home_rad Requested offset from home in radians
+   * @return the clamped offset in radians
+   */
+  static double clampAngleFromHomeRad(int motor_index,
+                                      double angle_from_home_rad);
+  /**
+   * @brief Convert a clamped offset-from-home angle to absolute servo ticks.
+   * @param motor_index The motor index (0=pan, 1=tilt)
+   * @param angle_from_home_rad Requested offset from home in radians
+   * @return the absolute target position in servo ticks
+   */
+  static int angleFromHomeToTicks(int motor_index, double angle_from_home_rad);
 
   /**
    * @brief Wrap the ticks
@@ -301,6 +370,9 @@ private:
     return ticksToAngleRad(ticks) * (180.0 / kPi);
   }
 
+  /** Bus operating mode last commanded to a motor. */
+  enum class BusMode { kUnknown = 0, kServo = 1, kWheel = 2 };
+
   std::string serial_port_;
   std::array<u8, kMotorCount> motor_ids_;
   int baud_;
@@ -312,6 +384,10 @@ private:
   std::thread watchdog_thread_;
   std::atomic<std::chrono::steady_clock::time_point>
       last_user_input_velocity_set_time_;
+  // True while an absolute position is being held. Suspends the velocity
+  // deadman watchdog so latched positions persist without timing out.
+  std::atomic<bool> position_hold_active_{false};
+  std::array<std::atomic<int>, kMotorCount> motor_bus_mode_;
 };
 
 #endif // PAN_TILT_CONTROLLER_H

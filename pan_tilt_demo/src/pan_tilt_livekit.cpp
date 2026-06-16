@@ -337,6 +337,15 @@ PtLiveKitApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
         data.caller_identity, pan_tilt_topics::kControlCmdTrack,
         [this](const std::vector<std::uint8_t> &payload,
                std::optional<std::uint64_t>) { onControlCmdPayload(payload); });
+
+    if (control_pos_callback_id_ != 0) {
+      room_->removeOnDataFrameCallback(control_pos_callback_id_);
+      control_pos_callback_id_ = 0;
+    }
+    control_pos_callback_id_ = room_->addOnDataFrameCallback(
+        data.caller_identity, pan_tilt_topics::kControlPosTrack,
+        [this](const std::vector<std::uint8_t> &payload,
+               std::optional<std::uint64_t>) { onControlPosPayload(payload); });
   } catch (const std::exception &e) {
     {
       std::lock_guard<std::mutex> lock(controller_mutex_);
@@ -344,10 +353,18 @@ PtLiveKitApp::handleAcquireControlRpc(const livekit::RpcInvocationData &data) {
         controller_identity_.clear();
       }
     }
+    if (control_cmd_callback_id_ != 0) {
+      room_->removeOnDataFrameCallback(control_cmd_callback_id_);
+      control_cmd_callback_id_ = 0;
+    }
+    if (control_pos_callback_id_ != 0) {
+      room_->removeOnDataFrameCallback(control_pos_callback_id_);
+      control_pos_callback_id_ = 0;
+    }
     WriteLine(std::cerr, 
-        "[pan_tilt_livekit] Failed subscribing controller '{}' to '{}': {}",
-        data.caller_identity, pan_tilt_topics::kControlCmdTrack, e.what());
-    throw std::runtime_error("failed to subscribe controller to control_cmd");
+        "[pan_tilt_livekit] Failed subscribing controller '{}' to control tracks: {}",
+        data.caller_identity, e.what());
+    throw std::runtime_error("failed to subscribe controller to control tracks");
   }
 
   WriteLine(std::cout, "[pan_tilt_livekit] Controller acquired by '{}'", data.caller_identity);
@@ -369,6 +386,10 @@ void PtLiveKitApp::clearController() {
   if (control_cmd_callback_id_ != 0) {
     room_->removeOnDataFrameCallback(control_cmd_callback_id_);
     control_cmd_callback_id_ = 0;
+  }
+  if (control_pos_callback_id_ != 0) {
+    room_->removeOnDataFrameCallback(control_pos_callback_id_);
+    control_pos_callback_id_ = 0;
   }
   WriteLine(std::cout, "[pan_tilt_livekit] Controller '{}' released", previous_controller);
 }
@@ -396,11 +417,51 @@ void PtLiveKitApp::onControlCmdPayload(
           tilt_vel_rad_s, tilt_steps_s);
       return;
     }
-
-    WriteLine(std::cout, "[pan_tilt_livekit] control_cmd pan={} rad/s tilt={} rad/s",
+    if (pan_vel_rad_s > 0 || tilt_vel_rad_s > 0) {
+      WriteLine(std::cout, "[pan_tilt_livekit] control_cmd pan={} rad/s tilt={} rad/s",
                  pan_vel_rad_s, tilt_vel_rad_s);
+    }
   } catch (const std::exception &e) {
     WriteLine(std::cerr, "[pan_tilt_livekit] Invalid control_cmd payload: {}", e.what());
+  }
+}
+
+void PtLiveKitApp::onControlPosPayload(
+    const std::vector<std::uint8_t> &payload) {
+  try {
+    const json cmd = json::parse(payload.begin(), payload.end());
+
+    // Absolute pose mirroring: angles are offsets from center (home), in
+    // radians. The controller clamps to per-axis safety limits and holds the
+    // latest target indefinitely. Each axis is independent so a payload may
+    // carry only pan, only tilt, or both.
+    const bool has_pan = cmd.contains("pan");
+    const bool has_tilt = cmd.contains("tilt");
+    if (!has_pan && !has_tilt) {
+      WriteLine(std::cerr,
+                "[pan_tilt_livekit] control_pos payload missing pan/tilt");
+      return;
+    }
+
+    if (has_pan) {
+      const double pan_rad = cmd.value("pan", 0.0);
+      if (!pan_tilt_.setMotorAngleFromHome(kPanIndex, pan_rad)) {
+        WriteLine(std::cerr,
+                  "[pan_tilt_livekit] Failed setting pan position (rad={})",
+                  pan_rad);
+      }
+    }
+    if (has_tilt) {
+      const double tilt_rad = cmd.value("tilt", 0.0);
+      if (!pan_tilt_.setMotorAngleFromHome(kTiltIndex, tilt_rad)) {
+        WriteLine(std::cerr,
+                  "[pan_tilt_livekit] Failed setting tilt position (rad={})",
+                  tilt_rad);
+      }
+    }
+  } catch (const std::exception &e) {
+    WriteLine(std::cerr, "[pan_tilt_livekit] Invalid control_pos payload: {}",
+              e.what());
   }
 }
 
