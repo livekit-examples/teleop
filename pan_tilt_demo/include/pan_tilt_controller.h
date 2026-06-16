@@ -172,6 +172,16 @@ public:
    */
   std::array<ServoState, kMotorCount> pollState();
 
+  /**
+   * @brief Poll and print the current pan/tilt angles.
+   *
+   * Prints both the relative angle (measured from the home/center tick) and the
+   * global angle (measured from the servo's zero tick) for pan (index 0) and
+   * tilt (index 1), in degrees.
+   * @return true if both motors reported valid state, false otherwise.
+   */
+  bool printAngles();
+
 private:
   /**
    * @brief Wait until a motor reaches target ticks and reports not moving.
@@ -269,6 +279,26 @@ private:
     const double ticks_per_radian =
         static_cast<double>(kTicksPerRevolution) / (2.0 * kPi);
     return static_cast<int>(std::lround(angle_rad * ticks_per_radian));
+  }
+
+  /**
+   * @brief Convert ticks to angle in radians.
+   * @param ticks The servo position in ticks
+   * @return the angle in radians
+   */
+  static inline double ticksToAngleRad(const int ticks) {
+    const double radians_per_tick =
+        (2.0 * kPi) / static_cast<double>(kTicksPerRevolution);
+    return static_cast<double>(ticks) * radians_per_tick;
+  }
+
+  /**
+   * @brief Convert ticks to angle in degrees.
+   * @param ticks The servo position in ticks
+   * @return the angle in degrees
+   */
+  static inline double ticksToAngleDeg(const int ticks) {
+    return ticksToAngleRad(ticks) * (180.0 / kPi);
   }
 
   std::string serial_port_;

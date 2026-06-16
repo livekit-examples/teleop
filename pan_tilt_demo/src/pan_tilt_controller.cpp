@@ -254,6 +254,33 @@ PanTiltController::pollState() {
   return states;
 }
 
+bool PanTiltController::printAngles() {
+  const auto states = pollState();
+  const ServoState &pan = states[0];
+  const ServoState &tilt = states[1];
+
+  if (!pan.valid || !tilt.valid) {
+    WriteLine(std::cerr, "[pan_tilt] printAngles failed: invalid state "
+                         "(pan valid={}, tilt valid={})",
+              pan.valid, tilt.valid);
+    return false;
+  }
+
+  const double pan_global_deg = ticksToAngleDeg(pan.position_ticks);
+  const double tilt_global_deg = ticksToAngleDeg(tilt.position_ticks);
+  const double pan_relative_deg =
+      ticksToAngleDeg(pan.position_ticks - kHomeTicks);
+  const double tilt_relative_deg =
+      ticksToAngleDeg(tilt.position_ticks - kHomeTicks);
+
+  WriteLine(std::cout,
+            "[pan_tilt] Angles  relative: pan={:.2f} deg tilt={:.2f} deg | "
+            "global: pan={:.2f} deg tilt={:.2f} deg",
+            pan_relative_deg, tilt_relative_deg, pan_global_deg,
+            tilt_global_deg);
+  return true;
+}
+
 bool PanTiltController::waitForMotorPositionMoveComplete(
     const int motor_index, const int target_ticks, const int timeout_ms) {
   if (!isValidMotorIndex(motor_index)) {
@@ -339,6 +366,10 @@ void PanTiltController::watchdogThreadMain() {
   while (!watchdog_stop_requested_.load()) {
     ++count;
     bool any_motor_overcurrent = false;
+
+    if (count % kWatchdogRateHz == 0) {
+      printAngles();
+    }
 
     const auto time_since_last_user_input_velocity_set = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_user_input_velocity_set_time_.load());
     if (time_since_last_user_input_velocity_set.count() > 300) {
