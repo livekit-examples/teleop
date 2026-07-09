@@ -286,7 +286,7 @@ public:
     options.auto_subscribe = true;
     options.dynacast = false;
 
-    if (!room_->Connect(args_.url, args_.token, options)) {
+    if (!room_->connect(args_.url, args_.token, options)) {
       WriteLine(std::cerr, "[pt_controller] Failed to connect to room");
       room_.reset();
       livekit::shutdown();
@@ -314,9 +314,17 @@ public:
     }
 
     setupStateSubscribers();
+
+    auto local_participant = room_->localParticipant().lock();
+    if (!local_participant) {
+      WriteLine(std::cerr, "[pt_controller] No local participant after connect");
+      room_.reset();
+      livekit::shutdown();
+      return 1;
+    }
+
     auto dt_result =
-        room_->localParticipant()->publishDataTrack(
-            pan_tilt_topics::kControlCmdTrack);
+        local_participant->publishDataTrack(pan_tilt_topics::kControlCmdTrack);
     if (!dt_result) {
       WriteLine(std::cerr, "[pt_controller] Failed to publish control_cmd data track");
       room_.reset();
@@ -472,7 +480,7 @@ private:
     livekit::VideoStream::Options color_video_opts;
     color_video_opts.format = livekit::VideoBufferType::RGBA;
     room_->setOnVideoFrameCallback(
-        args_.robot_identity, livekit::TrackSource::SOURCE_CAMERA,
+        args_.robot_identity, pan_tilt_topics::kCameraColorTrack,
         [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
           onVideoFrame(frame, timestamp_us);
         },
@@ -490,7 +498,7 @@ private:
     livekit::VideoStream::Options depth_vis_video_opts;
     depth_vis_video_opts.format = livekit::VideoBufferType::RGBA;
     room_->setOnVideoFrameCallback(
-        args_.robot_identity, livekit::TrackSource::SOURCE_SCREENSHARE,
+        args_.robot_identity, pan_tilt_topics::kCameraDepthVisTrack,
         [this](const livekit::VideoFrame &frame, std::int64_t timestamp_us) {
           onDepthVisFrame(frame, timestamp_us);
         },
@@ -699,7 +707,12 @@ private:
     WriteLine(std::cout, "[pt_controller] Acquiring control");
     for (const std::string method : {pan_tilt_topics::kAcquireControlRpc}) {
       try {
-        const auto response = room_->localParticipant()->performRpc(
+        auto lp = room_->localParticipant().lock();
+        if (!lp) {
+          WriteLine(std::cerr, "[pt_controller] No local participant for RPC");
+          break;
+        }
+        const auto response = lp->performRpc(
             args_.robot_identity, method, R"({"acquire":true})", 5.0);
         control_acquired_ = true;
         rpc_method_ = method;
@@ -718,8 +731,13 @@ private:
       return;
     }
     try {
-      room_->localParticipant()->performRpc(
-          args_.robot_identity, rpc_method_, R"({"acquire":false})", 3.0);
+      auto lp = room_->localParticipant().lock();
+      if (!lp) {
+        WriteLine(std::cerr, "[pt_controller] No local participant to release control");
+        return;
+      }
+      lp->performRpc(args_.robot_identity, rpc_method_, R"({"acquire":false})",
+                     3.0);
       WriteLine(std::cout, "[pt_controller] Control released");
     } catch (const std::exception &e) {
       WriteLine(std::cerr, "[pt_controller] Failed to release control: {}", e.what());

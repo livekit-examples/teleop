@@ -5,8 +5,10 @@ In this project `pt` means "pan/tilt" for the pan tilt robot.
 In this project `servo` and `motor` are used interchangeably.
 
 # Building
-This project uses cmake to build and depends on LiveKit SDK, SCServo, SDL3, and
-librealsense2. LiveKit SDK, SCServo, and SDL3 are downloaded and built by cmake.
+This project uses cmake to build and depends on LiveKit C++ SDK
+[v1.1.1](https://github.com/livekit/client-sdk-cpp/releases/tag/v1.1.1),
+SCServo, SDL3, and librealsense2. LiveKit SDK, SCServo, and SDL3 are
+downloaded and built by cmake.
 librealsense2 must be installed on the system by following the upstream
 Ubuntu source-install instructions from Intel RealSense
 ([installation.md](https://github.com/realsenseai/librealsense/blob/master/doc/installation.md)).

@@ -27,7 +27,7 @@
  *   ./ProgramEprom /dev/ttyUSB0 1 2 --set-zero-position
  */
 
-#include "SCServo.h"
+#include "scservo/SCServo.h"
 
 #include <cstring>
 #include <iostream>

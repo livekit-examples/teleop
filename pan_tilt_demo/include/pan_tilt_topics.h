@@ -22,6 +22,7 @@
 
 namespace pan_tilt_topics {
 constexpr char kControlCmdTrack[] = "control_cmd";
+constexpr char kControlPosTrack[] = "control_pos";
 constexpr char kGyroStateTrack[] = "state.gyro";
 constexpr char kPanStateTrack[] = "state.pan";
 constexpr char kTiltStateTrack[] = "state.tilt";

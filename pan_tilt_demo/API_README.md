@@ -21,6 +21,7 @@ binary fields is **little-endian** unless noted otherwise.
 | `state.pan`        | Data       | —                     | Robot → Room     | JSON     | ~20 Hz      |
 | `state.tilt`       | Data       | —                     | Robot → Room     | JSON     | ~20 Hz      |
 | `control_cmd`      | Data       | —                     | Controller → Robot | JSON   | On change   |
+| `control_pos`      | Data       | —                     | Controller → Robot | JSON   | On change   |
 
 ---
 
@@ -220,13 +221,58 @@ Setting both fields to `0` stops all motion.
 
 ---
 
+### `control_pos`
+
+Absolute position command sent by the active controller to point the pan/tilt
+at a target orientation. Intended for **pose mirroring** use cases, such as an
+AR application feeding a phone's yaw/tilt to the robot.
+
+**Direction:** Controller → Robot (the robot subscribes to this track from the
+participant identity that holds control).
+
+**Encoding:** UTF-8 JSON.
+
+#### Schema
+
+```json
+{
+  "pan":  <number>,
+  "tilt": <number>
+}
+```
+
+| Field  | Type   | Unit | Description |
+|--------|--------|------|-------------|
+| `pan`  | number | rad  | Absolute pan angle as an offset from center/home (positive = right) |
+| `tilt` | number | rad  | Absolute tilt angle as an offset from center/home (positive = down) |
+
+Both fields are optional and applied independently — a payload may carry only
+`pan`, only `tilt`, or both.
+
+**Behavior:**
+- **Latest value wins.** The most recent command is applied immediately.
+- **No timeout.** Unlike `control_cmd`, a position is held indefinitely until a
+  new position (or velocity) command arrives. A single message is sufficient.
+- **Safety clamping.** Targets are clamped to the robot's per-axis software
+  limits before being commanded:
+  - **pan:** −75° to +75° (≈ −1.309 to +1.309 rad) from home
+  - **tilt:** −90° to 0° (≈ −1.571 to 0 rad) from home
+- The robot moves at a moderately high fixed speed for fast, responsive
+  tracking.
+
+**Note:** `control_cmd` (velocity) and `control_pos` (position) are mutually
+exclusive control modes. Sending a velocity command releases any held position;
+sending a position command suspends the velocity deadman and holds the target.
+
+---
+
 ## RPC Methods
 
 ### `acquire_control`
 
 Request or release exclusive motor control. Only one participant may hold
-control at a time. The robot subscribes to `control_cmd` only from the identity
-that currently holds control.
+control at a time. The robot subscribes to the control tracks (`control_cmd`
+and `control_pos`) only from the identity that currently holds control.
 
 **Direction:** Caller → Robot.
 

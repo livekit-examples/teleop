@@ -16,6 +16,7 @@
 
 #include "pan_tilt_controller.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <unistd.h>
@@ -28,6 +29,8 @@ constexpr int kPersistentOvercurrentSamplesBeforeTorqueCut = 4;
 constexpr int kBlockingTimeoutMs = 5000;
 constexpr int kPositionToleranceTicks = 8;
 constexpr int kSettledSampleCount = 3;
+constexpr int kPanIndex = 0;
+constexpr int kTiltIndex = 1;
 
 int circularDistanceTicks(const int a, const int b) {
   const int raw = std::abs(a - b);
@@ -39,7 +42,11 @@ PanTiltController::PanTiltController(
     const std::string &serial_port,
     const std::array<u8, kMotorCount> &motor_ids, const int baud)
     : serial_port_(serial_port), motor_ids_(motor_ids), baud_(baud),
-      opened_(false), watchdog_stop_requested_(false), watchdog_running_(false) {
+      opened_(false), watchdog_stop_requested_(false),
+      watchdog_running_(false) {
+  for (auto &mode : motor_bus_mode_) {
+    mode.store(static_cast<int>(BusMode::kUnknown));
+  }
 }
 
 PanTiltController::~PanTiltController() {
@@ -70,8 +77,51 @@ bool PanTiltController::initialize(const bool run_calibration_ofs) {
   if (!homeMotors()) {
     return false;
   }
+  if (!exerciseLimits()) {
+    return false;
+  }
+  if (!homeMotors()) {
+    return false;
+  }
 
   startWatchdogThread();
+  return true;
+}
+
+bool PanTiltController::exerciseLimits() {
+  WriteLine(std::cout, "[pan_tilt] Exercising motion limits (4 corners)");
+
+  struct Corner {
+    double pan_from_home_rad;
+    double tilt_from_home_rad;
+  };
+  const std::array<Corner, 4> corners = {{
+      {kPanMaxAngleFromHomeRad, kTiltMaxAngleFromHomeRad},
+      {kPanMinAngleFromHomeRad, kTiltMaxAngleFromHomeRad},
+      {kPanMinAngleFromHomeRad, kTiltMinAngleFromHomeRad},
+      {kPanMaxAngleFromHomeRad, kTiltMinAngleFromHomeRad},
+  }};
+
+  for (const auto &corner : corners) {
+    if (!setMotorAngleFromHome(kPanIndex, corner.pan_from_home_rad) ||
+        !setMotorAngleFromHome(kTiltIndex, corner.tilt_from_home_rad)) {
+      WriteLine(std::cerr, "[pan_tilt] exerciseLimits failed to command corner");
+      return false;
+    }
+
+    const int pan_target =
+        angleFromHomeToTicks(kPanIndex, corner.pan_from_home_rad);
+    const int tilt_target =
+        angleFromHomeToTicks(kTiltIndex, corner.tilt_from_home_rad);
+    if (!waitForMotorPositionMoveComplete(kPanIndex, pan_target,
+                                          kBlockingTimeoutMs) ||
+        !waitForMotorPositionMoveComplete(kTiltIndex, tilt_target,
+                                          kBlockingTimeoutMs)) {
+      WriteLine(std::cerr, "[pan_tilt] exerciseLimits corner move did not settle");
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -103,6 +153,10 @@ bool PanTiltController::setMotorAngle(const int motor_index,
     return false;
   }
 
+  if (!ensureServoMode(motor_index)) {
+    return false;
+  }
+
   const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
   const int id = motorId(motor_index);
   const int target_ticks = wrapTicks(angleRadToTicks(absolute_angle_rad));
@@ -111,8 +165,64 @@ bool PanTiltController::setMotorAngle(const int motor_index,
     WriteLine(std::cerr, "[pan_tilt] setMotorAngle failed for ID {}", id);
     return false;
   }
-  WriteLine(std::cout, "[pan_tilt] setMotorAngle ID {} -> {} rad ({} ticks)", id,
-               absolute_angle_rad, target_ticks);
+  WriteLine(std::cout, "[pan_tilt] setMotorAngle ID {} -> {} rad ({} ticks)",
+            id, absolute_angle_rad, target_ticks);
+  return true;
+}
+
+double PanTiltController::clampAngleFromHomeRad(
+    const int motor_index, const double angle_from_home_rad) {
+  const double limit_a = (motor_index == 0) ? kPanMinAngleFromHomeRad
+                                            : kTiltMinAngleFromHomeRad;
+  const double limit_b = (motor_index == 0) ? kPanMaxAngleFromHomeRad
+                                            : kTiltMaxAngleFromHomeRad;
+  // The named min/max constants may be configured in either numeric order, so
+  // derive the actual bounds here. std::clamp has undefined behavior if the
+  // lower bound exceeds the upper bound.
+  const auto [lo, hi] = std::minmax(limit_a, limit_b);
+  return std::clamp(angle_from_home_rad, lo, hi);
+}
+
+int PanTiltController::angleFromHomeToTicks(const int motor_index,
+                                           const double angle_from_home_rad) {
+  const double clamped_rad =
+      clampAngleFromHomeRad(motor_index, angle_from_home_rad);
+  return wrapTicks(kHomeTicks + angleRadToTicks(clamped_rad));
+}
+
+bool PanTiltController::setMotorAngleFromHome(const int motor_index,
+                                             const double angle_from_home_rad,
+                                             const u16 speed) {
+  if (!isValidMotorIndex(motor_index)) {
+    return false;
+  }
+
+  if (!ensureServoMode(motor_index)) {
+    return false;
+  }
+
+  const double clamped_rad =
+      clampAngleFromHomeRad(motor_index, angle_from_home_rad);
+  if (clamped_rad != angle_from_home_rad) {
+    WriteLine(std::cerr,
+              "[pan_tilt] Position request {} rad clamped to {} rad (limits) "
+              "for motor {}",
+              angle_from_home_rad, clamped_rad, (motor_index == 0 ? "pan" : "tilt"));
+         
+  }
+
+  const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
+  const int id = motorId(motor_index);
+  const int target_ticks = wrapTicks(kHomeTicks + angleRadToTicks(clamped_rad));
+  if (!sms_sts_.WritePosEx(static_cast<u8>(id), static_cast<s16>(target_ticks),
+                           speed, kDefaultMoveAcc)) {
+    WriteLine(std::cerr, "[pan_tilt] setMotorAngleFromHome failed for ID {}", id);
+    return false;
+  }
+
+  // Latch position-hold so the velocity deadman watchdog stays suspended and
+  // the commanded angle is held indefinitely until a new command arrives.
+  position_hold_active_.store(true);
   return true;
 }
 
@@ -147,12 +257,14 @@ bool PanTiltController::setMotorAngleRelative(const int motor_index,
   const int target_ticks = wrapTicks(current_ticks + delta_ticks);
   if (!sms_sts_.WritePosEx(static_cast<u8>(id), static_cast<s16>(target_ticks),
                            speed, kDefaultMoveAcc)) {
-    WriteLine(std::cerr, "[pan_tilt] setMotorAngleRelative failed for ID {}", id);
+    WriteLine(std::cerr, "[pan_tilt] setMotorAngleRelative failed for ID {}",
+              id);
     return false;
   }
 
-  WriteLine(std::cout, "[pan_tilt] Relative move ID {}: {} rad ({} -> {} ticks)", id,
-               relative_angle_rad, current_ticks, target_ticks);
+  WriteLine(std::cout,
+            "[pan_tilt] Relative move ID {}: {} rad ({} -> {} ticks)", id,
+            relative_angle_rad, current_ticks, target_ticks);
   return true;
 }
 
@@ -167,8 +279,10 @@ bool PanTiltController::setMotorAngleRelativeBlocking(
   const int id = motorId(motor_index);
   const int current_ticks = sms_sts_.ReadPos(static_cast<u8>(id));
   if (current_ticks < 0) {
-    WriteLine(std::cerr, "[pan_tilt] setMotorAngleRelativeBlocking ReadPos failed for ID {}",
-                 id);
+    WriteLine(
+        std::cerr,
+        "[pan_tilt] setMotorAngleRelativeBlocking ReadPos failed for ID {}",
+        id);
     return false;
   }
   const int target_ticks =
@@ -186,7 +300,7 @@ bool PanTiltController::setVelocity(const int motor_index,
   }
   if (velocity_steps_per_sec < -3400 || velocity_steps_per_sec > 3400) {
     WriteLine(std::cerr, "[pan_tilt] Velocity {} out of range [-3400, 3400]",
-                 velocity_steps_per_sec);
+              velocity_steps_per_sec);
     return false;
   }
   const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
@@ -195,8 +309,13 @@ bool PanTiltController::setVelocity(const int motor_index,
     WriteLine(std::cerr, "[pan_tilt] Failed to set wheel mode for ID {}", id);
     return false;
   }
+  motor_bus_mode_[motor_index].store(static_cast<int>(BusMode::kWheel));
+  // A velocity command means we are back under velocity control; release any
+  // latched position hold so the deadman watchdog re-arms.
+  position_hold_active_.store(false);
   if (!sms_sts_.WriteSpe(static_cast<u8>(id), velocity_steps_per_sec, acc)) {
-    WriteLine(std::cerr, "[pan_tilt] setVelocity WriteSpe failed for ID {}", id);
+    WriteLine(std::cerr, "[pan_tilt] setVelocity WriteSpe failed for ID {}",
+              id);
     return false;
   }
 
@@ -204,8 +323,10 @@ bool PanTiltController::setVelocity(const int motor_index,
     last_user_input_velocity_set_time_.store(std::chrono::steady_clock::now());
   }
 
-  WriteLine(std::cout, "[pan_tilt] setVelocity ID {} -> {} steps/s", id,
-               velocity_steps_per_sec);
+  if (velocity_steps_per_sec > 0) {
+    WriteLine(std::cout, "[pan_tilt] setVelocity ID {} -> {} steps/s", id,
+              velocity_steps_per_sec);
+  }
   return true;
 }
 
@@ -231,7 +352,8 @@ PanTiltController::pollState() {
     state.motor_id = id;
 
     if (!sms_sts_.FeedBack(id)) {
-      WriteLine(std::cerr, "[pan_tilt] FeedBack failed while polling ID {}", id);
+      WriteLine(std::cerr, "[pan_tilt] FeedBack failed while polling ID {}",
+                id);
       continue;
     }
 
@@ -254,8 +376,37 @@ PanTiltController::pollState() {
   return states;
 }
 
-bool PanTiltController::waitForMotorPositionMoveComplete(
-    const int motor_index, const int target_ticks, const int timeout_ms) {
+bool PanTiltController::printAngles() {
+  const auto states = pollState();
+  const ServoState &pan = states[0];
+  const ServoState &tilt = states[1];
+
+  if (!pan.valid || !tilt.valid) {
+    WriteLine(std::cerr,
+              "[pan_tilt] printAngles failed: invalid state "
+              "(pan valid={}, tilt valid={})",
+              pan.valid, tilt.valid);
+    return false;
+  }
+
+  const double pan_global_deg = ticksToAngleDeg(pan.position_ticks);
+  const double tilt_global_deg = ticksToAngleDeg(tilt.position_ticks);
+  const double pan_relative_deg =
+      ticksToAngleDeg(pan.position_ticks - kHomeTicks);
+  const double tilt_relative_deg =
+      ticksToAngleDeg(tilt.position_ticks - kHomeTicks);
+
+  WriteLine(std::cout,
+            "[pan_tilt] Angles  relative: pan={:.2f} deg tilt={:.2f} deg | "
+            "global: pan={:.2f} deg tilt={:.2f} deg",
+            pan_relative_deg, tilt_relative_deg, pan_global_deg,
+            tilt_global_deg);
+  return true;
+}
+
+bool PanTiltController::waitForMotorPositionMoveComplete(const int motor_index,
+                                                         const int target_ticks,
+                                                         const int timeout_ms) {
   if (!isValidMotorIndex(motor_index)) {
     return false;
   }
@@ -266,16 +417,19 @@ bool PanTiltController::waitForMotorPositionMoveComplete(
   while (true) {
     if (std::chrono::steady_clock::now() - start >
         std::chrono::milliseconds(timeout_ms)) {
-      WriteLine(std::cerr, 
-          "[pan_tilt] waitForMotorPositionMoveComplete timeout for ID {}", id);
+      WriteLine(std::cerr,
+                "[pan_tilt] waitForMotorPositionMoveComplete timeout for ID {}",
+                id);
       return false;
     }
 
     const auto states = pollState();
     const ServoState &state = states[motor_index];
     if (!state.valid) {
-      WriteLine(std::cerr, "[pan_tilt] waitForMotorPositionMoveComplete failed while polling ID {}",
-                   id);
+      WriteLine(std::cerr,
+                "[pan_tilt] waitForMotorPositionMoveComplete failed while "
+                "polling ID {}",
+                id);
       return false;
     }
 
@@ -314,7 +468,8 @@ void PanTiltController::startWatchdogThread() {
   watchdog_stop_requested_.store(false);
   watchdog_thread_ = std::thread(&PanTiltController::watchdogThreadMain, this);
   watchdog_running_.store(true);
-  WriteLine(std::cout, "[pan_tilt] Current watchdog started at {} Hz", kWatchdogRateHz);
+  WriteLine(std::cout, "[pan_tilt] Current watchdog started at {} Hz",
+            kWatchdogRateHz);
 }
 
 void PanTiltController::stopWatchdogThread() {
@@ -331,7 +486,8 @@ void PanTiltController::stopWatchdogThread() {
 }
 
 void PanTiltController::watchdogThreadMain() {
-  const auto watchdog_period = std::chrono::milliseconds(1000 / kWatchdogRateHz);
+  const auto watchdog_period =
+      std::chrono::milliseconds(1000 / kWatchdogRateHz);
   auto next_wakeup = std::chrono::steady_clock::now();
   std::array<int, kMotorCount> overcurrent_sample_counts{};
   bool torque_cut_applied = false;
@@ -340,10 +496,23 @@ void PanTiltController::watchdogThreadMain() {
     ++count;
     bool any_motor_overcurrent = false;
 
-    const auto time_since_last_user_input_velocity_set = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_user_input_velocity_set_time_.load());
-    if (time_since_last_user_input_velocity_set.count() > 300) {
+    if (count % kWatchdogRateHz == 0) {
+      printAngles();
+    }
+
+    // The velocity deadman is suspended while an absolute position is held:
+    // position commands are latched and intentionally do not time out.
+    // Overcurrent protection below still applies in all modes.
+    const auto time_since_last_user_input_velocity_set =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() -
+            last_user_input_velocity_set_time_.load());
+    if (!position_hold_active_.load() &&
+        time_since_last_user_input_velocity_set.count() > 300) {
       if (count % 10 == 0) {
-        WriteLine(std::cerr, "[pan_tilt] Time since last user input velocity set: {} ms", time_since_last_user_input_velocity_set.count());
+        WriteLine(std::cerr,
+                  "[pan_tilt] Time since last user input velocity set: {} ms",
+                  time_since_last_user_input_velocity_set.count());
       }
       haltMotors();
     }
@@ -359,24 +528,28 @@ void PanTiltController::watchdogThreadMain() {
         const int id = motorId(i);
 
         if (overcurrent_sample_counts[i] == 1) {
-          WriteLine(std::cerr, 
-              "[pan_tilt] Overcurrent detected on ID {}: {} mA > {} mA; halting motors",
-              id, current_milliamps, kCurrentLimitMilliamps);
+          WriteLine(std::cerr,
+                    "[pan_tilt] Overcurrent detected on ID {}: {} mA > {} "
+                    "mA; halting motors",
+                    id, current_milliamps, kCurrentLimitMilliamps);
           if (!haltMotors()) {
-            WriteLine(std::cerr, "[pan_tilt] Failed to halt motors after overcurrent");
+            WriteLine(std::cerr,
+                      "[pan_tilt] Failed to halt motors after overcurrent");
           }
         }
 
         if (!torque_cut_applied &&
             overcurrent_sample_counts[i] >=
                 kPersistentOvercurrentSamplesBeforeTorqueCut) {
-          WriteLine(std::cerr, 
-              "[pan_tilt] Persistent overcurrent on ID {} after halt; disabling torque",
-              id);
+          WriteLine(std::cerr,
+                    "[pan_tilt] Persistent overcurrent on ID {} after halt; "
+                    "disabling torque",
+                    id);
           for (int m = 0; m < kMotorCount; ++m) {
             if (!disableMotorTorque(m)) {
-              WriteLine(std::cerr, "[pan_tilt] Failed to disable torque for motor index {}",
-                           m);
+              WriteLine(
+                  std::cerr,
+                  "[pan_tilt] Failed to disable torque for motor index {}", m);
             }
           }
           torque_cut_applied = true;
@@ -434,6 +607,25 @@ bool PanTiltController::disableMotorTorque(const int motor_index) {
   return true;
 }
 
+bool PanTiltController::ensureServoMode(const int motor_index) {
+  if (!isValidMotorIndex(motor_index)) {
+    return false;
+  }
+  if (motor_bus_mode_[motor_index].load() ==
+      static_cast<int>(BusMode::kServo)) {
+    return true;
+  }
+
+  const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
+  const int id = motorId(motor_index);
+  if (!sms_sts_.InitMotor(static_cast<u8>(id), SMS_STS_MODE_SERVO, 1)) {
+    WriteLine(std::cerr, "[pan_tilt] Failed to set servo mode for ID {}", id);
+    return false;
+  }
+  motor_bus_mode_[motor_index].store(static_cast<int>(BusMode::kServo));
+  return true;
+}
+
 bool PanTiltController::initMotors() {
   const std::lock_guard<std::recursive_mutex> lock(bus_mutex_);
   for (int i = 0; i < kMotorCount; ++i) {
@@ -467,12 +659,13 @@ bool PanTiltController::ensureFeedback() {
     const ServoState &state = states[i];
     if (!state.valid) {
       WriteLine(std::cerr, "[pan_tilt] Feedback validation failed for ID {}",
-                   state.motor_id);
+                state.motor_id);
       return false;
     }
-    WriteLine(std::cout, "[pan_tilt] Feedback OK for ID {} (pos={} voltage={} temp={})",
-                state.motor_id, state.position_ticks, state.voltage_01v,
-                state.temperature_celsius);
+    WriteLine(std::cout,
+              "[pan_tilt] Feedback OK for ID {} (pos={} voltage={} temp={})",
+              state.motor_id, state.position_ticks, state.voltage_01v,
+              state.temperature_celsius);
   }
   return true;
 }

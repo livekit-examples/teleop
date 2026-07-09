@@ -24,7 +24,7 @@ Options:
   --help, -h      Show this help message and exit
 
 Extra arguments are forwarded to cmake, e.g.:
-  ./build.sh -DLIVEKIT_SDK_VERSION=0.3.0
+  ./build.sh -DLIVEKIT_SDK_VERSION=1.1.1
   ./build.sh clean -DCMAKE_BUILD_TYPE=Release
   ./build.sh -DLIVEKIT_LOCAL_SDK_DIR=<path-to-local-sdk-install-prefix>
 EOF
