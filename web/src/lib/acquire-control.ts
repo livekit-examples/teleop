@@ -1,5 +1,13 @@
 export const ACQUIRE_CONTROL_METHOD = 'acquire_control';
 
+/**
+ * When `NEXT_PUBLIC_ACQUIRE_CONTROL_ENABLED` is "false", the `acquire_control`
+ * RPC flow is bypassed: operator mode is granted locally and control commands
+ * are published without holding the operator seat.
+ */
+export const ACQUIRE_CONTROL_ENABLED =
+  process.env.NEXT_PUBLIC_ACQUIRE_CONTROL_ENABLED !== 'false';
+
 /** Matches API examples: acquire */
 export const ACQUIRE_CONTROL_PAYLOAD = JSON.stringify({ acquire: true });
 

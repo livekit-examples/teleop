@@ -3,6 +3,7 @@ import { useLocalParticipant } from '@livekit/components-react';
 import {
   isSeatHeldByOther,
   parseAcquireControlResponse,
+  ACQUIRE_CONTROL_ENABLED,
   ACQUIRE_CONTROL_METHOD,
   ACQUIRE_CONTROL_PAYLOAD,
   RELEASE_CONTROL_PAYLOAD,
@@ -24,6 +25,9 @@ export interface UseAcquireControlOptions {
  * participant identified by `identity`. The response is parsed to determine whether
  * the operator seat was granted, already held, or locked by another user.
  * Automatically releases control on unmount if currently in operate mode.
+ *
+ * When `NEXT_PUBLIC_ACQUIRE_CONTROL_ENABLED` is "false", no RPCs are sent:
+ * operator mode is granted immediately and the seat is never locked.
  */
 export function useAcquireControl({ identity, isConnected }: UseAcquireControlOptions) {
   const [mode, setMode] = useState<Mode>('view');
@@ -44,6 +48,7 @@ export function useAcquireControl({ identity, isConnected }: UseAcquireControlOp
   const modeRef = useRef(mode);
 
   const acquireOperator = useCallback(async (): Promise<boolean> => {
+    if (!ACQUIRE_CONTROL_ENABLED) return true;
     if (!identity) {
       if (!warnedMissingRobotIdentity && typeof window !== 'undefined') {
         warnedMissingRobotIdentity = true;
@@ -83,6 +88,7 @@ export function useAcquireControl({ identity, isConnected }: UseAcquireControlOp
   }, [identity, isConnected, localParticipant]);
 
   const releaseOperator = useCallback(async (): Promise<void> => {
+    if (!ACQUIRE_CONTROL_ENABLED) return;
     if (!identity || !isConnected) return;
 
     setIsRpcPending(true);

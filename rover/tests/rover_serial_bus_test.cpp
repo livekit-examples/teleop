@@ -37,13 +37,32 @@ void testImuParsingAndUnitConversion() {
       &error);
   assert(error.empty());
   assert(imu.has_value());
-  assert(std::abs(imu->orientation_rad.roll - kPi) < 1e-9);
-  assert(std::abs(imu->orientation_rad.pitch - (kPi / 2.0)) < 1e-9);
-  assert(std::abs(imu->orientation_rad.yaw + (kPi / 4.0)) < 1e-9);
-  assert(imu->accel_mg.x == 1.0);
-  assert(imu->gyro_dps.z == 6.0);
-  assert(imu->mag_ut.y == 8.0);
-  assert(imu->temperature_c == 10.5);
+  const auto q =
+      teleop_msgs::quaternionFromEulerRad(kPi, kPi / 2.0, -kPi / 4.0);
+  assert(std::abs(imu->orientation.x - q.x) < 1e-9);
+  assert(std::abs(imu->orientation.y - q.y) < 1e-9);
+  assert(std::abs(imu->orientation.z - q.z) < 1e-9);
+  assert(std::abs(imu->orientation.w - q.w) < 1e-9);
+  // milli-g -> m/s^2
+  assert(std::abs(imu->linear_acceleration.x - 9.80665e-3) < 1e-12);
+  // deg/s -> rad/s
+  assert(std::abs(imu->angular_velocity.z - (6.0 * kPi / 180.0)) < 1e-12);
+}
+
+void testQuaternionFromEuler() {
+  // Pure roll of pi -> (x=1, y=0, z=0, w=0).
+  const auto roll_q = teleop_msgs::quaternionFromEulerRad(kPi, 0.0, 0.0);
+  assert(std::abs(roll_q.x - 1.0) < 1e-9);
+  assert(std::abs(roll_q.y) < 1e-9);
+  assert(std::abs(roll_q.z) < 1e-9);
+  assert(std::abs(roll_q.w) < 1e-9);
+
+  // Pure yaw of pi/2 -> (x=0, y=0, z=sin(pi/4), w=cos(pi/4)).
+  const auto yaw_q = teleop_msgs::quaternionFromEulerRad(0.0, 0.0, kPi / 2.0);
+  assert(std::abs(yaw_q.x) < 1e-9);
+  assert(std::abs(yaw_q.y) < 1e-9);
+  assert(std::abs(yaw_q.z - std::sin(kPi / 4.0)) < 1e-9);
+  assert(std::abs(yaw_q.w - std::cos(kPi / 4.0)) < 1e-9);
 }
 
 void testMalformedJsonIsRejected() {
@@ -135,6 +154,7 @@ void testParseArgsRejectsInvalidQueryRate() {
 int main() {
   testImuQueryEncoding();
   testImuParsingAndUnitConversion();
+  testQuaternionFromEuler();
   testMalformedJsonIsRejected();
   testNonImuFramesAreIgnored();
   testControlCommandMixing();

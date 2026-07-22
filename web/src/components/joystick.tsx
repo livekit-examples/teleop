@@ -7,7 +7,7 @@ import { ComponentProps, useEffect } from 'react';
 
 import { useArrowKey } from '@/hooks/use-arrow-key';
 import { usePadButtons } from '@/hooks/use-pad-buttons';
-import { MAX_CONTROL_RAD_PER_SEC } from '@/lib/control-cmd';
+import { MAX_CONTROL_RPS } from '@/lib/control-cmd';
 import { Mode } from '@/lib/types';
 
 /** size-20 (80px) container, size-8 (32px) knob — max travel from center */
@@ -15,8 +15,8 @@ const MAX_OFFSET = (100 - 32) / 2;
 /** ~20 Hz to match API_README publish rate guidance */
 const RATE_MS = 50;
 
-/** Inverted stick/keys vs previous mapping; 50% of full-scale rad/s. */
-const CONTROL_GAIN = MAX_CONTROL_RAD_PER_SEC * 0.5;
+/** 50% of full-scale rev/s. */
+const CONTROL_GAIN = MAX_CONTROL_RPS * 0.5;
 
 const spring = { type: 'spring' as const, stiffness: 420, damping: 15 };
 
@@ -65,8 +65,8 @@ interface JoystickProps {
   mode: Mode;
   disabled?: boolean;
   className?: string;
-  /** Emits desired angular velocities (rad/s) for `control_cmd` while active. */
-  onVelocities?: (pan_vel: number, tilt_vel: number) => void;
+  /** Emits desired drive velocities (rev/s) for `cmd_vel` while active. */
+  onVelocities?: (linear_x: number, angular_z: number) => void;
 }
 
 export function Joystick({ mode, disabled, className, onVelocities }: JoystickProps) {
@@ -115,11 +115,12 @@ export function Joystick({ mode, disabled, className, onVelocities }: JoystickPr
       const gyr = gy.get();
       const cx = clampNorm(nx + kx + gxr);
       const cy = clampNorm(ny + ky + gyr);
-      // API: pan_vel positive = left, tilt_vel positive = up (inverted + half gain)
-      const pan_vel = cx * CONTROL_GAIN;
-      const tilt_vel = cy * CONTROL_GAIN;
+      // Stick/arrow up = forward (+linear.x), left = +angular.z, matching the
+      // rover keyboard controller (W = +throttle, A = +steering).
+      const linear_x = -cy * CONTROL_GAIN;
+      const angular_z = -cx * CONTROL_GAIN;
 
-      onVelocities(pan_vel, tilt_vel);
+      onVelocities(linear_x, angular_z);
     };
 
     const id = setInterval(tick, RATE_MS);

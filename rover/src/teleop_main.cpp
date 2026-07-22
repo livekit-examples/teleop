@@ -614,11 +614,10 @@ private:
     if (imu.has_value()) {
       std::cout << std::fixed << std::setprecision(2)
                 << "[controller] IMU#" << imu_count
-                << " roll=" << imu->orientation_rad.roll
-                << " pitch=" << imu->orientation_rad.pitch
-                << " yaw=" << imu->orientation_rad.yaw
-                << std::setprecision(1)
-                << " temp=" << imu->temperature_c << "C\n";
+                << " qx=" << imu->orientation.x
+                << " qy=" << imu->orientation.y
+                << " qz=" << imu->orientation.z
+                << " qw=" << imu->orientation.w << "\n";
     } else {
       std::cout << "[controller] IMU: n/a\n";
     }

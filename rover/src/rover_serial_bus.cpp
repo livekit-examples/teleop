@@ -35,6 +35,7 @@ namespace {
 using json = nlohmann::json;
 
 constexpr double kDegToRad = 3.14159265358979323846 / 180.0;
+constexpr double kMgToMps2 = 9.80665e-3; // milli-g -> m/s^2
 
 bool readOptionalNumber(const json &value, const char *field_name, double *out,
                         std::string *error) {
@@ -170,29 +171,36 @@ parseImuLine(const std::string &line, std::string *error) {
     return std::nullopt;
   }
 
+  // Magnetometer (mx/my/mz) and temperature (temp) serial fields are dropped:
+  // sensor_msgs/Imu has no equivalent.
   teleop_msgs::ImuMsg msg;
   double roll_deg = 0.0;
   double pitch_deg = 0.0;
   double yaw_deg = 0.0;
+  double accel_mg_x = 0.0;
+  double accel_mg_y = 0.0;
+  double accel_mg_z = 0.0;
+  double gyro_dps_x = 0.0;
+  double gyro_dps_y = 0.0;
+  double gyro_dps_z = 0.0;
   if (!readOptionalNumber(value, "r", &roll_deg, error) ||
       !readOptionalNumber(value, "p", &pitch_deg, error) ||
       !readOptionalNumber(value, "y", &yaw_deg, error) ||
-      !readOptionalNumber(value, "ax", &msg.accel_mg.x, error) ||
-      !readOptionalNumber(value, "ay", &msg.accel_mg.y, error) ||
-      !readOptionalNumber(value, "az", &msg.accel_mg.z, error) ||
-      !readOptionalNumber(value, "gx", &msg.gyro_dps.x, error) ||
-      !readOptionalNumber(value, "gy", &msg.gyro_dps.y, error) ||
-      !readOptionalNumber(value, "gz", &msg.gyro_dps.z, error) ||
-      !readOptionalNumber(value, "mx", &msg.mag_ut.x, error) ||
-      !readOptionalNumber(value, "my", &msg.mag_ut.y, error) ||
-      !readOptionalNumber(value, "mz", &msg.mag_ut.z, error) ||
-      !readOptionalNumber(value, "temp", &msg.temperature_c, error)) {
+      !readOptionalNumber(value, "ax", &accel_mg_x, error) ||
+      !readOptionalNumber(value, "ay", &accel_mg_y, error) ||
+      !readOptionalNumber(value, "az", &accel_mg_z, error) ||
+      !readOptionalNumber(value, "gx", &gyro_dps_x, error) ||
+      !readOptionalNumber(value, "gy", &gyro_dps_y, error) ||
+      !readOptionalNumber(value, "gz", &gyro_dps_z, error)) {
     return std::nullopt;
   }
 
-  msg.orientation_rad.roll = roll_deg * kDegToRad;
-  msg.orientation_rad.pitch = pitch_deg * kDegToRad;
-  msg.orientation_rad.yaw = yaw_deg * kDegToRad;
+  msg.orientation = teleop_msgs::quaternionFromEulerRad(
+      roll_deg * kDegToRad, pitch_deg * kDegToRad, yaw_deg * kDegToRad);
+  msg.angular_velocity = {gyro_dps_x * kDegToRad, gyro_dps_y * kDegToRad,
+                          gyro_dps_z * kDegToRad};
+  msg.linear_acceleration = {accel_mg_x * kMgToMps2, accel_mg_y * kMgToMps2,
+                             accel_mg_z * kMgToMps2};
   return msg;
 }
 } // namespace rover_serial_bus

@@ -28,6 +28,10 @@ Create a `.env.local` file in the `web/` directory:
 NEXT_PUBLIC_LIVEKIT_URL=wss://<your-livekit-server>
 NEXT_PUBLIC_LIVEKIT_TOKEN=<your-participant-token>
 NEXT_PUBLIC_ROBOT_IDENTITY=pt_robot
+
+# Optional: set to "false" to skip the acquire_control RPC handshake; the
+# controller then publishes control commands without acquiring the operator seat
+NEXT_PUBLIC_ACQUIRE_CONTROL_ENABLED=true
 ```
 
 For local development with the token generation API:
@@ -73,6 +77,11 @@ Hold a key to repeat the input continuously.
 
 - **View** -- read-only mode, controls are disabled
 - **Operator** -- active control of the robot, locked when another operator is connected
+
+Seat arbitration is performed via the `acquire_control` RPC. Setting
+`NEXT_PUBLIC_ACQUIRE_CONTROL_ENABLED=false` disables it: switching to Operator
+mode succeeds immediately and control commands are published without holding
+the operator seat.
 
 ## Tech stack
 

@@ -31,20 +31,49 @@ std::vector<std::uint8_t> bytesFromString(const std::string &value) {
 int main() {
   {
     teleop_msgs::ImuMsg imu;
-    imu.orientation_rad.roll = 1.0;
-    imu.orientation_rad.pitch = 2.0;
-    imu.orientation_rad.yaw = 3.0;
-    imu.accel_mg = {4.0, 5.0, 6.0};
-    imu.gyro_dps = {7.0, 8.0, 9.0};
-    imu.mag_ut = {10.0, 11.0, 12.0};
-    imu.temperature_c = 13.0;
+    imu.header.frame_id = "imu_link";
+    imu.header.stamp.sec = 12;
+    imu.header.stamp.nanosec = 340000000U;
+    imu.orientation = {0.1, 0.2, 0.3, 0.9};
+    imu.orientation_covariance[0] = 0.5;
+    imu.angular_velocity = {4.0, 5.0, 6.0};
+    imu.angular_velocity_covariance[4] = 1.5;
+    imu.linear_acceleration = {7.0, 8.0, 9.0};
+    imu.linear_acceleration_covariance[8] = 2.5;
 
     teleop_msgs::ImuMsg parsed;
     std::string error;
     assert(
         teleop_msgs::fromPayload(teleop_msgs::toPayload(imu), &parsed, &error));
-    assert(parsed.orientation_rad.yaw == 3.0);
-    assert(parsed.temperature_c == 13.0);
+    assert(parsed.header.frame_id == "imu_link");
+    assert(parsed.header.stamp.sec == 12);
+    assert(parsed.header.stamp.nanosec == 340000000U);
+    assert(parsed.orientation.z == 0.3);
+    assert(parsed.orientation.w == 0.9);
+    assert(parsed.orientation_covariance[0] == 0.5);
+    assert(parsed.angular_velocity.y == 5.0);
+    assert(parsed.angular_velocity_covariance[4] == 1.5);
+    assert(parsed.linear_acceleration.x == 7.0);
+    assert(parsed.linear_acceleration_covariance[8] == 2.5);
+  }
+
+  {
+    // Default-valued wire sample from rover/API_README.md parses cleanly.
+    teleop_msgs::ImuMsg parsed;
+    std::string error;
+    assert(teleop_msgs::fromPayload(
+        bytesFromString(
+            R"({"angular_velocity":{"x":0,"y":0,"z":0},)"
+            R"("angular_velocity_covariance":[0,0,0,0,0,0,0,0,0],)"
+            R"("header":{"frame_id":"","stamp":{"nanosec":0,"sec":0}},)"
+            R"("linear_acceleration":{"x":0,"y":0,"z":0},)"
+            R"("linear_acceleration_covariance":[0,0,0,0,0,0,0,0,0],)"
+            R"("orientation":{"w":1,"x":0,"y":0,"z":0},)"
+            R"("orientation_covariance":[0,0,0,0,0,0,0,0,0]})"),
+        &parsed, &error));
+    assert(parsed.orientation.w == 1.0);
+    assert(parsed.orientation.x == 0.0);
+    assert(parsed.header.frame_id.empty());
   }
 
   {
@@ -53,6 +82,17 @@ int main() {
     std::string error;
     assert(teleop_msgs::fromPayload(teleop_msgs::toPayload(control_cmd),
                                     &parsed, &error));
+    assert(parsed.throttle_rps == 0.25);
+    assert(parsed.steering_rps == -0.5);
+  }
+
+  {
+    teleop_msgs::ControlCmdMsg parsed;
+    std::string error;
+    assert(teleop_msgs::fromPayload(
+        bytesFromString(
+            R"({"angular":{"x":0,"y":0,"z":-0.5},"linear":{"x":0.25,"y":0,"z":0}})"),
+        &parsed, &error));
     assert(parsed.throttle_rps == 0.25);
     assert(parsed.steering_rps == -0.5);
   }
@@ -86,7 +126,17 @@ int main() {
     teleop_msgs::ControlCmdMsg parsed;
     std::string error;
     assert(!teleop_msgs::fromPayload(
-        bytesFromString(R"({"throttle_rps":"fast","steering_rps":0.1})"),
+        bytesFromString(
+            R"({"linear":{"x":"fast","y":0,"z":0},"angular":{"x":0,"y":0,"z":0.1}})"),
+        &parsed, &error));
+    assert(!error.empty());
+  }
+
+  {
+    teleop_msgs::ControlCmdMsg parsed;
+    std::string error;
+    assert(!teleop_msgs::fromPayload(
+        bytesFromString(R"({"throttle_rps":0.25,"steering_rps":-0.5})"),
         &parsed, &error));
     assert(!error.empty());
   }

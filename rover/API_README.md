@@ -22,31 +22,41 @@ Direction: Rover -> Room
 Encoding: UTF-8 JSON  
 Publish pattern: periodic, driven by serial bus query rate
 
+The message is the JSON form of the ROS 2
+[`sensor_msgs/msg/Imu`](https://docs.ros2.org/foxy/api/sensor_msgs/msg/Imu.html)
+message. Magnetometer and temperature readings from the IMU are not part of
+this message.
+
 #### JSON schema
 
 ```json
 {
-  "orientation_rad": {
-    "roll": 0.0,
-    "pitch": 0.0,
-    "yaw": 0.0
-  },
-  "accel_mg": {
+  "angular_velocity": {
     "x": 0.0,
     "y": 0.0,
     "z": 0.0
   },
-  "gyro_dps": {
+  "angular_velocity_covariance": [0, 0, 0, 0, 0, 0, 0, 0, 0],
+  "header": {
+    "frame_id": "",
+    "stamp": {
+      "nanosec": 0,
+      "sec": 0
+    }
+  },
+  "linear_acceleration": {
     "x": 0.0,
     "y": 0.0,
     "z": 0.0
   },
-  "mag_ut": {
+  "linear_acceleration_covariance": [0, 0, 0, 0, 0, 0, 0, 0, 0],
+  "orientation": {
+    "w": 1.0,
     "x": 0.0,
     "y": 0.0,
     "z": 0.0
   },
-  "temperature_c": 0.0
+  "orientation_covariance": [0, 0, 0, 0, 0, 0, 0, 0, 0]
 }
 ```
 
@@ -54,19 +64,15 @@ Publish pattern: periodic, driven by serial bus query rate
 
 | Field | Type | Unit | Notes |
 |---|---|---|---|
-| `orientation_rad.roll` | number | rad | Roll |
-| `orientation_rad.pitch` | number | rad | Pitch |
-| `orientation_rad.yaw` | number | rad | Yaw |
-| `accel_mg.x` | number | mg | Acceleration X |
-| `accel_mg.y` | number | mg | Acceleration Y |
-| `accel_mg.z` | number | mg | Acceleration Z |
-| `gyro_dps.x` | number | deg/s | Gyroscope X |
-| `gyro_dps.y` | number | deg/s | Gyroscope Y |
-| `gyro_dps.z` | number | deg/s | Gyroscope Z |
-| `mag_ut.x` | number | uT | Magnetometer X |
-| `mag_ut.y` | number | uT | Magnetometer Y |
-| `mag_ut.z` | number | uT | Magnetometer Z |
-| `temperature_c` | number | C | Temperature |
+| `header.frame_id` | string | - | Coordinate frame; currently empty |
+| `header.stamp.sec` | integer | s | Sample time seconds; currently 0 |
+| `header.stamp.nanosec` | integer | ns | Sample time nanoseconds; currently 0 |
+| `orientation.x` / `.y` / `.z` / `.w` | number | - | Unit quaternion orientation |
+| `orientation_covariance` | number[9] | rad^2 | Row-major 3x3 about x/y/z; all zeros = unknown |
+| `angular_velocity.x` / `.y` / `.z` | number | rad/s | Gyroscope rates |
+| `angular_velocity_covariance` | number[9] | (rad/s)^2 | Row-major 3x3; all zeros = unknown |
+| `linear_acceleration.x` / `.y` / `.z` | number | m/s^2 | Accelerometer |
+| `linear_acceleration_covariance` | number[9] | (m/s^2)^2 | Row-major 3x3; all zeros = unknown |
 
 All fields are required. Subscriber implementations in this repo validate the
 JSON and convert it to `teleop_msgs::ImuMsg` immediately on reception.
@@ -83,8 +89,16 @@ Publish pattern: created only after control is acquired
 
 ```json
 {
-  "throttle_rps": 0.0,
-  "steering_rps": 0.0
+  "angular": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  },
+  "linear": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+  }
 }
 ```
 
@@ -92,11 +106,17 @@ Publish pattern: created only after control is acquired
 
 | Field | Type | Unit | Notes |
 |---|---|---|---|
-| `throttle_rps` | number | rev/s | Forward/reverse command |
-| `steering_rps` | number | rev/s | Steering command |
+| `linear.x` | number | rev/s | Forward/reverse command |
+| `angular.z` | number | rev/s | Steering command |
+| `linear.y` | number | - | Reserved; send 0, ignored by the rover |
+| `linear.z` | number | - | Reserved; send 0, ignored by the rover |
+| `angular.x` | number | - | Reserved; send 0, ignored by the rover |
+| `angular.y` | number | - | Reserved; send 0, ignored by the rover |
 
-Both fields are required. The rover validates the JSON and converts it to
-`teleop_msgs::ControlCmdMsg` immediately on reception.
+Both the `linear` and `angular` objects are required, each with numeric
+`x`/`y`/`z` fields. The rover uses only `linear.x` and `angular.z`. The rover
+validates the JSON and converts it to `teleop_msgs::ControlCmdMsg` immediately
+on reception.
 
 ---
 

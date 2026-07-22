@@ -27,6 +27,11 @@ export function useGyro(robotIdentity: string): GyroStatePayload {
       if (track.publisherIdentity !== robotIdentity) continue;
 
       const ac = new AbortController();
+      console.log('[data_track] subscribed', {
+        name: track.info.name,
+        publisher: track.publisherIdentity,
+        sid: track.info?.sid,
+      });
       const stream = track.subscribe({ signal: ac.signal });
       const reader = stream.getReader();
       decoders.push(() => {
