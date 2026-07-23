@@ -9,7 +9,10 @@ import { useSessionContext, useTracks, VideoTrack } from '@livekit/components-re
 import { useAcquireControl } from '@/hooks/use-acquire-control';
 import { useControlCmdTrack } from '@/hooks/use-control-cmd-track';
 import { useGyro } from '@/hooks/use-gyro';
+import { useImuHistory } from '@/hooks/use-imu-history';
+import { useOdom } from '@/hooks/use-odom';
 import { usePanTilt } from '@/hooks/use-pan-tilt';
+import { ImuPlot } from '@/components/imu-plot';
 import { useVideoFitContainer } from '@/hooks/use-video-fit-container';
 import { ConnectionState, Track } from 'livekit-client';
 import { Button } from '@/components/ui/button';
@@ -33,9 +36,12 @@ const ANIMATION_TRANSITION: Transition = {
 export function App() {
   const session = useSessionContext();
   const gyro = useGyro(ROBOT_IDENTITY);
+  const { yaw } = useOdom(ROBOT_IDENTITY);
   const { pan, tilt } = usePanTilt(ROBOT_IDENTITY);
+  const imuSamplesRef = useImuHistory(ROBOT_IDENTITY);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [showPlot, setShowPlot] = useState(false);
   const [mainVideoTrack] = useTracks([Track.Source.Camera]);
   const [depthVideoTrack] = useTracks([Track.Source.ScreenShare]);
   const [mainVideoEl, setMainVideoEl] = useState<HTMLVideoElement | null>(null);
@@ -48,6 +54,16 @@ export function App() {
   const { pushControlCmd } = useControlCmdTrack(mode === 'operate' && session.isConnected);
 
   useVideoFitContainer(mainVideoEl, isFullscreen);
+
+  // Debug info and the IMU plot share the same spot above the status bar — one at a time
+  const handleShowDebugInfoChange = (show: boolean) => {
+    setShowDebugInfo(show);
+    if (show) setShowPlot(false);
+  };
+  const handleShowPlotChange = (show: boolean) => {
+    setShowPlot(show);
+    if (show) setShowDebugInfo(false);
+  };
 
   return (
     <div className="relative h-dvh">
@@ -196,7 +212,7 @@ export function App() {
             className="absolute top-0 left-1/2 z-10"
           >
             <ScaleHorizontal
-              value={pan}
+              value={yaw ?? pan}
               className={cn('w-[700px]', isFullscreen && 'bg-background/60 rounded-b-lg')}
             />
           </motion.div>
@@ -230,9 +246,11 @@ export function App() {
           robotIdentity={ROBOT_IDENTITY}
           isRpcPending={isRpcPending}
           showDebugInfo={showDebugInfo}
+          showPlot={showPlot}
           isOperatorModeLocked={isOperatorModeLocked}
           onModeRequest={handleModeRequest}
-          onShowDebugInfoChange={setShowDebugInfo}
+          onShowDebugInfoChange={handleShowDebugInfoChange}
+          onShowPlotChange={handleShowPlotChange}
           className={cn(isFullscreen && 'bg-background/60')}
         />
 
@@ -257,6 +275,9 @@ export function App() {
               {/* Tilt */}
               <div className="opacity-50">Tilt</div>
               <div className="text-right">{tilt}°</div>
+              {/* Odometry yaw */}
+              <div className="opacity-50">Yaw</div>
+              <div className="text-right">{yaw !== undefined ? `${yaw.toFixed(1)}°` : '—'}</div>
               {/* Gyroscope validity */}
               <div className="opacity-50">valid</div>
               <div className="text-right">
@@ -301,6 +322,24 @@ export function App() {
               </div>
               <div>°</div>
             </div>
+          </motion.div>
+        )}
+
+        {/* IMU plot */}
+        {session.isConnected && showPlot && (
+          <motion.div
+            key="imu-plot"
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={ANIMATION_VARIANTS}
+            transition={ANIMATION_TRANSITION}
+            className={cn(
+              'bg-card text-foreground border-input absolute bottom-14 left-1/2 w-140 -translate-x-1/2 rounded-lg border p-4 font-mono text-xs',
+              isFullscreen && 'bg-background/60',
+            )}
+          >
+            <ImuPlot samplesRef={imuSamplesRef} />
           </motion.div>
         )}
       </AnimatePresence>

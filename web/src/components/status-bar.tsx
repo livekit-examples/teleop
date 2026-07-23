@@ -2,7 +2,15 @@
 
 import { useSessionContext } from '@livekit/components-react';
 import { ConnectionState } from 'livekit-client';
-import { Radio, RadioOff, Gamepad2, BugIcon, BugOffIcon, PowerIcon } from 'lucide-react';
+import {
+  Radio,
+  RadioOff,
+  Gamepad2,
+  BugIcon,
+  BugOffIcon,
+  ChartLineIcon,
+  PowerIcon,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { Mode } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -17,8 +25,10 @@ interface StatusBarProps {
   robotIdentity: string;
   isRpcPending?: boolean;
   showDebugInfo?: boolean;
+  showPlot?: boolean;
   isOperatorModeLocked?: boolean;
   onShowDebugInfoChange?: (show: boolean) => void;
+  onShowPlotChange?: (show: boolean) => void;
   onModeRequest?: (next: Mode) => void | Promise<void>;
   className?: string;
 }
@@ -28,9 +38,11 @@ export function StatusBar({
   robotIdentity,
   isRpcPending = false,
   showDebugInfo = false,
+  showPlot = false,
   isOperatorModeLocked = false,
   onModeRequest = () => {},
   onShowDebugInfoChange = () => {},
+  onShowPlotChange = () => {},
   className,
 }: StatusBarProps) {
   const gyro = useGyro(robotIdentity);
@@ -71,6 +83,16 @@ export function StatusBar({
               ) : (
                 <BugIcon size={20} className="text-foreground size-4" />
               )}
+            </Button>
+            <Button
+              size="icon"
+              type="button"
+              variant="outline"
+              title="Toggle IMU Plot"
+              onClick={() => onShowPlotChange(!showPlot)}
+              className={cn('rounded', showPlot && 'bg-muted')}
+            >
+              <ChartLineIcon size={20} className="text-foreground size-4" />
             </Button>
             <div className="bg-background/50 dark:border-input flex h-8 w-100 items-center justify-between gap-8 rounded border px-3 font-mono text-sm font-light">
               <Radio size={20} className="text-foreground shrink-0 group-hover:hidden" />

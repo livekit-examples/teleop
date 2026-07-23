@@ -1,29 +1,37 @@
 import { useEffect, useState } from 'react';
 import { useSessionContext } from '@livekit/components-react';
 import { useRemoteDataTracks } from '@/hooks/use-data-tracks';
-import { IMU_DATA_RAW_TOPIC, type GyroStatePayload } from '@/lib/servo-state';
+import { ODOM_TOPIC, quaternionToYawDegrees, type OdometryPayload } from '@/lib/servo-state';
 
-const initialGyro: GyroStatePayload = {};
+interface Odom {
+  /**
+   * Heading from `pose.pose.orientation`, in degrees within [-180, 180), where a right
+   * turn is positive (screen convention — sign-flipped from ROS's CCW-positive yaw).
+   * Undefined until the first message.
+   */
+  yaw: number | undefined;
+}
 
 /**
- * Subscribes to the `imu.data_raw` remote data track from the given robot participant.
+ * Subscribes to the `odom` remote data track from the given robot participant.
  *
  * Uses {@link useRemoteDataTracks} to discover published tracks, then filters by
- * topic name and publisher identity. For each matching track a `ReadableStream`
- * reader is opened; incoming frames are JSON-decoded into {@link GyroStatePayload}
- * and stored in state. All readers are torn down via `AbortController` when the
- * track list changes or the component unmounts.
+ * topic name (with or without the ROS leading slash) and publisher identity. Incoming
+ * frames are JSON-decoded as ROS2 `nav_msgs/msg/Odometry` ({@link OdometryPayload});
+ * the pose orientation quaternion is converted to a yaw angle in degrees via
+ * {@link quaternionToYawDegrees}. Readers are torn down via `AbortController` on cleanup.
  */
-export function useGyro(robotIdentity: string): GyroStatePayload {
+export function useOdom(robotIdentity: string): Odom {
   const session = useSessionContext();
-  const [gyro, setGyro] = useState<GyroStatePayload>(initialGyro);
+  const [yaw, setYaw] = useState<number | undefined>(undefined);
   const dataTracks = useRemoteDataTracks(session.room);
 
   useEffect(() => {
     const decoders: Array<() => void> = [];
 
     for (const track of dataTracks) {
-      if (track.info.name !== IMU_DATA_RAW_TOPIC) continue;
+      const name = track.info.name?.replace(/^\//, '');
+      if (name !== ODOM_TOPIC) continue;
       if (track.publisherIdentity !== robotIdentity) continue;
 
       const ac = new AbortController();
@@ -45,8 +53,11 @@ export function useGyro(robotIdentity: string): GyroStatePayload {
             const { done, value } = await reader.read();
             if (done) break;
             const text = new TextDecoder().decode(value.payload);
-            const parsed = JSON.parse(text) as GyroStatePayload;
-            setGyro(parsed);
+            const parsed = JSON.parse(text) as OdometryPayload;
+            const orientation = parsed.pose?.pose?.orientation;
+            if (!orientation) continue;
+            // ROS yaw (REP-103) is CCW-positive; the scale treats a right turn as positive.
+            setYaw(-quaternionToYawDegrees(orientation));
           }
         } catch {
           // Aborted or parse error — ignore
@@ -59,5 +70,5 @@ export function useGyro(robotIdentity: string): GyroStatePayload {
     };
   }, [dataTracks, robotIdentity]);
 
-  return gyro;
+  return { yaw };
 }

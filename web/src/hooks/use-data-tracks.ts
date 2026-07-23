@@ -27,6 +27,15 @@ export function useRemoteDataTracks(room: Room | undefined | null) {
     }
 
     function handleRemotePublished(track: Parameters<RoomEventCallbacks['dataTrackPublished']>[0]) {
+      const participant = room?.remoteParticipants.get(track.publisherIdentity);
+      console.log('[data_track] remote published', {
+        participant: participant?.identity ?? track.publisherIdentity,
+        track: {
+          name: track.info?.name,
+          sid: track.info?.sid,
+          publisher: track.publisherIdentity,
+        },
+      });
       setDataTracks((prev) => [...prev, track]);
     }
 
