@@ -8,10 +8,12 @@ import { Joystick } from '@/components/joystick';
 import { useSessionContext, useTracks, VideoTrack } from '@livekit/components-react';
 import { useAcquireControl } from '@/hooks/use-acquire-control';
 import { useControlCmdTrack } from '@/hooks/use-control-cmd-track';
+import { useBattery } from '@/hooks/use-battery';
 import { useGyro } from '@/hooks/use-gyro';
 import { useImuHistory } from '@/hooks/use-imu-history';
 import { useOdom } from '@/hooks/use-odom';
 import { usePanTilt } from '@/hooks/use-pan-tilt';
+import { BatteryInfo } from '@/components/battery-info';
 import { ImuPlot } from '@/components/imu-plot';
 import { useVideoFitContainer } from '@/hooks/use-video-fit-container';
 import { ConnectionState, Track } from 'livekit-client';
@@ -33,15 +35,21 @@ const ANIMATION_TRANSITION: Transition = {
   bounce: 0.1,
 };
 
+/** Panels sharing the slot above the status bar — only one open at a time. */
+type Panel = 'debug' | 'plot' | 'battery';
+
 export function App() {
   const session = useSessionContext();
   const gyro = useGyro(ROBOT_IDENTITY);
   const { yaw } = useOdom(ROBOT_IDENTITY);
   const { pan, tilt } = usePanTilt(ROBOT_IDENTITY);
   const imuSamplesRef = useImuHistory(ROBOT_IDENTITY);
+  const battery = useBattery(ROBOT_IDENTITY);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showDebugInfo, setShowDebugInfo] = useState(false);
-  const [showPlot, setShowPlot] = useState(false);
+  const [activePanel, setActivePanel] = useState<Panel | null>(null);
+  const showDebugInfo = activePanel === 'debug';
+  const showPlot = activePanel === 'plot';
+  const showBattery = activePanel === 'battery';
   const [mainVideoTrack] = useTracks([Track.Source.Camera]);
   const [depthVideoTrack] = useTracks([Track.Source.ScreenShare]);
   const [mainVideoEl, setMainVideoEl] = useState<HTMLVideoElement | null>(null);
@@ -55,15 +63,7 @@ export function App() {
 
   useVideoFitContainer(mainVideoEl, isFullscreen);
 
-  // Debug info and the IMU plot share the same spot above the status bar — one at a time
-  const handleShowDebugInfoChange = (show: boolean) => {
-    setShowDebugInfo(show);
-    if (show) setShowPlot(false);
-  };
-  const handleShowPlotChange = (show: boolean) => {
-    setShowPlot(show);
-    if (show) setShowDebugInfo(false);
-  };
+  const togglePanel = (panel: Panel) => (show: boolean) => setActivePanel(show ? panel : null);
 
   return (
     <div className="relative h-dvh">
@@ -247,10 +247,12 @@ export function App() {
           isRpcPending={isRpcPending}
           showDebugInfo={showDebugInfo}
           showPlot={showPlot}
+          showBattery={showBattery}
           isOperatorModeLocked={isOperatorModeLocked}
           onModeRequest={handleModeRequest}
-          onShowDebugInfoChange={handleShowDebugInfoChange}
-          onShowPlotChange={handleShowPlotChange}
+          onShowDebugInfoChange={togglePanel('debug')}
+          onShowPlotChange={togglePanel('plot')}
+          onShowBatteryChange={togglePanel('battery')}
           className={cn(isFullscreen && 'bg-background/60')}
         />
 
@@ -340,6 +342,24 @@ export function App() {
             )}
           >
             <ImuPlot samplesRef={imuSamplesRef} />
+          </motion.div>
+        )}
+
+        {/* Battery info */}
+        {session.isConnected && showBattery && (
+          <motion.div
+            key="battery-info"
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={ANIMATION_VARIANTS}
+            transition={ANIMATION_TRANSITION}
+            className={cn(
+              'bg-card text-foreground border-input absolute bottom-14 left-1/2 w-100 -translate-x-1/2 rounded-lg border p-4 font-mono text-xs',
+              isFullscreen && 'bg-background/60',
+            )}
+          >
+            <BatteryInfo battery={battery} />
           </motion.div>
         )}
       </AnimatePresence>

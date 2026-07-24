@@ -7,6 +7,8 @@ export const TILT_STATE_TOPIC = 'state.tilt';
 export const IMU_DATA_RAW_TOPIC = '/imu/data_raw';
 /** Odometry telemetry data track published by the robot (ROS2 `nav_msgs/msg/Odometry` as JSON). */
 export const ODOM_TOPIC = 'odom';
+/** Battery telemetry data track published by the robot (ROS2 `sensor_msgs/msg/BatteryState` as JSON). */
+export const BATTERY_STATE_TOPIC = 'battery_state';
 
 /** JSON payload for `imu.data_raw`. */
 export type GyroStatePayload = {
@@ -75,6 +77,47 @@ export type ImuPayload = {
   angular_velocity?: { x?: number; y?: number; z?: number };
   linear_acceleration?: { x?: number; y?: number; z?: number };
 };
+
+/**
+ * JSON conversion of ROS2 `sensor_msgs/msg/BatteryState`. Unmeasured numeric fields
+ * are ROS NaN — the bridge may serialize that as null, a bare NaN token, or a string —
+ * so accept only finite numbers when reading these.
+ */
+export type BatteryStatePayload = {
+  header?: { frame_id?: string; stamp?: { sec?: number; nanosec?: number } };
+  voltage?: number | string | null;
+  temperature?: number | string | null;
+  current?: number | string | null;
+  charge?: number | string | null;
+  capacity?: number | string | null;
+  design_capacity?: number | string | null;
+  percentage?: number | string | null;
+  power_supply_status?: number;
+  power_supply_health?: number;
+  power_supply_technology?: number;
+  present?: boolean;
+  cell_voltage?: number[];
+  cell_temperature?: number[];
+  location?: string;
+  serial_number?: string;
+};
+
+/** `power_supply_status` values from sensor_msgs/BatteryState. */
+export const POWER_SUPPLY_STATUS = ['unknown', 'charging', 'discharging', 'not charging', 'full'];
+/** `power_supply_health` values from sensor_msgs/BatteryState. */
+export const POWER_SUPPLY_HEALTH = [
+  'unknown',
+  'good',
+  'overheat',
+  'dead',
+  'overvoltage',
+  'unspec failure',
+  'cold',
+  'watchdog expired',
+  'safety timer expired',
+];
+/** `power_supply_technology` values from sensor_msgs/BatteryState. */
+export const POWER_SUPPLY_TECHNOLOGY = ['unknown', 'NiMH', 'Li-ion', 'LiPo', 'LiFe', 'NiCd', 'LiMn'];
 
 /** ROS header stamp to epoch milliseconds; undefined when unset (all zeros). */
 export function rosStampToMs(stamp?: { sec?: number; nanosec?: number }): number | undefined {

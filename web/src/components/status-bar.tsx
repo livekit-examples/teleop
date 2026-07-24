@@ -6,6 +6,7 @@ import {
   Radio,
   RadioOff,
   Gamepad2,
+  BatteryMediumIcon,
   BugIcon,
   BugOffIcon,
   ChartLineIcon,
@@ -26,9 +27,11 @@ interface StatusBarProps {
   isRpcPending?: boolean;
   showDebugInfo?: boolean;
   showPlot?: boolean;
+  showBattery?: boolean;
   isOperatorModeLocked?: boolean;
   onShowDebugInfoChange?: (show: boolean) => void;
   onShowPlotChange?: (show: boolean) => void;
+  onShowBatteryChange?: (show: boolean) => void;
   onModeRequest?: (next: Mode) => void | Promise<void>;
   className?: string;
 }
@@ -39,10 +42,12 @@ export function StatusBar({
   isRpcPending = false,
   showDebugInfo = false,
   showPlot = false,
+  showBattery = false,
   isOperatorModeLocked = false,
   onModeRequest = () => {},
   onShowDebugInfoChange = () => {},
   onShowPlotChange = () => {},
+  onShowBatteryChange = () => {},
   className,
 }: StatusBarProps) {
   const gyro = useGyro(robotIdentity);
@@ -93,6 +98,16 @@ export function StatusBar({
               className={cn('rounded', showPlot && 'bg-muted')}
             >
               <ChartLineIcon size={20} className="text-foreground size-4" />
+            </Button>
+            <Button
+              size="icon"
+              type="button"
+              variant="outline"
+              title="Toggle Battery Info"
+              onClick={() => onShowBatteryChange(!showBattery)}
+              className={cn('rounded', showBattery && 'bg-muted')}
+            >
+              <BatteryMediumIcon size={20} className="text-foreground size-4" />
             </Button>
             <div className="bg-background/50 dark:border-input flex h-8 w-100 items-center justify-between gap-8 rounded border px-3 font-mono text-sm font-light">
               <Radio size={20} className="text-foreground shrink-0 group-hover:hidden" />
