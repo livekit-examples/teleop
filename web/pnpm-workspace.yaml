@@ -1,0 +1,3 @@
+packages:
+  - .
+  - vendor/client-sdk-js

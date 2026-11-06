@@ -14,7 +14,7 @@ import {
 import { StatusBar } from '@/components/status-bar';
 import { Button } from '@/components/ui/button';
 import { Joystick } from '@/components/rover/joystick';
-import { BatteryInfo, HeadingRibbon, ImuPlot, PanTiltDial } from '@/components/rover/panels';
+import { BatteryInfo, ImuPlot, PanTiltDial } from '@/components/rover/panels';
 import {
   driveTopicFor,
   homePanTilt,
@@ -30,8 +30,6 @@ import {
   useHeadlightState,
   useImuHistory,
   useJointAngles,
-  useOdomYaw,
-  usePanTilt,
   useRobotTopics,
 } from '@/components/rover/telemetry';
 import {
@@ -48,17 +46,20 @@ import { cn } from '@/lib/utils';
 
 const ROVER_ID = process.env.NEXT_PUBLIC_ROVER_IDENTITY || '';
 
-/** Rover topic and RPC names. Matches the livekit-actuate rover defaults. */
+/**
+ * Rover topic and RPC names. Matches the livekit-actuate `rover` entry in
+ * `demos.json`. The rover runtime does not register `acquire_control`, so the
+ * rover-side lock stays off.
+ */
 const ROVER_CONFIG = {
-  commandTopic: 'cmd_vel',
+  commandTopic: '/cmd_vel',
   imuTopic: '/imu/data_raw',
-  odomTopic: 'odom',
-  batteryTopic: 'battery_state',
-  panTopic: 'state.pan',
-  tiltTopic: 'state.tilt',
+  batteryTopic: '/battery_state',
+  panTopic: '/state.pan',
+  tiltTopic: '/state.tilt',
   headlightTopic: '/headlights_state',
   headlightRpcMethod: 'ros2_service_call',
-  acquireControlEnabled: true,
+  acquireControlEnabled: false,
 };
 
 /**
@@ -80,8 +81,6 @@ export function App() {
   const hasImu = has(ROVER_CONFIG.imuTopic);
   const hasBattery = has(ROVER_CONFIG.batteryTopic);
 
-  const yaw = useOdomYaw(ROVER_ID, ROVER_CONFIG.odomTopic);
-  const { pan } = usePanTilt(ROVER_ID, ROVER_CONFIG.panTopic, ROVER_CONFIG.tiltTopic);
   const imuSamples = useImuHistory(ROVER_ID, ROVER_CONFIG.imuTopic);
   const { battery, payloadInvalid } = useBattery(ROVER_ID, ROVER_CONFIG.batteryTopic);
   const headlightsOn = useHeadlightState(ROVER_ID, ROVER_CONFIG.headlightTopic);
@@ -207,7 +206,7 @@ export function App() {
       {connected && (
         <>
           {/* Main camera */}
-          <div className={isFullscreen ? 'absolute inset-0' : 'absolute inset-x-36 inset-y-16'}>
+          <div className={isFullscreen ? 'absolute inset-0' : 'absolute inset-x-4 inset-y-14'}>
             {main ? (
               <VideoTrack
                 key={main.publication.trackSid}
@@ -222,16 +221,6 @@ export function App() {
               </div>
             )}
           </div>
-
-          {/* Heading ribbon — only once this rover actually publishes a heading. */}
-          {(yaw !== undefined || has(ROVER_CONFIG.panTopic)) && (
-            <div className="absolute top-32 left-1/2 z-10 -translate-x-1/2">
-              <HeadingRibbon
-                value={yaw ?? pan}
-                className={cn('w-[700px]', isFullscreen && 'bg-background/60 rounded-b-lg')}
-              />
-            </div>
-          )}
 
           {/* Pan/tilt read-out */}
           {hasPanTilt && (

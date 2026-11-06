@@ -1,0 +1,4 @@
+[submodule "web/vendor/client-sdk-js"]
+	path = web/vendor/client-sdk-js
+	url = https://github.com/livekit/client-sdk-js.git
+	branch = ladvoc/schema-metadata
