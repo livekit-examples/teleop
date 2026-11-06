@@ -23,5 +23,6 @@
     "^[./]"
   ],
   "importOrderParserPlugins": ["typescript", "jsx", "decorators-legacy"],
-  "sortPackageJson": false
+  "sortPackageJson": false,
+  "ignorePatterns": ["vendor/**"]
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalParticipant } from '@livekit/components-react';
-import type { LocalParticipant } from 'livekit-client';
+import type { DataTrackFrameEncoding, DataTrackSchemaId, LocalParticipant } from 'livekit-client';
 import type { Mode } from '@/lib/types';
 
 /**
@@ -10,20 +10,14 @@ import type { Mode } from '@/lib/types';
  * tracks, and the two RPCs (`acquire_control`, `ros2_service_call`).
  *
  * The schema names below are a WIRE CONTRACT: the rover's ROS bridge uses them
- * to pick the message type it instantiates. They need a livekit-client build
- * with data-track schema metadata (the `ladvoc/schema-metadata` branch).
- * Published releases ignore the extra publish options, so the types are
- * declared locally and the build still succeeds against them.
+ * to pick the message type it instantiates. They need the vendored
+ * livekit-client fork (`vendor/client-sdk-js`), which adds data-track schema
+ * metadata. Without it the rover ignores the command tracks.
  */
 
 type LocalDataTrack = Awaited<ReturnType<LocalParticipant['publishDataTrack']>>;
-type DataTrackOptions = Parameters<LocalParticipant['publishDataTrack']>[0];
 
-/** Mirrors `DataTrackSchemaId` / `DataTrackFrameEncoding` from the schema-metadata SDK. */
-type SchemaDataTrackOptions = DataTrackOptions & {
-  schema: { name: string; encoding: 'jsonSchema' };
-  frameEncoding: 'json';
-};
+const JSON_FRAMES: DataTrackFrameEncoding = 'json';
 
 /** Max commanded wheel velocity magnitude, rev/s. */
 export const MAX_CONTROL_RPS = 2;
@@ -98,15 +92,15 @@ function useCommandTrack(
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    const options: SchemaDataTrackOptions = {
-      name: topic,
-      schema: { name: schemaName, encoding: 'jsonSchema' },
-      frameEncoding: 'json',
-    };
+    const schema: DataTrackSchemaId = { name: schemaName, encoding: 'jsonSchema' };
 
     void (async () => {
       try {
-        const track = await localParticipant.publishDataTrack(options);
+        const track = await localParticipant.publishDataTrack({
+          name: topic,
+          schema,
+          frameEncoding: JSON_FRAMES,
+        });
         if (cancelled) return void track.unpublish();
         trackRef.current = track;
       } catch (err) {
@@ -121,10 +115,8 @@ function useCommandTrack(
         trackRef.current = null;
         return;
       }
-      // `flush()` is missing from older livekit-client releases.
-      const flushable = track as { flush?: () => Promise<void> };
       void push(0, 0)
-        .then(() => flushable.flush?.())
+        .then(() => track.flush())
         .then(() => track.unpublish())
         .catch((err: unknown) => console.warn(`[${topic}] cleanup failed:`, err))
         .finally(() => {

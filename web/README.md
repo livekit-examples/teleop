@@ -48,6 +48,9 @@ LIVEKIT_URL=wss://<your-livekit-server>
 ## Getting started
 
 ```bash
+# Fetch the vendored livekit-client fork
+git submodule update --init
+
 # Install dependencies
 pnpm install
 
@@ -56,6 +59,8 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+The rover needs `livekit-client` with data-track schema metadata. No published release has it. The app uses a fork on the `ladvoc/schema-metadata` branch, which is a git submodule at `vendor/client-sdk-js`. `pnpm dev` and `pnpm build` build the fork first. If the fork is missing, the rover ignores the drive and pan/tilt tracks.
 
 ### Rover vs Pan/Tilt Robot
 

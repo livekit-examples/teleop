@@ -8,5 +8,5 @@
     "no-async-promise-executor": "warn",
     "no-constant-binary-expression": "warn"
   },
-  "ignorePatterns": ["next-env.d.ts"]
+  "ignorePatterns": ["next-env.d.ts", "vendor/**"]
 }
