@@ -15,14 +15,18 @@ export function MediaProvider({ children }: { children: ReactNode }) {
   const runtime = useRuntime();
   const [hosts] = useState(() => new Map<string, Host>());
   const parking = useRef<HTMLDivElement>(null);
+  const hostEpoch = useRef(-1);
   const ids = runtime
     .mediaPublications()
     .map((pub) => pub.id)
     .join('\0');
   const epoch = runtime.epoch;
   useEffect(() => {
-    for (const host of hosts.values()) host.dispose();
-    hosts.clear();
+    if (hostEpoch.current !== epoch) {
+      for (const host of hosts.values()) host.dispose();
+      hosts.clear();
+      hostEpoch.current = epoch;
+    }
     const publications = runtime.mediaPublications();
     const wanted = new Set(publications.map((pub) => pub.id));
     for (const [id, host] of hosts)
@@ -38,7 +42,7 @@ export function MediaProvider({ children }: { children: ReactNode }) {
       video.playsInline = true;
       video.title = pub.name;
       video.style.cssText =
-        'width:100%;height:100%;object-fit:contain;display:block;background:#080d13';
+        'width:100%;height:100%;object-fit:contain;display:block;background:#000000';
       parking.current?.append(video);
       const detach = runtime.transport.attach(pub, video);
       const camera = runtime.cameras.cameras.get(pub.id);
@@ -47,7 +51,12 @@ export function MediaProvider({ children }: { children: ReactNode }) {
       let lastFrame = 0;
       let lastMediaTime = -1;
       const count = (now: number, mediaTime?: number) => {
-        if (runtime.cameras.cameras.get(pub.id) !== camera || video.readyState < 2 || video.videoWidth === 0) return;
+        if (
+          runtime.cameras.cameras.get(pub.id) !== camera ||
+          video.readyState < 2 ||
+          video.videoWidth === 0
+        )
+          return;
         const total = video.getVideoPlaybackQuality?.().totalVideoFrames;
         if (total === undefined && mediaTime === undefined) return;
         const delta =
@@ -75,11 +84,13 @@ export function MediaProvider({ children }: { children: ReactNode }) {
       // Real decoded-frame counters, never repeated UI render ticks, cover hidden media hosts.
       const timer = setInterval(() => count(performance.now()), 200);
       const playbackError = () => {
-        if (camera && runtime.cameras.cameras.get(pub.id) === camera) camera.error = video.error?.message ?? 'Video playback failed.';
+        if (camera && runtime.cameras.cameras.get(pub.id) === camera)
+          camera.error = video.error?.message ?? 'Video playback failed.';
       };
       video.addEventListener('error', playbackError);
       void video.play().catch((error: Error) => {
-        if (camera && runtime.cameras.cameras.get(pub.id) === camera) camera.error = `Playback blocked: ${error.message}`;
+        if (camera && runtime.cameras.cameras.get(pub.id) === camera)
+          camera.error = `Playback blocked: ${error.message}`;
       });
       hosts.set(pub.id, {
         video,

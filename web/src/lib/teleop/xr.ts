@@ -35,7 +35,9 @@ export async function startXR(
   session.updateRenderState({ baseLayer: layer });
   const reference = await session.requestReferenceSpace('local');
   runtime.xrActive = true;
-  session.addEventListener('visibilitychange', () => { if (session.visibilityState !== 'visible') void runtime.controls.stopAll(); });
+  session.addEventListener('visibilitychange', () => {
+    if (session.visibilityState !== 'visible') void runtime.controls.stopAll();
+  });
   const shader = (type: number, source: string) => {
     const s = gl.createShader(type)!;
     gl.shaderSource(s, source);
@@ -163,7 +165,19 @@ export async function startXR(
       const origin = engaged.get(id);
       if (!origin) continue;
       const q = pose.transform.orientation;
-      const angle = 2 * Math.acos(Math.min(1, Math.abs(q.x * origin.lastQ.x + q.y * origin.lastQ.y + q.z * origin.lastQ.z + q.w * origin.lastQ.w)));
+      const angle =
+        2 *
+        Math.acos(
+          Math.min(
+            1,
+            Math.abs(
+              q.x * origin.lastQ.x +
+                q.y * origin.lastQ.y +
+                q.z * origin.lastQ.z +
+                q.w * origin.lastQ.w,
+            ),
+          ),
+        );
       if (
         now - origin.at > 160 ||
         angle > 0.5 ||

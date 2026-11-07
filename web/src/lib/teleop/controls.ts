@@ -32,6 +32,8 @@ export type ProfileAdapter = {
   units: string;
   mandatoryFeedback?: 'joints' | 'pose';
   maxFeedbackAgeMs: number;
+  repeatIntervalMs?: number;
+  jointLimits?(context: AdapterContext): Record<string, { min: number; max: number }>;
   encode(input: ControlInput, context: AdapterContext): unknown;
   release(context: AdapterContext): unknown;
   validateFeedback(value: unknown, context: AdapterContext): void;

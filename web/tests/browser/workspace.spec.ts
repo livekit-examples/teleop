@@ -99,11 +99,14 @@ test('moves/floats/resizes a panel and exports/imports the same remembered confi
   const floating = page.getByRole('dialog', { name: 'Portable raw', exact: true });
   await expect(floating).toBeVisible();
   const bounds = (await floating.boundingBox())!;
-  await page.mouse.move(bounds.x + bounds.width - 2, bounds.y + bounds.height - 2);
+  const handle = (await floating.locator('.dv-resize-handle-bottomright').boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
   await page.mouse.down();
   await page.mouse.move(bounds.x + bounds.width + 70, bounds.y + bounds.height + 50, { steps: 5 });
   await page.mouse.up();
-  await expect.poll(async () => (await floating.boundingBox())?.width).toBeGreaterThan(bounds.width);
+  await expect
+    .poll(async () => (await floating.boundingBox())?.width)
+    .toBeGreaterThan(bounds.width);
   await expect
     .poll(async () =>
       page.evaluate(
@@ -120,22 +123,18 @@ test('moves/floats/resizes a panel and exports/imports the same remembered confi
   expect(download.suggestedFilename()).toMatch(/\.json$/);
   await page.getByRole('button', { name: 'Reset layout' }).click();
   await expect(page.getByRole('button', { name: 'Settings for Portable raw' })).not.toBeVisible();
-  await page
-    .getByLabel('Import layout JSON')
-    .setInputFiles({
-      name: 'layout.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(saved),
-    });
+  await page.getByLabel('Import layout JSON').setInputFiles({
+    name: 'layout.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(saved),
+  });
   await expect(page.getByRole('button', { name: 'Settings for Portable raw' })).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Portable raw', exact: true })).toBeVisible();
-  await page
-    .getByLabel('Import layout JSON')
-    .setInputFiles({
-      name: 'bad.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from('{"layout_schema_version":99}'),
-    });
+  await page.getByLabel('Import layout JSON').setInputFiles({
+    name: 'bad.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{"layout_schema_version":99}'),
+  });
   await expect(page.locator('.workspace-alert')).toContainText('Unsupported layout');
   await expect(page.getByRole('button', { name: 'Settings for Portable raw' })).toBeVisible();
   await expect(page.locator('.fixture-toolbar')).toContainText('0 command frames');

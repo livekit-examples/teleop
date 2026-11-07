@@ -22,7 +22,7 @@ export class LiveKitTransport implements Transport {
   readonly room = new Room({ adaptiveStream: false, dynacast: false });
   private listeners = new Set<(event: TransportEvent) => void>();
   private errors = new Map<string, string>();
-  constructor() {
+  constructor(readonly role: 'operator' | 'observer' = 'operator') {
     for (const event of [
       RoomEvent.ParticipantConnected,
       RoomEvent.ParticipantDisconnected,
@@ -42,7 +42,10 @@ export class LiveKitTransport implements Transport {
       this.errors.set(sid, `Subscription failed: ${errorMessage(error)}`);
       this.emit('changed');
     });
-    this.room.on(RoomEvent.Connected, () => this.emit('connected'));
+    this.room.on(RoomEvent.TrackSubscribed, (_track, publication) => {
+      this.errors.delete(publication.trackSid);
+      this.emit('changed');
+    });
     this.room.on(RoomEvent.Reconnected, () => {
       this.errors.clear();
       this.emit('connected');
@@ -57,9 +60,10 @@ export class LiveKitTransport implements Transport {
   async connect(url: string, token: string) {
     await this.room.connect(url, token, { autoSubscribe: false });
     await this.room.localParticipant.setAttributes({
-      'lk.portal.role': 'operator',
+      'lk.portal.role': this.role,
       'lk.portal.version': '3',
     });
+    this.emit('connected');
   }
   private emit(event: TransportEvent) {
     for (const listener of this.listeners) listener(event);
@@ -108,7 +112,7 @@ export class LiveKitTransport implements Transport {
       ),
     ]);
   }
-  rpc(robot: string, method: string, payload: string, timeout: number) {
+  private performRpc(robot: string, method: string, payload: string, timeout: number) {
     return this.room.localParticipant.performRpc({
       destinationIdentity: robot,
       method,
@@ -119,8 +123,8 @@ export class LiveKitTransport implements Transport {
   async *read(publication: Publication, signal: AbortSignal) {
     const track = this.room.remoteParticipants
       .get(publication.robot)
-      ?.dataTracks.get(publication.id);
-    if (!track) throw new Error('Data publication is no longer available.');
+      ?.dataTracks.get(publication.name);
+    if (!track || track.info.sid !== publication.id) throw new Error('Data publication is no longer available.');
     const reader = track.subscribe({ signal, bufferSize: 32 }).getReader();
     try {
       while (!signal.aborted) {
@@ -142,9 +146,14 @@ export class LiveKitTransport implements Transport {
   }
   attach(pub: Publication, element: HTMLMediaElement) {
     let detach: (() => void) | undefined;
+    let attached: unknown;
     const attach = () => {
       const track = this.media(pub)?.track;
-      if (!track || detach) return;
+      if (track === attached) return;
+      detach?.();
+      detach = undefined;
+      attached = track;
+      if (!track) return;
       track.attach(element);
       detach = () => {
         track.detach(element);
@@ -152,8 +161,10 @@ export class LiveKitTransport implements Transport {
     };
     attach();
     this.room.on(RoomEvent.TrackSubscribed, attach);
+    this.room.on(RoomEvent.TrackUnsubscribed, attach);
     return () => {
       this.room.off(RoomEvent.TrackSubscribed, attach);
+      this.room.off(RoomEvent.TrackUnsubscribed, attach);
       detach?.();
     };
   }
@@ -164,6 +175,7 @@ export class LiveKitTransport implements Transport {
     );
   }
   async publish(operation: Operation): Promise<CommandWriter> {
+    if (this.role === 'observer') throw new Error('Preview cannot publish commands.');
     const track = await this.room.localParticipant.publishDataTrack({
       name: operation.command.track_name,
       schema: { name: operation.command.msg_type, encoding: 'jsonSchema' },
@@ -176,6 +188,11 @@ export class LiveKitTransport implements Transport {
       flush: () => track.flush(),
       close: () => track.unpublish(),
     };
+  }
+  async rpc(identity: string, method: string, payload: string, timeout: number): Promise<string> {
+    if (this.role === 'observer' && method !== 'get_robot_config')
+      throw new Error('Preview cannot request control.');
+    return this.performRpc(identity, method, payload, timeout);
   }
   async disconnect() {
     await this.room.disconnect();

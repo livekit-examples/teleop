@@ -1,0 +1,33 @@
+{
+  "layout_schema_version": 1,
+  "label": "Rover auxiliary telemetry",
+  "robot_identity": "rover-01",
+  "panel_order": [
+    "aux_gyro"
+  ],
+  "panels": {
+    "aux_gyro": {
+      "label": "Auxiliary yaw rate",
+      "visualization": "plot",
+      "visible": true,
+      "source": {
+        "kind": "data",
+        "track_name": "/aux/imu",
+        "field_path": [
+          "angular_velocity",
+          "z"
+        ],
+        "expected_msg_type": "sensor_msgs/msg/Imu"
+      },
+      "settings": {
+        "window_seconds": 30
+      }
+    }
+  },
+  "control_preferences": {
+    "base": {
+      "operation": "drive",
+      "presentation": "joystick"
+    }
+  }
+}

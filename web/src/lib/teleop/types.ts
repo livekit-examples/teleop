@@ -127,6 +127,8 @@ export interface Transport {
 export const endpointKey = (kind: MediaKind, name: string) => JSON.stringify([kind, name]);
 export const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
-export function own<T>(map: Record<string, T> | undefined, key: string): T | undefined { return map && Object.hasOwn(map, key) ? map[key] : undefined; }
+export function own<T>(map: Record<string, T> | undefined, key: string): T | undefined {
+  return map && Object.hasOwn(map, key) ? map[key] : undefined;
+}
 export const compatibleRobot = (p: Participant) =>
   p.attributes['lk.portal.role'] === 'robot' && p.attributes['lk.portal.version'] === '3';

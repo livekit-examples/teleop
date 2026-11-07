@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "label": "Rover with camera head",
+  "exclude_data_tracks": [],
+  "exclude_video_tracks": [],
+  "exclude_audio_tracks": [],
+  "default_video_rate_hz": 30,
+  "control": {
+    "scope": "robot",
+    "ownership": "portal_active_operator"
+  },
+  "audio_tracks": {},
+  "control_interfaces": {
+    "base": {
+      "label": "Rover",
+      "kind": "mobile_base",
+      "kinematics": "differential",
+      "frame_id": "base_link",
+      "operations": {
+        "drive": {
+          "profile": "base.twist.v1",
+          "command": {
+            "track_name": "/cmd_vel",
+            "msg_type": "geometry_msgs/msg/Twist",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/odom"
+          ],
+          "required_feedback_tracks": [],
+          "presentations": [
+            "gamepad",
+            "joystick",
+            "keyboard"
+          ]
+        }
+      }
+    },
+    "head": {
+      "label": "Camera head",
+      "kind": "pan_tilt",
+      "frame_id": "head_base_link",
+      "joint_names": [
+        "pan_joint",
+        "tilt_joint"
+      ],
+      "operations": {
+        "joint_velocity": {
+          "profile": "joints.velocity_jog.v1",
+          "command": {
+            "track_name": "/head/joint_jog",
+            "msg_type": "control_msgs/msg/JointJog",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/head/joint_states"
+          ],
+          "required_feedback_tracks": [],
+          "presentations": [
+            "gamepad",
+            "joint_sliders"
+          ]
+        }
+      }
+    }
+  }
+}

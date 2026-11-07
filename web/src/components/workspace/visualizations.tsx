@@ -21,10 +21,10 @@ function NumericPlot({ samples, panel }: { samples: Sample[]; panel: Panel }) {
         height: Math.max(160, host.clientHeight),
         scales: { x: { time: false } },
         axes: [
-          { label: 'Receive time (s)', stroke: '#8d9faf', grid: { stroke: '#25303c' } },
-          { stroke: '#8d9faf', grid: { stroke: '#25303c' } },
+          { label: 'Receive time (s)', stroke: '#999999', grid: { stroke: '#202020' } },
+          { stroke: '#999999', grid: { stroke: '#202020' } },
         ],
-        series: [{}, { label: panel.label, stroke: '#66dfbc', width: 2, spanGaps: false }],
+        series: [{}, { label: panel.label, stroke: '#1fd5f9', width: 1.5, spanGaps: false }],
         cursor: { drag: { x: true, y: false } },
       },
       [[], []],
@@ -98,11 +98,13 @@ function StateTimeline({ samples, panel }: { samples: Sample[]; panel: Panel }) 
               height="40"
               fill={
                 known
-                  ? ['#66dfbc', '#7aa2f7', '#edbe70', '#d392e8'][Math.max(0, index) % 4]
-                  : '#586575'
+                  ? ['#1fd5f9', '#23de6b', '#ffb752', '#dc85ff'][Math.max(0, index) % 4]
+                  : '#30302f'
               }
             >
-              <title>{own(mapping, String(sample.value)) ?? `Unmapped: ${String(sample.value)}`}</title>
+              <title>
+                {own(mapping, String(sample.value)) ?? `Unmapped: ${String(sample.value)}`}
+              </title>
             </rect>
           );
         })}
@@ -133,8 +135,14 @@ export function VisualizationView({
       ? 'excluded'
       : problem
         ? 'unsupported'
-          : usable
-            ? panel.source.kind === 'video' ? runtime.cameras.status(publication.id, runtime.clock.now(), runtime.config!.default_video_rate_hz) : 'unmonitored'
+        : usable
+          ? panel.source.kind === 'video'
+            ? runtime.cameras.status(
+                publication.id,
+                runtime.clock.now(),
+                runtime.config!.default_video_rate_hz,
+              )
+            : 'unmonitored'
           : 'unavailable';
     return (
       <div className="workspace-view">

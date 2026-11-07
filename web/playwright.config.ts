@@ -11,7 +11,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'pnpm exec next dev --hostname 127.0.0.1 --port 3000',
+    command: `pnpm exec next dev --hostname 127.0.0.1 --port ${new URL(process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000').port || '3000'}`,
     url: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

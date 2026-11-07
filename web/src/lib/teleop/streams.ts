@@ -65,7 +65,10 @@ export type Incident = {
 /** One reader/decoder per publication. Selectors and usable-sample ages belong to consumers. */
 export class StreamHub {
   private consumers = new Map<string, Consumer>();
-  private retained = new Map<string, { value?: unknown; samples: Sample[]; signature: string; epoch: number }>();
+  private retained = new Map<
+    string,
+    { value?: unknown; samples: Sample[]; signature: string; epoch: number }
+  >();
   private streams = new Map<string, Stream>();
   private catalog = new Map<string, Publication>();
   private enabled = false;
@@ -118,7 +121,8 @@ export class StreamHub {
       throw new Error('Expected rate must be positive and finite.');
     const signature = JSON.stringify([spec.robot, spec.source, spec.cacheKey]);
     const saved = this.retained.get(id);
-    const cached = saved?.signature === signature && saved.epoch === this.generation ? saved : undefined;
+    const cached =
+      saved?.signature === signature && saved.epoch === this.generation ? saved : undefined;
     const consumer: Consumer = {
       ...spec,
       epoch: this.generation,
@@ -131,7 +135,12 @@ export class StreamHub {
     this.reconcile();
     return () => {
       if (this.consumers.get(id) === consumer) {
-        this.retained.set(id, { value: consumer.value, samples: consumer.samples, signature, epoch: consumer.epoch });
+        this.retained.set(id, {
+          value: consumer.value,
+          samples: consumer.samples,
+          signature,
+          epoch: consumer.epoch,
+        });
         if (this.retained.size > 100) this.retained.delete(this.retained.keys().next().value!);
         this.consumers.delete(id);
         this.reconcile();
@@ -267,7 +276,13 @@ export class StreamHub {
       displayAt: c.displayAt,
     };
     const result = (status: Status, reason?: string): StreamView => ({ ...base, status, reason });
-    if (c.robot && c.robot !== this.robot) return { ...result('unavailable', 'Bound to another robot; awaiting its selected session.'), value: undefined, samples: [], at: undefined };
+    if (c.robot && c.robot !== this.robot)
+      return {
+        ...result('unavailable', 'Bound to another robot; awaiting its selected session.'),
+        value: undefined,
+        samples: [],
+        at: undefined,
+      };
     if (this.excluded(c.source))
       return result('excluded', 'Blocked by the selected robot’s current data exclusions.');
     if (!this.enabled)

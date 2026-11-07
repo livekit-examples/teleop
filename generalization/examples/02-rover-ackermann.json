@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "label": "Ackermann rover",
+  "exclude_data_tracks": [],
+  "exclude_video_tracks": [],
+  "exclude_audio_tracks": [],
+  "default_video_rate_hz": 30,
+  "control": {
+    "scope": "robot",
+    "ownership": "portal_active_operator"
+  },
+  "audio_tracks": {},
+  "control_interfaces": {
+    "base": {
+      "label": "Rover",
+      "kind": "mobile_base",
+      "kinematics": "ackermann",
+      "frame_id": "base_link",
+      "operations": {
+        "drive": {
+          "profile": "base.ackermann_drive.v1",
+          "command": {
+            "track_name": "/ackermann_cmd",
+            "msg_type": "ackermann_msgs/msg/AckermannDrive",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/odom"
+          ],
+          "required_feedback_tracks": [],
+          "presentations": [
+            "gamepad",
+            "joystick",
+            "keyboard"
+          ]
+        }
+      }
+    }
+  }
+}

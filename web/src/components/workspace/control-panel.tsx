@@ -26,7 +26,11 @@ function InputPresentation({ id }: { id: string }) {
     try {
       return Object.fromEntries(
         selectJoints(Object.values(manager.context(id).feedback)[0], equipment.joint_names).map(
-          (j) => [j.name, j.position ?? 0],
+          (j) => {
+            const limits = manager.adapter(id)?.jointLimits?.(manager.context(id))[j.name];
+            const measured = j.position ?? 0;
+            return [j.name, limits ? Math.max(limits.min, Math.min(limits.max, measured)) : measured];
+          },
         ),
       );
     } catch {
@@ -140,8 +144,8 @@ function InputPresentation({ id }: { id: string }) {
             <input
               aria-label={`${name} ${velocity ? 'velocity' : 'position'}`}
               type="range"
-              min={velocity ? -1 : -3.14}
-              max={velocity ? 1 : 3.14}
+              min={manager.adapter(id)?.jointLimits?.(manager.context(id))[name]?.min ?? (velocity ? -1 : -3.14)}
+              max={manager.adapter(id)?.jointLimits?.(manager.context(id))[name]?.max ?? (velocity ? 1 : 3.14)}
               step="0.001"
               value={positions[name] ?? 0}
               disabled={!session.armed}
@@ -284,18 +288,19 @@ function SliderHeartbeat({
   const runtime = useRuntime();
   const latest = useRef(values);
   const armed = runtime.controls.session(id)?.armed;
+  const repeatInterval = runtime.controls.adapter(id)?.repeatIntervalMs ?? (velocity ? 50 : 0);
   const activation = runtime.controls.session(id)?.activation;
   useEffect(() => {
     latest.current = values;
   }, [values]);
   useEffect(() => {
-    if (!velocity || !armed) return;
+    if (!repeatInterval || !armed) return;
     const timer = setInterval(
       () => runtime.controls.send(id, { joints: latest.current }, activation),
-      50,
+      repeatInterval,
     );
     return () => clearInterval(timer);
-  }, [runtime, id, velocity, armed, activation]);
+  }, [runtime, id, repeatInterval, armed, activation]);
   return null;
 }
 
@@ -333,8 +338,12 @@ export function ControlPanel({ active }: { active: boolean }) {
     check();
     window.addEventListener('gamepadconnected', check);
     window.addEventListener('gamepaddisconnected', check);
-    const hidden = () => { if (document.hidden && !runtime.xrActive) void runtime.controls.stopAll(); };
-    const blur = () => { if (!runtime.xrActive) void runtime.controls.stopAll(); };
+    const hidden = () => {
+      if (document.hidden && !runtime.xrActive) void runtime.controls.stopAll();
+    };
+    const blur = () => {
+      if (!runtime.xrActive) void runtime.controls.stopAll();
+    };
     window.addEventListener('blur', blur);
     document.addEventListener('visibilitychange', hidden);
     return () => {
@@ -393,7 +402,7 @@ export function ControlPanel({ active }: { active: boolean }) {
         </p>
       )}
       {ids.map((id) => {
-      const equipment = own(interfaces, id);
+        const equipment = own(interfaces, id);
         const session = runtime.controls.session(id);
         const op = runtime.controls.operation(id);
         const adapter = runtime.controls.adapter(id);

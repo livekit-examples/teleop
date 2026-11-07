@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "label": "Camera-only station",
+  "exclude_data_tracks": [],
+  "exclude_video_tracks": [],
+  "exclude_audio_tracks": [],
+  "default_video_rate_hz": 30,
+  "control": {
+    "scope": "robot",
+    "ownership": "portal_active_operator"
+  },
+  "audio_tracks": {},
+  "control_interfaces": {}
+}

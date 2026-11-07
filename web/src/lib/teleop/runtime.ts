@@ -1,5 +1,5 @@
 import { CameraDeck } from './cameras';
-import { ControlManager, fixtureAdapters } from './controls';
+import { ControlManager, fixtureAdapters, type ProfileAdapter } from './controls';
 import { LayoutStore, type LayoutStorage } from './layout';
 import { StreamHub } from './streams';
 import {
@@ -47,12 +47,14 @@ export class WorkspaceRuntime {
     readonly transport: Transport,
     private storage?: LayoutStorage,
     readonly clock: Clock = browserClock,
+    adapters?: Map<string, ProfileAdapter>,
+    readonly viewOnly = false,
   ) {
     this.streams = new StreamHub(transport, clock);
     this.controls = new ControlManager(
       transport,
       this.streams,
-      transport.fixture ? fixtureAdapters() : new Map(),
+      viewOnly ? new Map() : (adapters ?? (transport.fixture ? fixtureAdapters() : new Map())),
       clock,
     );
     this.off = transport.onEvent((event) => {
@@ -83,7 +85,8 @@ export class WorkspaceRuntime {
       this.timer = setInterval(() => {
         this.streams.tick();
         this.controls.tick();
-        if (this.connection === 'connected' && this.config) this.cameras.tick(this.clock.now(), this.config.default_video_rate_hz);
+        if (this.connection === 'connected' && this.config)
+          this.cameras.tick(this.clock.now(), this.config.default_video_rate_hz);
         if (this.notices.length > 100) this.notices.splice(0, this.notices.length - 100);
         this.notify();
       }, 100);
@@ -106,7 +109,9 @@ export class WorkspaceRuntime {
   get layout() {
     return this.layoutStore?.layout;
   }
-  get epoch() { return this.generation; }
+  get epoch() {
+    return this.generation;
+  }
   private stopMedia() {
     for (const pub of this.media.values()) this.transport.subscribeMedia(pub, false);
     this.media.clear();
@@ -217,7 +222,8 @@ export class WorkspaceRuntime {
         'Selected robot left or changed protocol compatibility. Motion is disarmed.',
       );
       this.invalidate(this.connection === 'connected');
-      this.discovery = 'failed'; this.awaitingRobot = true;
+      this.discovery = 'failed';
+      this.awaitingRobot = true;
       this.error = 'Selected robot is unavailable or incompatible.';
       this.notify();
       return;
@@ -331,12 +337,15 @@ export class WorkspaceRuntime {
   async importLayout(text: string) {
     if (!this.layoutStore) throw new Error('Select a robot before importing.');
     // Validation happens before ending controls or replacing any working state.
-    const store = this.layoutStore; const generation = this.generation;
+    const store = this.layoutStore;
+    const generation = this.generation;
     const { parseLayout } = await import('./layout');
-    if (generation !== this.generation || store !== this.layoutStore) throw new Error('Robot selection changed during import. Try importing again.');
+    if (generation !== this.generation || store !== this.layoutStore)
+      throw new Error('Robot selection changed during import. Try importing again.');
     const next = parseLayout(text, this.selected);
     await this.controls.stopAll();
-    if (generation !== this.generation || store !== this.layoutStore) throw new Error('Robot selection changed during import. Try importing again.');
+    if (generation !== this.generation || store !== this.layoutStore)
+      throw new Error('Robot selection changed during import. Try importing again.');
     store.update(next);
     this.layoutRevision++;
     for (const [id, pref] of Object.entries(next.control_preferences)) {

@@ -51,18 +51,32 @@ export function AddVisualization({
   }, [runtime, signature, publication?.id]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    const focusable = () => [...(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)') ?? [])];
+    const focusable = () => [
+      ...(dialog.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)',
+      ) ?? []),
+    ];
     focusable()[0]?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
       if (event.key === 'Tab') {
-        const elements = focusable(); const first = elements[0]; const last = elements.at(-1);
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        const elements = focusable();
+        const first = elements[0];
+        const last = elements.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
       }
     };
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); previous?.focus(); };
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      previous?.focus();
+    };
   }, [onClose]);
   const view = runtime.streams.view('field-preview');
   const fields = useMemo(

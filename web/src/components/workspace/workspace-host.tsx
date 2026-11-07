@@ -1,6 +1,14 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   DockviewDefaultTab,
   DockviewReact,
@@ -139,14 +147,16 @@ function Catalog() {
               {notice}
             </p>
           ))}
-          {[...runtime.streams.incidents, ...runtime.cameras.incidents].sort((a, b) => a.at - b.at).map((incident, i) => (
-            <p className="event-entry" key={i}>
-              {incident.input} · {incident.transition}
-              {incident.duration !== undefined
-                ? ` after ${(incident.duration / 1000).toFixed(1)}s`
-                : ''}
-            </p>
-          ))}
+          {[...runtime.streams.incidents, ...runtime.cameras.incidents]
+            .sort((a, b) => a.at - b.at)
+            .map((incident, i) => (
+              <p className="event-entry" key={i}>
+                {incident.input} · {incident.transition}
+                {incident.duration !== undefined
+                  ? ` after ${(incident.duration / 1000).toFixed(1)}s`
+                  : ''}
+              </p>
+            ))}
         </>
       )}
     </div>
@@ -156,10 +166,13 @@ function Catalog() {
 function DockPanel(props: IDockviewPanelProps) {
   const runtime = useRuntime();
   const actions = useContext(ActionsContext);
-  const subscribeVisibility = useCallback((notify: () => void) => {
-    const event = props.api.onDidVisibilityChange(notify);
-    return () => event.dispose();
-  }, [props.api]);
+  const subscribeVisibility = useCallback(
+    (notify: () => void) => {
+      const event = props.api.onDidVisibilityChange(notify);
+      return () => event.dispose();
+    },
+    [props.api],
+  );
   const visibilitySnapshot = useCallback(() => props.api.isVisible, [props.api]);
   const visible = useSyncExternalStore(subscribeVisibility, visibilitySnapshot, visibilitySnapshot);
   const id = props.api.id;
@@ -239,8 +252,7 @@ const titles: Record<string, string> = {
 export function WorkspaceHost({ onEdit }: { onEdit(id: string): void }) {
   const runtime = useRuntime();
   const api = useRef<DockviewApi | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const off = useRef<{ dispose(): void }[]>([]);
+  const [dockApi, setDockApi] = useState<DockviewApi | null>(null);
   const signatures = JSON.stringify(
     runtime.layout?.panel_order.map((id) => [
       id,
@@ -250,6 +262,7 @@ export function WorkspaceHost({ onEdit }: { onEdit(id: string): void }) {
   );
   const ready = ({ api: dock }: DockviewReadyEvent) => {
     api.current = dock;
+    setDockApi(dock);
     const layout = runtime.layout;
     if (layout?.workspace) {
       try {
@@ -277,61 +290,67 @@ export function WorkspaceHost({ onEdit }: { onEdit(id: string): void }) {
           initialWidth: id === '@cameras' ? 900 : 360,
         });
     reconcile(dock);
-    off.current.push(
-      dock.onDidLayoutChange(() => {
-        clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => {
-          if (!runtime.layout || !api.current) return;
-          try {
-            runtime.editLayout({
-              ...runtime.layout,
-              workspace: readPlacement(api.current.toJSON()),
-            });
-          } catch (error) {
-            runtime.notices.push(`Placement save failed: ${(error as Error).message}`);
-            runtime.notify();
-          }
-        }, 350);
-      }),
-    );
   };
-  const reconcile = useCallback((dock: DockviewApi) => {
-    const layout = runtime.layout;
-    if (!layout) return;
-    for (const panel of dock.panels)
-      if (!panel.id.startsWith('@') && !layout.panels[panel.id]?.visible) dock.removePanel(panel);
-    for (const id of layout.panel_order) {
-      const panel = layout.panels[id];
-      if (!panel.visible) continue;
-      const existing = dock.getPanel(id);
-      if (existing) {
-        if (existing.title !== panel.label) existing.api.setTitle(panel.label);
-      } else {
-        const existingPanels = dock.panels.filter((p) => !p.id.startsWith('@'));
-        const last = existingPanels.at(-1);
-        dock.addPanel({
-          id,
-          title: panel.label,
-          component: 'workspace',
-          renderer: 'always',
-          position: last ? { referencePanel: last.id, direction: existingPanels.length < 3 ? 'right' : 'within' } : { referencePanel: '@cameras', direction: 'below' },
-          minimumHeight: 190,
-          minimumWidth: 230,
-          initialHeight: 280,
-        });
+  const reconcile = useCallback(
+    (dock: DockviewApi) => {
+      const layout = runtime.layout;
+      if (!layout) return;
+      for (const panel of dock.panels)
+        if (!panel.id.startsWith('@') && !layout.panels[panel.id]?.visible) dock.removePanel(panel);
+      for (const id of layout.panel_order) {
+        const panel = layout.panels[id];
+        if (!panel.visible) continue;
+        const existing = dock.getPanel(id);
+        if (existing) {
+          if (existing.title !== panel.label) existing.api.setTitle(panel.label);
+        } else {
+          const existingPanels = dock.panels.filter((p) => !p.id.startsWith('@'));
+          const last = existingPanels.at(-1);
+          dock.addPanel({
+            id,
+            title: panel.label,
+            component: 'workspace',
+            renderer: 'always',
+            position: last
+              ? {
+                  referencePanel: last.id,
+                  direction: existingPanels.length < 3 ? 'right' : 'within',
+                }
+              : { referencePanel: '@cameras', direction: 'below' },
+            minimumHeight: 190,
+            minimumWidth: 230,
+            initialHeight: 280,
+          });
+        }
       }
-    }
-  }, [runtime]);
+    },
+    [runtime],
+  );
   useEffect(() => {
     if (api.current) reconcile(api.current);
   }, [signatures, runtime, reconcile]);
-  useEffect(
-    () => () => {
-      clearTimeout(saveTimer.current);
-      off.current.forEach((d) => d.dispose());
-    },
-    [],
-  );
+  useEffect(() => {
+    if (!dockApi) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const save = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (!runtime.layout) return;
+        try {
+          runtime.editLayout({ ...runtime.layout, workspace: readPlacement(dockApi.toJSON()) });
+        } catch (error) {
+          runtime.notices.push(`Placement save failed: ${(error as Error).message}`);
+          runtime.notify();
+        }
+      }, 350);
+    };
+    const event = dockApi.onDidLayoutChange(save);
+    save();
+    return () => {
+      clearTimeout(timer);
+      event.dispose();
+    };
+  }, [dockApi, runtime]);
   return (
     <ActionsContext.Provider value={{ edit: onEdit }}>
       <DockviewReact

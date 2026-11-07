@@ -50,8 +50,11 @@ function hubSetup() {
   const clock = new FakeClock();
   const transport = new FixtureTransport();
   const hub = new StreamHub(transport, clock);
-  hub.configure(transport.publications(), true, 1, (s) =>
-    isExcluded(fixtureConfig, s.kind, s.track_name),
+  hub.configure(
+    transport.publications(),
+    true,
+    1,
+    (s) => isExcluded(fixtureConfig, s.kind, s.track_name),
     'fixture-rover',
   );
   return { clock, transport, hub };

@@ -29,6 +29,8 @@ export function useDataView(id: string, panel: Panel, active: boolean) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runtime, id, signature, active]);
   const view = runtime.streams.view(`panel:${id}`);
-  useEffect(() => { if (active && view.at !== undefined) runtime.streams.display(`panel:${id}`, view.at); }, [runtime, id, active, view.at]);
+  useEffect(() => {
+    if (active && view.at !== undefined) runtime.streams.display(`panel:${id}`, view.at);
+  }, [runtime, id, active, view.at]);
   return view;
 }

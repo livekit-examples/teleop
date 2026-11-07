@@ -4,12 +4,12 @@ import { cn } from '@/lib/utils';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 
-import logo from '../../public/logo.svg';
+import wordmark from '../../public/lk-wordmark.svg';
 import { displayFont, monoFont, sansFont } from '@/lib/fonts';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'TeleOps UI',
+  title: 'Teleop · LiveKit',
   description: 'Robot teleoperation interface',
 };
 
@@ -23,19 +23,12 @@ export default function RootLayout({
       lang="en"
       className={cn(sansFont.variable, displayFont.variable, monoFont.variable, 'dark')}
     >
-      <body
-        className="min-h-screen overflow-hidden bg-size-[33dvh_33dvh] bg-center font-mono"
-        style={{
-          backgroundImage: [
-            'linear-gradient(0deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)',
-            'linear-gradient(90deg, color-mix(in oklch, var(--primary-foreground) 10%, transparent) 1px, transparent 1px)',
-          ].join(', '),
-        }}
-      >
+      <body className="lk-dot-grid text-foreground min-h-screen overflow-hidden font-mono">
         {/* Header */}
-        <header className="fixed top-6 left-6 z-50 flex items-baseline gap-4">
-          <Image src={logo} alt="TeleOps UI" className="size-4" />
-          <h1 className="font-mono text-xl font-light tracking-widest text-white uppercase">
+        <header className="fixed top-6 left-6 z-50 flex items-center gap-3">
+          <Image src={wordmark} alt="LiveKit" className="h-4 w-auto" priority />
+          <span className="h-4 w-px bg-[var(--lk-separator2)]" aria-hidden="true" />
+          <h1 className="font-mono text-xs tracking-[0.12em] text-[var(--lk-fg3)] uppercase">
             Robotics
           </h1>
         </header>

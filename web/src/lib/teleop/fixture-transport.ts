@@ -257,9 +257,9 @@ export class FixtureTransport implements Transport {
       const ctx = canvas.getContext('2d')!;
       const draw = () => {
         const t = performance.now() / 1000;
-        ctx.fillStyle = pub.name.includes('Wrist') ? '#183c3b' : '#1c2435';
+        ctx.fillStyle = pub.name.includes('Wrist') ? '#051518' : '#131313';
         ctx.fillRect(0, 0, 960, 540);
-        ctx.strokeStyle = '#516b82';
+        ctx.strokeStyle = '#30302f';
         ctx.lineWidth = 1;
         for (let i = 0; i < 20; i++) {
           const y = (i * 45 + t * 35) % 540;
@@ -268,9 +268,9 @@ export class FixtureTransport implements Transport {
           ctx.lineTo(960, y);
           ctx.stroke();
         }
-        ctx.fillStyle = '#5fe0b9';
+        ctx.fillStyle = '#1fd5f9';
         ctx.fillRect(420 + Math.sin(t) * 170, 260, 110, 75);
-        ctx.fillStyle = '#e5f1ff';
+        ctx.fillStyle = '#ffffff';
         ctx.font = '28px monospace';
         ctx.fillText(pub.name, 35, 55);
         ctx.font = '18px monospace';

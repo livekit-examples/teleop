@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "label": "Rivet-style base, lift, and two arms",
+  "exclude_data_tracks": [],
+  "exclude_video_tracks": [],
+  "exclude_audio_tracks": [],
+  "default_video_rate_hz": 30,
+  "control": {
+    "scope": "robot",
+    "ownership": "portal_active_operator"
+  },
+  "audio_tracks": {},
+  "control_interfaces": {
+    "base": {
+      "label": "Rover",
+      "kind": "mobile_base",
+      "kinematics": "differential",
+      "frame_id": "base_link",
+      "operations": {
+        "drive": {
+          "profile": "base.twist.v1",
+          "command": {
+            "track_name": "/cmd_vel",
+            "msg_type": "geometry_msgs/msg/Twist",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/odom"
+          ],
+          "required_feedback_tracks": [],
+          "presentations": [
+            "gamepad",
+            "joystick",
+            "keyboard"
+          ]
+        }
+      }
+    },
+    "lift": {
+      "label": "Lift",
+      "kind": "lift",
+      "frame_id": "lift_base_link",
+      "joint_names": [
+        "lift_joint"
+      ],
+      "operations": {
+        "joint_velocity": {
+          "profile": "joints.velocity_jog.v1",
+          "command": {
+            "track_name": "/lift/joint_jog",
+            "msg_type": "control_msgs/msg/JointJog",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/lift/joint_states"
+          ],
+          "required_feedback_tracks": [],
+          "presentations": [
+            "gamepad",
+            "joint_sliders"
+          ]
+        }
+      }
+    },
+    "left_arm": {
+      "label": "Left arm",
+      "kind": "arm",
+      "frame_id": "left_arm_base_link",
+      "joint_names": [
+        "left_arm_joint_1",
+        "left_arm_joint_2",
+        "left_arm_joint_3",
+        "left_arm_joint_4",
+        "left_arm_joint_5",
+        "left_arm_joint_6"
+      ],
+      "operations": {
+        "joint_velocity": {
+          "profile": "joints.velocity_jog.v1",
+          "command": {
+            "track_name": "/left_arm/joint_jog",
+            "msg_type": "control_msgs/msg/JointJog",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/left_arm/joint_states"
+          ],
+          "required_feedback_tracks": [],
+          "presentations": [
+            "gamepad",
+            "joint_sliders"
+          ]
+        },
+        "joint_position": {
+          "profile": "joints.trajectory.v1",
+          "command": {
+            "track_name": "/left_arm/joint_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/left_arm/joint_states"
+          ],
+          "required_feedback_tracks": [
+            "/left_arm/joint_states"
+          ],
+          "presentations": [
+            "joint_sliders"
+          ]
+        },
+        "cartesian_pose": {
+          "profile": "arm.cartesian_pose.v1",
+          "command": {
+            "track_name": "/left_arm/pose_target",
+            "msg_type": "geometry_msgs/msg/PoseStamped",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/left_arm/joint_states",
+            "/left_arm/end_effector_pose"
+          ],
+          "required_feedback_tracks": [
+            "/left_arm/end_effector_pose"
+          ],
+          "presentations": [
+            "vr"
+          ]
+        }
+      }
+    },
+    "right_arm": {
+      "label": "Right arm",
+      "kind": "arm",
+      "frame_id": "right_arm_base_link",
+      "joint_names": [
+        "right_arm_joint_1",
+        "right_arm_joint_2",
+        "right_arm_joint_3",
+        "right_arm_joint_4",
+        "right_arm_joint_5",
+        "right_arm_joint_6"
+      ],
+      "operations": {
+        "joint_velocity": {
+          "profile": "joints.velocity_jog.v1",
+          "command": {
+            "track_name": "/right_arm/joint_jog",
+            "msg_type": "control_msgs/msg/JointJog",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/right_arm/joint_states"
+          ],
+          "required_feedback_tracks": [],
+          "presentations": [
+            "gamepad",
+            "joint_sliders"
+          ]
+        },
+        "joint_position": {
+          "profile": "joints.trajectory.v1",
+          "command": {
+            "track_name": "/right_arm/joint_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/right_arm/joint_states"
+          ],
+          "required_feedback_tracks": [
+            "/right_arm/joint_states"
+          ],
+          "presentations": [
+            "joint_sliders"
+          ]
+        },
+        "cartesian_pose": {
+          "profile": "arm.cartesian_pose.v1",
+          "command": {
+            "track_name": "/right_arm/pose_target",
+            "msg_type": "geometry_msgs/msg/PoseStamped",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/right_arm/joint_states",
+            "/right_arm/end_effector_pose"
+          ],
+          "required_feedback_tracks": [
+            "/right_arm/end_effector_pose"
+          ],
+          "presentations": [
+            "vr"
+          ]
+        }
+      }
+    }
+  }
+}

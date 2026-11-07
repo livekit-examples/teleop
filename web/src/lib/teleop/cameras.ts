@@ -19,7 +19,12 @@ export class CameraDeck {
   main?: string;
   tiles: string[] = [];
   notice = '';
-  readonly incidents: { at: number; input: string; transition: 'stale' | 'recovered'; duration?: number }[] = [];
+  readonly incidents: {
+    at: number;
+    input: string;
+    transition: 'stale' | 'recovered';
+    duration?: number;
+  }[] = [];
 
   add(id: string, name: string, now: number) {
     if (!this.cameras.has(id))
@@ -73,12 +78,25 @@ export class CameraDeck {
       this.cameras.get(id)?.frames.filter((t) => t >= now - monitoringPolicy.window(rate)) ?? [];
     return times.length < 2 ? 0 : ((times.length - 1) * 1000) / Math.max(1, now - times[0]);
   }
-  presented(id: string, now: number) { const camera = this.cameras.get(id); if (camera) camera.presentedAt = now; }
+  presented(id: string, now: number) {
+    const camera = this.cameras.get(id);
+    if (camera) camera.presentedAt = now;
+  }
   tick(now: number, rate: number) {
     for (const c of this.cameras.values()) {
       const status = this.status(c.id, now, rate);
-      if (status === 'stale' && c.previous !== 'stale') { c.outage = c.at ?? c.started; this.incidents.push({ at: now, input: c.name, transition: 'stale' }); }
-      else if (status === 'healthy' && c.outage !== undefined) { this.incidents.push({ at: now, input: c.name, transition: 'recovered', duration: now - c.outage }); c.outage = undefined; }
+      if (status === 'stale' && c.previous !== 'stale') {
+        c.outage = c.at ?? c.started;
+        this.incidents.push({ at: now, input: c.name, transition: 'stale' });
+      } else if (status === 'healthy' && c.outage !== undefined) {
+        this.incidents.push({
+          at: now,
+          input: c.name,
+          transition: 'recovered',
+          duration: now - c.outage,
+        });
+        c.outage = undefined;
+      }
       c.previous = status;
     }
     if (this.incidents.length > 100) this.incidents.splice(0, this.incidents.length - 100);

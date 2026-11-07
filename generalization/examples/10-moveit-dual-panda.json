@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "label": "MoveIt dual-Panda demo through ROS Portal",
+  "exclude_data_tracks": [],
+  "exclude_video_tracks": [],
+  "exclude_audio_tracks": [],
+  "default_video_rate_hz": 30,
+  "control": {
+    "scope": "robot",
+    "ownership": "portal_active_operator"
+  },
+  "audio_tracks": {},
+  "control_interfaces": {
+    "left_arm": {
+      "label": "Left Panda arm",
+      "kind": "arm",
+      "frame_id": "left_panda_link0",
+      "joint_names": [
+        "left_panda_joint1",
+        "left_panda_joint2",
+        "left_panda_joint3",
+        "left_panda_joint4",
+        "left_panda_joint5",
+        "left_panda_joint6",
+        "left_panda_joint7"
+      ],
+      "operations": {
+        "trajectory": {
+          "profile": "joints.trajectory.v1",
+          "command": {
+            "track_name": "/left_arm_controller/joint_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/joint_states"
+          ],
+          "required_feedback_tracks": [
+            "/joint_states"
+          ],
+          "presentations": [
+            "joint_sliders"
+          ]
+        }
+      }
+    },
+    "right_arm": {
+      "label": "Right Panda arm",
+      "kind": "arm",
+      "frame_id": "right_panda_link0",
+      "joint_names": [
+        "right_panda_joint1",
+        "right_panda_joint2",
+        "right_panda_joint3",
+        "right_panda_joint4",
+        "right_panda_joint5",
+        "right_panda_joint6",
+        "right_panda_joint7"
+      ],
+      "operations": {
+        "trajectory": {
+          "profile": "joints.trajectory.v1",
+          "command": {
+            "track_name": "/right_arm_controller/joint_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/joint_states"
+          ],
+          "required_feedback_tracks": [
+            "/joint_states"
+          ],
+          "presentations": [
+            "joint_sliders"
+          ]
+        }
+      }
+    }
+  }
+}

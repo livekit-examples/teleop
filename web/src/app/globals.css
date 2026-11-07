@@ -56,6 +56,49 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* LiveKit design tokens (dark). Mirrors livekit/web DESIGN.md semantic names. */
+:root {
+  --lk-fg0: #ffffff;
+  --lk-fg1: #cccccc;
+  --lk-fg2: #b2b2b2;
+  --lk-fg3: #999999;
+  --lk-fg4: #666666;
+  --lk-fg-accent1: #1fd5f9;
+  --lk-fg-accent2: #15889f;
+  --lk-fg-accent-hover: #88e5fb;
+  --lk-fg-success: #23de6b;
+  --lk-fg-moderate: #ffb752;
+  --lk-fg-serious1: #ff7566;
+  --lk-fg-serious2: #b32909;
+  --lk-fg-purple: #dc85ff;
+  --lk-bg0: #000000;
+  --lk-bg1: #070707;
+  --lk-bg2: #131313;
+  --lk-bg3: #1f1f1f;
+  --lk-bg-accent1: #051518;
+  --lk-bg-accent2: #012a32;
+  --lk-bg-success1: #001905;
+  --lk-bg-success2: #003213;
+  --lk-bg-moderate1: #1a0e04;
+  --lk-bg-moderate2: #3f2208;
+  --lk-bg-serious1: #1f0e0b;
+  --lk-bg-serious2: #421510;
+  --lk-separator1: #202020;
+  --lk-separator2: #30302f;
+  --lk-separator-accent: #035c6d;
+  --lk-separator-moderate: #3f2208;
+  --lk-separator-serious1: #421510;
+  --lk-separator-serious2: #b32909;
+  --lk-radius: 4px;
+  --lk-radius-md: 6px;
+  --lk-radius-lg: 8px;
+  --lk-shadow-cyan-glow: 0 0 16px rgba(31, 213, 249, 0.25);
+  --lk-shadow-cyan-glow-sm: 0 0 8px rgba(31, 213, 249, 0.25);
+  --lk-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.6);
+  --lk-focus-ring: 0 0 0 1px var(--lk-bg1), 0 0 0 2px var(--lk-fg-accent1);
+  --lk-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
 :root {
   --color-red: 0.661 0.213 29.95;
   --color-fg1: 0.845 0 0;
@@ -63,12 +106,12 @@
   --color-fgAccent1: 0.806 0.139 216.34;
   --color-fgAccent2: 0.579 0.098 215.96;
   --color-fgSuccess: 0.79 0.211 149.8;
-  --color-bg1: 0.129 0 0;
-  --color-bg2: 0.187 0 0;
+  --color-bg1: 0.1 0 0; /* #070707 */
+  --color-bg2: 0.183 0 0; /* #131313 */
   --color-bgAccent1: 0.183 0.023 210.61;
   --color-bgAccent2: 0.262 0.045 214.18;
   --color-bgSuccess1: 0.186 0.053 148.6;
-  --color-separator1: 0.244 0 0;
+  --color-separator1: 0.239 0 0; /* #202020 */
   --color-separatorAccent: 0.262 0.045 214.18;
   --color-chart1: 0.806 0.139 216.34;
   --color-chart2: 0.606 0.288 312.36;
@@ -77,11 +120,11 @@
   --color-chart5: 0.612 0.162 151.75;
 
   --background: oklch(var(--color-bg1));
-  --foreground: oklch(var(--color-fgAccent1));
-  --card: oklch(var(--color-fgAccent1) / 0.15);
-  --card-foreground: oklch(var(--color-fgAccent1));
-  --popover: oklch(var(--color-fgAccent1) / 0.15);
-  --popover-foreground: oklch(var(--color-fgAccent1));
+  --foreground: oklch(var(--color-fg1));
+  --card: oklch(var(--color-bg2) / 0.85);
+  --card-foreground: oklch(var(--color-fg1));
+  --popover: oklch(var(--color-bg2));
+  --popover-foreground: oklch(var(--color-fg1));
   --primary: oklch(var(--color-bgAccent1));
   --primary-foreground: oklch(var(--color-fgAccent1));
   --secondary: oklch(var(--color-bg2));
@@ -91,15 +134,15 @@
   --accent: oklch(var(--color-bgAccent1));
   --accent-foreground: oklch(var(--color-fgAccent1));
   --destructive: oklch(var(--color-red));
-  --border: oklch(var(--color-fgAccent1) / 0.25);
-  --input: oklch(var(--color-fgAccent1) / 0.5);
+  --border: oklch(var(--color-separator1));
+  --input: oklch(0.29 0 0); /* #30302F */
   --ring: oklch(var(--color-fgAccent1));
   --chart-1: oklch(var(--color-chart1));
   --chart-2: oklch(var(--color-chart2));
   --chart-3: oklch(var(--color-chart3));
   --chart-4: oklch(var(--color-chart4));
   --chart-5: oklch(var(--color-chart5));
-  --radius: 0.333rem;
+  --radius: 0.25rem; /* 4px */
   --sidebar: oklch(var(--color-bg2));
   --sidebar-foreground: oklch(var(--color-fg1));
   --sidebar-primary: oklch(var(--color-bgAccent1));
@@ -117,12 +160,12 @@
   --color-fgAccent1: 0.806 0.139 216.34;
   --color-fgAccent2: 0.579 0.098 215.96;
   --color-fgSuccess: 0.79 0.211 149.8;
-  --color-bg1: 0.129 0 0;
-  --color-bg2: 0.187 0 0;
+  --color-bg1: 0.1 0 0; /* #070707 */
+  --color-bg2: 0.183 0 0; /* #131313 */
   --color-bgAccent1: 0.183 0.023 210.61;
   --color-bgAccent2: 0.262 0.045 214.18;
   --color-bgSuccess1: 0.186 0.053 148.6;
-  --color-separator1: 0.244 0 0;
+  --color-separator1: 0.239 0 0; /* #202020 */
   --color-separatorAccent: 0.262 0.045 214.18;
   --color-chart1: 0.806 0.139 216.34;
   --color-chart2: 0.606 0.288 312.36;
@@ -140,6 +183,8 @@
   }
   html {
     @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: 0.01em;
   }
   button {
     @apply cursor-pointer;
@@ -147,6 +192,11 @@
 }
 
 @layer utilities {
+  .lk-dot-grid {
+    background-color: var(--lk-bg1);
+    background-image: radial-gradient(circle, rgb(255 255 255 / 0.09) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
   .bg-surface {
     @apply bg-card backdrop-blur-lg backdrop-brightness-25;
   }
