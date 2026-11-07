@@ -40,6 +40,9 @@ export default function Home() {
   return (
     <AnimatePresence>
       <div className="relative grid h-dvh place-items-center gap-4">
+        <Link href="/workspace" className="fixed top-6 right-6 z-50">
+          <Button variant="outline">Open dynamic workspace →</Button>
+        </Link>
         {!armConfigured && !roverConfigured ? (
           <EmptyState />
         ) : (

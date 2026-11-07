@@ -1,0 +1,389 @@
+'use client';
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { validatePanel, visualizationNames } from '@/lib/teleop/layout';
+import { inspectFields } from '@/lib/teleop/selectors';
+import type { Panel, Visualization } from '@/lib/teleop/types';
+import { useRuntime } from './context';
+
+export function AddVisualization({
+  initial,
+  onSave,
+  onClose,
+}: {
+  initial?: Panel;
+  onSave(panel: Panel): void;
+  onClose(): void;
+}) {
+  const runtime = useRuntime();
+  const dialog = useRef<HTMLElement>(null);
+  const [visualization, setVisualization] = useState<Visualization>(
+    initial?.visualization ?? 'plot',
+  );
+  const [track, setTrack] = useState(initial?.source.track_name ?? '');
+  const [path, setPath] = useState(JSON.stringify(initial?.source.field_path ?? []));
+  const [label, setLabel] = useState(initial?.label ?? '');
+  const [rate, setRate] = useState(String(initial?.settings.expected_rate_hz ?? ''));
+  const [window, setWindow] = useState(String(initial?.settings.window_seconds ?? 30));
+  const [enumLabels, setEnumLabels] = useState(
+    JSON.stringify(initial?.settings.enum_labels ?? {}, null, 2),
+  );
+  const [jointNames, setJointNames] = useState(initial?.source.joint_names?.join('\n') ?? '');
+  const [preview, setPreview] = useState(false);
+  const [error, setError] = useState('');
+  const [image, setImage] = useState(initial?.settings.image_layout ?? 'mono');
+  const [eye, setEye] = useState(initial?.settings.eye ?? 'left');
+  const [volume, setVolume] = useState(initial?.settings.volume ?? 0.8);
+  const [muted, setMuted] = useState(initial?.settings.muted ?? false);
+  const kind = visualization === 'video' ? 'video' : visualization === 'audio' ? 'audio' : 'data';
+  const publications = runtime.catalog().filter((pub) => pub.kind === kind && !pub.excluded);
+  const publication = publications.find((pub) => pub.name === track);
+  const signature = `${kind}:${track}:${preview}`;
+  useEffect(() => {
+    if (!preview || kind !== 'data' || !publication?.available || publication.encoding !== 'json')
+      return;
+    return runtime.streams.acquire('field-preview', {
+      robot: runtime.selected,
+      source: { kind: 'data', track_name: track, field_path: [] },
+      select: (v) => v,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runtime, signature, publication?.id]);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const focusable = () => [...(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)') ?? [])];
+    focusable()[0]?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+      if (event.key === 'Tab') {
+        const elements = focusable(); const first = elements[0]; const last = elements.at(-1);
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('keydown', onKey); previous?.focus(); };
+  }, [onClose]);
+  const view = runtime.streams.view('field-preview');
+  const fields = useMemo(
+    () =>
+      publication?.schema?.fields ?? (view.value !== undefined ? inspectFields(view.value) : []),
+    [publication?.schema, view.value],
+  );
+  const fieldType =
+    visualization === 'boolean'
+      ? 'boolean'
+      : ['plot', 'value'].includes(visualization)
+        ? 'number'
+        : visualization === 'state'
+          ? 'scalar'
+          : 'any';
+  const compatible = fields.filter(
+    (field) =>
+      fieldType === 'any' ||
+      field.type === fieldType ||
+      (fieldType === 'scalar' && ['boolean', 'number', 'string'].includes(field.type)),
+  );
+  const save = () => {
+    try {
+      if (!publication) throw new Error('Select an eligible topic.');
+      if (kind === 'data' && publication.encoding !== 'json')
+        throw new Error(
+          `Unsupported encoding: ${publication.encoding ?? 'metadata not published'}.`,
+        );
+      const settings =
+        kind === 'audio'
+          ? { volume, muted }
+          : kind === 'video'
+            ? { image_layout: image, eye }
+            : {
+                ...(rate ? { expected_rate_hz: Number(rate) } : {}),
+                ...(['plot', 'state'].includes(visualization)
+                  ? { window_seconds: Number(window) }
+                  : {}),
+                ...(visualization === 'state' ? { enum_labels: JSON.parse(enumLabels) } : {}),
+              };
+      const panel = validatePanel({
+        visualization,
+        label: label || track,
+        visible: initial?.visible ?? true,
+        source: {
+          kind,
+          track_name: track,
+          field_path: kind === 'data' ? JSON.parse(path) : [],
+          ...(publication.msgType ? { expected_msg_type: publication.msgType } : {}),
+          ...(jointNames.trim() && ['joints', 'plot', 'value'].includes(visualization)
+            ? {
+                joint_names: jointNames
+                  .split('\n')
+                  .map((name) => name.trim())
+                  .filter(Boolean),
+              }
+            : {}),
+        },
+        settings,
+      });
+      onSave(panel);
+    } catch (error) {
+      setError((error as Error).message);
+    }
+  };
+  return (
+    <div className="workspace-modal-backdrop">
+      <section
+        ref={dialog}
+        className="workspace-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="visualization-dialog-title"
+      >
+        <div className="modal-heading">
+          <div>
+            <span className="workspace-eyebrow">BUILD YOUR WORKSPACE</span>
+            <h2 id="visualization-dialog-title">
+              {initial ? 'Visualization settings' : 'Add visualization'}
+            </h2>
+          </div>
+          <button onClick={onClose} aria-label="Close visualization dialog">
+            ×
+          </button>
+        </div>
+        <div className="visualization-form">
+          <label>
+            Visualization
+            <select
+              value={visualization}
+              onChange={(event) => {
+                setVisualization(event.target.value as Visualization);
+                setTrack('');
+                setPreview(false);
+                setPath('[]');
+              }}
+            >
+              {Object.entries(visualizationNames).map(([type, name]) => (
+                <option key={type} value={type}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Topic
+            <select
+              value={track}
+              onChange={(event) => {
+                setTrack(event.target.value);
+                setPreview(false);
+                setPath('[]');
+              }}
+            >
+              <option value="">Select a discovered topic</option>
+              {publications.map((pub) => (
+                <option key={pub.name} value={pub.name}>
+                  {pub.name}
+                  {!pub.available
+                    ? ' (unavailable)'
+                    : kind === 'data' && pub.encoding !== 'json'
+                      ? ' (unsupported encoding)'
+                      : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          {publication && (
+            <p className="field-help">
+              {publication.msgType ?? 'No schema ID'} ·{' '}
+              {publication.encoding ?? 'No encoding metadata'}
+              {kind === 'data' && publication.encoding !== 'json'
+                ? ' · JSON decoder unavailable for this publication.'
+                : ''}
+            </p>
+          )}
+          <label>
+            Panel title
+            <input
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              placeholder={track || 'Panel title'}
+            />
+          </label>
+          {kind === 'data' && (
+            <>
+              {!publication?.schema && (
+                <div className="preview-action">
+                  <button
+                    disabled={!publication?.available || publication.encoding !== 'json'}
+                    onClick={() => setPreview((value) => !value)}
+                  >
+                    {preview ? 'Close JSON preview' : 'Preview JSON to find fields'}
+                  </button>
+                  <p className="field-help">
+                    Preview receives temporary samples. Closing it releases its subscription.
+                  </p>
+                </div>
+              )}
+              {preview && (
+                <div className="json-preview">
+                  <span className={`status status-${view.status}`}>{view.status}</span>
+                  <pre>
+                    {view.value === undefined
+                      ? (view.reason ?? 'Waiting for JSON…')
+                      : JSON.stringify(view.value, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {!!fields.length && (
+                <label>
+                  Compatible field
+                  <select
+                    value={path}
+                    onChange={(event) => {
+                      setPath(event.target.value);
+                      const field = publication?.schema?.fields.find(
+                        (field) => JSON.stringify(field.path) === event.target.value,
+                      );
+                      if (field?.enum) setEnumLabels(JSON.stringify(field.enum, null, 2));
+                    }}
+                  >
+                    <option value={path}>{path} (current)</option>
+                    {compatible.map((field) => (
+                      <option key={JSON.stringify(field.path)} value={JSON.stringify(field.path)}>
+                        {JSON.stringify(field.path)} · {field.type}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label>
+                Literal field path (JSON array)
+                <input
+                  value={path}
+                  onChange={(event) => setPath(event.target.value)}
+                  spellCheck={false}
+                  placeholder={'["angular_velocity", "z"]'}
+                />
+              </label>
+              {['plot', 'value', 'joints'].includes(visualization) && (
+                <label>
+                  Exact joint names (optional; one per line)
+                  <textarea
+                    value={jointNames}
+                    onChange={(event) => setJointNames(event.target.value)}
+                    placeholder={
+                      visualization === 'joints'
+                        ? 'Leave empty to show all named joints'
+                        : 'Select one joint position instead of a scalar field'
+                    }
+                    rows={2}
+                  />
+                </label>
+              )}
+              <label>
+                Expected sample rate, Hz (optional)
+                <input
+                  type="number"
+                  min="0.001"
+                  step="any"
+                  value={rate}
+                  onChange={(event) => setRate(event.target.value)}
+                  placeholder="Unmonitored"
+                />
+              </label>
+              {['plot', 'state'].includes(visualization) && (
+                <label>
+                  History window, seconds
+                  <input
+                    type="number"
+                    min="0.1"
+                    max="600"
+                    step="any"
+                    value={window}
+                    onChange={(event) => setWindow(event.target.value)}
+                  />
+                </label>
+              )}
+              {visualization === 'state' && (
+                <label>
+                  Explicit value-to-label map (JSON object)
+                  <textarea
+                    rows={4}
+                    value={enumLabels}
+                    onChange={(event) => setEnumLabels(event.target.value)}
+                    placeholder={'{"0":"Idle","1":"Running"}'}
+                  />
+                </label>
+              )}
+            </>
+          )}
+          {kind === 'video' && (
+            <>
+              <p className="field-help">
+                Every eligible camera already appears automatically. This adds another view without
+                changing the main camera.
+              </p>
+              <label>
+                Image interpretation
+                <select
+                  value={image}
+                  onChange={(event) => setImage(event.target.value as typeof image)}
+                >
+                  <option value="mono">Normal full frame</option>
+                  <option value="stereo_sbs">Stereo side-by-side</option>
+                </select>
+              </label>
+              {image === 'stereo_sbs' && (
+                <label>
+                  Eye
+                  <select
+                    value={eye}
+                    onChange={(event) => setEye(event.target.value as typeof eye)}
+                  >
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                  </select>
+                </label>
+              )}
+            </>
+          )}
+          {kind === 'audio' && (
+            <>
+              <label>
+                Volume
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={(event) => setVolume(Number(event.target.value))}
+                />
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={muted}
+                  onChange={(event) => setMuted(event.target.checked)}
+                />
+                Mute
+              </label>
+              <p className="field-help">
+                Listening is always off until you enable it in the panel.
+              </p>
+            </>
+          )}
+        </div>
+        {error && (
+          <p className="workspace-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="modal-actions">
+          <button onClick={onClose}>Cancel</button>
+          <button className="primary" onClick={save}>
+            {initial ? 'Save settings' : 'Add panel'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
