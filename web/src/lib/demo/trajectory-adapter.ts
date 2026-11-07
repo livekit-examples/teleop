@@ -1,8 +1,27 @@
 import type { AdapterContext, ProfileAdapter } from '@/lib/teleop/controls';
 import { selectJoints } from '../teleop/selectors';
 import type { SimulationPolicy } from './types';
+import { object, parseJson } from '../teleop/validation';
 
-/** Trusted run policy comes from the managed worker, never robot-name guesses or fixture defaults. */
+/** Explicit simulator implementation opt-in; never infer this from robot names or profiles. */
+export function discoveredSimulationAdapters(payload: string): Map<string, ProfileAdapter> {
+  const root = object(parseJson(payload));
+  if (root.simulation_control === undefined) return new Map();
+  const extension = object(root.simulation_control, 'simulation_control');
+  if (extension.implementation !== 'mujoco.joint_trajectory.v1')
+    throw new Error('Unsupported simulation control implementation.');
+  const policy = object(extension.policy, 'Simulation policy');
+  const interfaces = object(policy.interfaces, 'Simulation interfaces');
+  if (!Object.keys(interfaces).length) throw new Error('Simulation interfaces are empty.');
+  for (const joints of Object.values(interfaces)) {
+    const entries = object(joints, 'Simulation joints');
+    if (!Object.keys(entries).length) throw new Error('Simulation joints are empty.');
+    for (const limit of Object.values(entries)) object(limit, 'Simulation joint limit');
+  }
+  return simulationAdapters(policy as SimulationPolicy);
+}
+
+/** Policy comes from the simulator or managed worker, never fixture defaults. */
 export function simulationAdapters(policy: SimulationPolicy): Map<string, ProfileAdapter> {
   if (
     policy.profile !== 'joints.trajectory.v1' ||

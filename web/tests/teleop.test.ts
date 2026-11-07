@@ -564,6 +564,31 @@ describe('control ownership and command sessions', () => {
 });
 
 describe('runtime reconnect, discovery and demand isolation', () => {
+  it('loads explicit simulator policy on manual discovery and clears it on disconnect', async () => {
+    const transport = new FixtureTransport();
+    Object.defineProperty(transport, 'fixture', { value: false });
+    const config = structuredClone(fixtureConfig);
+    const policy = {
+      profile: 'joints.trajectory.v1', max_feedback_age_ms: 1000,
+      interfaces: { left_arm: {
+        left_1: { min: -1, max: 1, max_velocity: 0.5 },
+        left_2: { min: -2, max: 2, max_velocity: 0.5 },
+      } },
+    };
+    vi.spyOn(transport, 'rpc').mockResolvedValue(JSON.stringify({ ...config,
+      simulation_control: { implementation: 'mujoco.joint_trajectory.v1', policy },
+    }));
+    const runtime = new WorkspaceRuntime(transport, storage());
+    transport.emit('connected');
+    await flush();
+    expect(runtime.discovery).toBe('ready');
+    expect(runtime.controls.adapter('left_arm')?.units).toContain('simulation');
+    expect(runtime.controls.adapter('base')).toBeUndefined();
+    transport.emit('disconnected');
+    expect(runtime.controls.adapters.size).toBe(0);
+    await runtime.dispose();
+  });
+
   it('subscribes all eligible initial/new videos, no audio, and no excluded video', async () => {
     const transport = new FixtureTransport();
     const runtime = new WorkspaceRuntime(transport, storage());

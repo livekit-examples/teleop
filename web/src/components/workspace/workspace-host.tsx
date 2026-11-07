@@ -17,12 +17,36 @@ import {
   type DockviewReadyEvent,
   type IDockviewPanelProps,
 } from 'dockview-react';
+import { AudioLines, Database, Video, type LucideIcon } from 'lucide-react';
 import { readPlacement, writePlacement, prunePlacement } from '@/lib/teleop/placement';
 import type { Panel } from '@/lib/teleop/types';
 import { useRuntime } from './context';
 import { Cameras } from './media';
 import { ControlPanel } from './control-panel';
 import { VisualizationView } from './visualizations';
+
+const KIND_ICONS: Record<string, LucideIcon> = {
+  data: Database,
+  video: Video,
+  audio: AudioLines,
+};
+const KIND_LABELS: Record<string, string> = { data: 'Data', video: 'Video', audio: 'Audio' };
+
+function TopicKind({ kind }: { kind: string }) {
+  const Icon = KIND_ICONS[kind];
+  const label = KIND_LABELS[kind] ?? kind;
+  if (!Icon) return <span className={`topic-kind kind-${kind}`}>{kind}</span>;
+  return (
+    <span
+      className={`topic-kind topic-kind-icon kind-${kind}`}
+      role="img"
+      aria-label={label}
+      title={label}
+    >
+      <Icon size={12} strokeWidth={1.75} aria-hidden="true" />
+    </span>
+  );
+}
 
 const ActionsContext = createContext<{ edit(id: string): void }>({ edit: () => {} });
 
@@ -47,7 +71,7 @@ function Catalog() {
           {runtime.catalog().map((pub) => (
             <details className="topic-entry" key={`${pub.kind}:${pub.name}`}>
               <summary>
-                <span className={`topic-kind kind-${pub.kind}`}>{pub.kind}</span>
+                <TopicKind kind={pub.kind} />
                 <span>{pub.name}</span>
                 <span className="muted">
                   {pub.excluded

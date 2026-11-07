@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { simulationAdapters } from '../src/lib/demo/trajectory-adapter';
+import { discoveredSimulationAdapters, simulationAdapters } from '../src/lib/demo/trajectory-adapter';
 import type { AdapterContext } from '../src/lib/teleop/controls';
 import type { SimulationPolicy } from '../src/lib/demo/types';
 
@@ -76,4 +76,14 @@ it('keeps omitted measured positions inside soft joint boundaries without accept
     (adapter.encode({}, ctx) as { points: { positions: number[] }[] }).points[0].positions[0],
   ).toBe(-1);
   expect(() => adapter.encode({ joints: { joint_a: -1.1 } }, ctx)).toThrow('limits');
+});
+
+it('requires an explicit supported simulator implementation and validates its policy', () => {
+  expect(discoveredSimulationAdapters('{}').size).toBe(0);
+  const payload = (implementation: string, value: unknown = policy) => JSON.stringify({
+    simulation_control: { implementation, policy: value },
+  });
+  expect(discoveredSimulationAdapters(payload('mujoco.joint_trajectory.v1')).size).toBe(1);
+  expect(() => discoveredSimulationAdapters(payload('unknown'))).toThrow('implementation');
+  expect(() => discoveredSimulationAdapters(payload('mujoco.joint_trajectory.v1', {}))).toThrow();
 });

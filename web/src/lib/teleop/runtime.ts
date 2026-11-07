@@ -1,3 +1,4 @@
+import { discoveredSimulationAdapters } from '../demo/trajectory-adapter';
 import { CameraDeck } from './cameras';
 import { ControlManager, fixtureAdapters, type ProfileAdapter } from './controls';
 import { LayoutStore, type LayoutStorage } from './layout';
@@ -42,6 +43,7 @@ export class WorkspaceRuntime {
   private busy = false;
   private awaitingRobot = false;
   private disposed = false;
+  private readonly discoverAdapters: boolean;
 
   constructor(
     readonly transport: Transport,
@@ -50,6 +52,7 @@ export class WorkspaceRuntime {
     adapters?: Map<string, ProfileAdapter>,
     readonly viewOnly = false,
   ) {
+    this.discoverAdapters = !viewOnly && !adapters && !transport.fixture;
     this.streams = new StreamHub(transport, clock);
     this.controls = new ControlManager(
       transport,
@@ -120,6 +123,7 @@ export class WorkspaceRuntime {
   }
   private invalidate(connected: boolean) {
     this.generation++;
+    if (this.discoverAdapters) this.controls.adapters.clear();
     this.config = undefined;
     this.discovery = 'idle';
     this.controls.connected = connected;
@@ -148,6 +152,7 @@ export class WorkspaceRuntime {
     await teardown;
     if (generation !== this.generation || this.disposed) return;
     this.controls.configure(undefined, identity, false, generation);
+    if (this.discoverAdapters) this.controls.adapters.clear();
     this.transport.restrictCommands(identity);
     this.busy = false;
     const participant = this.robots().find((p) => p.identity === identity);
@@ -184,6 +189,10 @@ export class WorkspaceRuntime {
       if (generation !== this.generation || this.disposed) return;
       try {
         this.config = parseDiscovery(payload);
+        if (this.discoverAdapters) {
+          const adapters = discoveredSimulationAdapters(payload);
+          for (const [profile, adapter] of adapters) this.controls.adapters.set(profile, adapter);
+        }
       } catch (error) {
         this.discovery = 'failed';
         this.error = `Invalid discovery: ${errorMessage(error)}`;

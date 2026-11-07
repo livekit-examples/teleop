@@ -850,13 +850,25 @@ body:has(.workspace-app) > header {
   background: var(--lk-bg3);
   color: var(--lk-fg3);
 }
+.topic-kind-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  flex-shrink: 0;
+}
 .kind-video {
   color: var(--lk-fg-accent1);
   background: var(--lk-bg-accent2);
 }
+.kind-data {
+  color: var(--lk-fg-success);
+  background: var(--lk-bg-success1);
+}
 .kind-audio {
-  color: var(--lk-fg-purple);
-  background: rgb(186 31 249 / 0.14);
+  color: var(--lk-fg-moderate);
+  background: var(--lk-bg-moderate1);
 }
 .topic-entry dl {
   display: grid;
