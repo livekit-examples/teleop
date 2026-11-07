@@ -2,3 +2,6 @@
 	path = web/vendor/client-sdk-js
 	url = https://github.com/livekit/client-sdk-js.git
 	branch = ladvoc/schema-metadata
+[submodule "robo-sims"]
+	path = robo-sims
+	url = git@github.com:livekit-examples/robo-sims.git
