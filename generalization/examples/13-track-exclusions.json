@@ -15,12 +15,10 @@
     "scope": "robot",
     "ownership": "portal_active_operator"
   },
-  "audio_tracks": {},
   "control_interfaces": {
     "base": {
       "label": "Rover",
       "kind": "mobile_base",
-      "kinematics": "differential",
       "frame_id": "base_link",
       "operations": {
         "drive": {
@@ -30,10 +28,6 @@
             "msg_type": "geometry_msgs/msg/Twist",
             "format": "json"
           },
-          "feedback_tracks": [
-            "/odom"
-          ],
-          "required_feedback_tracks": [],
           "presentations": [
             "gamepad",
             "joystick",

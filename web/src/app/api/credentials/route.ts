@@ -13,7 +13,6 @@ type Credentials = {
   apiKey: string;
   apiSecret: string;
   roomName: string;
-  userPass: string;
 };
 
 // If `.env.local` exists, its values win over the process environment.
@@ -40,7 +39,6 @@ function loadCredentials(): Credentials {
     apiKey: requiredEnv('LIVEKIT_API_KEY', envLocal),
     apiSecret: requiredEnv('LIVEKIT_API_SECRET', envLocal),
     roomName: requiredEnv('LIVEKIT_ROOM_NAME', envLocal),
-    userPass: requiredEnv('LIVEKIT_USER_PASS', envLocal),
   };
 }
 
@@ -95,22 +93,16 @@ async function newIdentity(credentials: Credentials): Promise<string> {
   return identity;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
+  if (process.env.TELEOP_PUBLIC_DEPLOYMENT === '1') {
+    return NextResponse.json({ error: 'Direct robot access is disabled.' }, { status: 404 });
+  }
   let credentials: Credentials;
   try {
     credentials = getCredentials();
   } catch (error) {
     console.error('Misconfigured server credentials:', error);
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-  }
-
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const password = authHeader.slice('Bearer '.length);
-  if (!password || password !== credentials.userPass) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   const at = new AccessToken(credentials.apiKey, credentials.apiSecret, {

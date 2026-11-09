@@ -9,6 +9,5 @@
     "scope": "robot",
     "ownership": "portal_active_operator"
   },
-  "audio_tracks": {},
   "control_interfaces": {}
 }

@@ -1,6 +1,12 @@
 import { discoveredSimulationAdapters } from '../demo/trajectory-adapter';
 import { CameraDeck } from './cameras';
-import { ControlManager, fixtureAdapters, type ProfileAdapter } from './controls';
+import {
+  ControlManager,
+  controlKey,
+  controlChannels,
+  fixtureAdapters,
+  type ProfileAdapter,
+} from './controls';
 import { LayoutStore, type LayoutStorage } from './layout';
 import { StreamHub } from './streams';
 import {
@@ -203,16 +209,31 @@ export class WorkspaceRuntime {
       this.sync();
       for (const [id, equipment] of Object.entries(this.config.control_interfaces)) {
         if (generation !== this.generation || this.disposed) return;
-        const saved = this.layout?.control_preferences[id];
-        const operation = saved?.operation ?? Object.keys(equipment.operations)[0];
-        if (operation)
-          await this.controls.select(
-            id,
-            operation,
-            saved?.presentation ??
-              own(equipment.operations, operation)?.presentations[0] ??
-              'unsupported',
-          );
+        const channels = new Set([
+          ...controlChannels(equipment),
+          ...Object.keys(this.layout?.control_channel_preferences?.[id] ?? {}),
+        ]);
+        if (this.layout?.control_preferences[id]) channels.add('primary');
+        for (const channel of channels) {
+          if (generation !== this.generation || this.disposed) return;
+          const saved =
+            channel === 'primary'
+              ? this.layout?.control_preferences[id]
+              : this.layout?.control_channel_preferences?.[id]?.[channel];
+          const operation =
+            saved?.operation ??
+            Object.keys(equipment.operations).find(
+              (op) => (equipment.operations[op].control_channel ?? 'primary') === channel,
+            );
+          if (operation)
+            await this.controls.select(
+              controlKey(id, channel),
+              operation,
+              saved?.presentation ??
+                own(equipment.operations, operation)?.presentations[0] ??
+                'unsupported',
+            );
+        }
       }
       this.notify();
       return;
@@ -300,8 +321,6 @@ export class WorkspaceRuntime {
     const expected: { kind: Publication['kind']; name: string }[] = Object.values(
       this.layout?.panels ?? {},
     ).map((p) => ({ kind: p.source.kind, name: p.source.track_name }));
-    for (const entry of Object.values(this.config?.audio_tracks ?? {}))
-      expected.push({ kind: 'audio', name: entry.track_name });
     for (const equipment of Object.values(this.config?.control_interfaces ?? {}))
       for (const op of Object.values(equipment.operations))
         for (const name of op.feedback_tracks) expected.push({ kind: 'data', name });
@@ -361,6 +380,11 @@ export class WorkspaceRuntime {
       if (generation !== this.generation) return;
       await this.controls.select(id, pref.operation, pref.presentation);
     }
+    for (const [id, channels] of Object.entries(next.control_channel_preferences ?? {}))
+      for (const [channel, pref] of Object.entries(channels)) {
+        if (generation !== this.generation) return;
+        await this.controls.select(controlKey(id, channel), pref.operation, pref.presentation);
+      }
     this.sync();
     this.notify();
   }

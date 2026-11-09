@@ -128,19 +128,6 @@ export function parseDiscovery(payload: string): RobotConfig {
       return [key, patterns];
     }),
   ) as Pick<RobotConfig, 'exclude_data_tracks' | 'exclude_video_tracks' | 'exclude_audio_tracks'>;
-  const audio = Object.fromEntries(
-    Object.entries(object(root.audio_tracks ?? {}, 'audio_tracks')).map(([id, raw]) => {
-      localId(id);
-      const entry = object(raw, id);
-      return [
-        id,
-        {
-          label: string(entry.label, `${id}.label`),
-          track_name: string(entry.track_name, `${id}.track_name`),
-        },
-      ];
-    }),
-  );
   const interfaces = Object.fromEntries(
     Object.entries(object(root.control_interfaces, 'control_interfaces')).map(([id, raw]) => {
       localId(id);
@@ -151,13 +138,7 @@ export function parseDiscovery(payload: string): RobotConfig {
           const op = object(opRaw, opId);
           const command = object(op.command, `${opId}.command`);
           if (command.format !== 'json') throw new Error(`${opId}.command.format must be json.`);
-          const feedback = strings(op.feedback_tracks, `${opId}.feedback_tracks`);
-          const required = strings(
-            op.required_feedback_tracks ?? [],
-            `${opId}.required_feedback_tracks`,
-          );
-          if (required.some((name) => !feedback.includes(name)))
-            throw new Error(`${opId} required feedback must be a subset of feedback_tracks.`);
+          const feedback = strings(op.feedback_tracks ?? [], `${opId}.feedback_tracks`);
           const presentations = strings(op.presentations, `${opId}.presentations`);
           if (!presentations.length) throw new Error(`${opId} needs at least one presentation.`);
           const operation: Operation = {
@@ -168,9 +149,20 @@ export function parseDiscovery(payload: string): RobotConfig {
               format: 'json',
             },
             feedback_tracks: feedback,
-            required_feedback_tracks: required,
             presentations,
           };
+          if (op.control_channel !== undefined)
+            operation.control_channel = localId(string(op.control_channel, 'control_channel'));
+          if (op.joint_names !== undefined) {
+            operation.joint_names = strings(op.joint_names, 'operation joint_names');
+            if (!operation.joint_names.length)
+              throw new Error('Operation joint_names cannot be empty.');
+          }
+          if (
+            operation.profile === 'gripper.position.v1' &&
+            (operation.joint_names?.length !== 1 || !feedback.length)
+          )
+            throw new Error('Gripper position requires one explicit joint and required feedback.');
           return [opId, operation];
         }),
       );
@@ -182,8 +174,6 @@ export function parseDiscovery(payload: string): RobotConfig {
       if (entry.frame_id !== undefined) result.frame_id = string(entry.frame_id, 'frame_id');
       if (entry.joint_names !== undefined)
         result.joint_names = strings(entry.joint_names, 'joint_names');
-      if (entry.kinematics !== undefined)
-        result.kinematics = string(entry.kinematics, 'kinematics');
       return [id, result];
     }),
   );
@@ -193,7 +183,6 @@ export function parseDiscovery(payload: string): RobotConfig {
     default_video_rate_hz: positive(root.default_video_rate_hz, 'default_video_rate_hz'),
     ...filters,
     control: { scope: 'robot', ownership: 'portal_active_operator' },
-    audio_tracks: audio,
     control_interfaces: interfaces,
   };
 }

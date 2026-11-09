@@ -2,7 +2,7 @@
 
 Uses only the standard library. Rates and generic hardware endpoints are
 illustrative. Panda joint/controller names follow the MoveIt dual-Panda demo.
-See ../contract.md and ../web-app-requirements.md for the proposed behavior.
+See ../../docs/configuration.md for the field reference.
 """
 
 import copy
@@ -21,17 +21,19 @@ PRESENTATIONS = {
     "joints.velocity_jog.v1": {"joint_sliders", "gamepad"},
     "joints.trajectory.v1": {"joint_sliders"},
     "arm.cartesian_pose.v1": {"vr"},
+    "gripper.position.v1": {"gripper_controls"},
 }
 
 
-def operation(profile, command_track, msg_type, feedback_tracks, required_feedback_tracks=()):
-    return {
+def operation(profile, command_track, msg_type, feedback_tracks=()):
+    value = {
         "profile": profile,
         "command": {"track_name": command_track, "msg_type": msg_type, "format": "json"},
-        "feedback_tracks": feedback_tracks,
-        "required_feedback_tracks": list(required_feedback_tracks),
-        "presentations": sorted(PRESENTATIONS[profile]),
     }
+    if feedback_tracks:
+        value["feedback_tracks"] = list(feedback_tracks)
+    value["presentations"] = sorted(PRESENTATIONS[profile])
+    return value
 
 
 def base_model(kinematics="differential"):
@@ -50,9 +52,8 @@ def base_model(kinematics="differential"):
             "base": {
                 "label": "Rover",
                 "kind": "mobile_base",
-                "kinematics": kinematics,
                 "frame_id": "base_link",
-                "operations": {"drive": operation(profile, command_track, command_type, ["/odom"])},
+                "operations": {"drive": operation(profile, command_track, command_type)},
             }
         },
     }
@@ -71,7 +72,7 @@ def joint_model(key, label, kind="arm", names=None, vr=False):
                 "operations": {
                     "joint_velocity": operation(
                         "joints.velocity_jog.v1", f"/{key}/joint_jog",
-                        "control_msgs/msg/JointJog", [state_track],
+                        "control_msgs/msg/JointJog",
                     )
                 },
             }
@@ -80,12 +81,17 @@ def joint_model(key, label, kind="arm", names=None, vr=False):
     if kind == "arm":
         model["control_interfaces"][key]["operations"]["joint_position"] = operation(
             "joints.trajectory.v1", f"/{key}/joint_trajectory",
-            "trajectory_msgs/msg/JointTrajectory", [state_track], [state_track],
+            "trajectory_msgs/msg/JointTrajectory", [state_track],
         )
+    if kind == "arm":
+        gripper = operation("gripper.position.v1", f"/{key}/gripper_trajectory",
+                            "trajectory_msgs/msg/JointTrajectory", [state_track])
+        gripper.update(control_channel="gripper", joint_names=[f"{key}_gripper_joint"])
+        model["control_interfaces"][key]["operations"]["gripper_position"] = gripper
     if vr:
         model["control_interfaces"][key]["operations"]["cartesian_pose"] = operation(
             "arm.cartesian_pose.v1", f"/{key}/pose_target", "geometry_msgs/msg/PoseStamped",
-            [state_track, f"/{key}/end_effector_pose"], [f"/{key}/end_effector_pose"],
+            [f"/{key}/end_effector_pose"],
         )
     return model
 
@@ -102,7 +108,7 @@ def panda_model():
             "operations": {
                 "trajectory": operation(
                     "joints.trajectory.v1", f"/{side}_arm_controller/joint_trajectory",
-                    "trajectory_msgs/msg/JointTrajectory", ["/joint_states"], ["/joint_states"],
+                    "trajectory_msgs/msg/JointTrajectory", ["/joint_states"],
                 )
             },
         }
@@ -118,7 +124,6 @@ def document(label, *models):
         "exclude_audio_tracks": [],
         "default_video_rate_hz": 30,
         "control": {"scope": "robot", "ownership": "portal_active_operator"},
-        "audio_tracks": {},
         "control_interfaces": {},
     }
     for model in models:
@@ -153,7 +158,6 @@ examples = {
     "11-camera-only": document("Camera-only station"),
     "12-humanoid": document(
         "Illustrative humanoid with independent arm control", head, *dual,
-        {"audio_tracks": {"microphone": {"label": "Microphone", "track_name": "robot-microphone"}}},
     ),
     "13-track-exclusions": document("Rover with discovery exclusions", base),
 }
@@ -170,7 +174,7 @@ def is_excluded(track_name, patterns):
 
 
 def is_track_enabled(track_name, media_kind, config):
-    """Default allow; data and video publications require no catalog entry."""
+    """Default allow; data, video, and audio publications require no catalog entry."""
     exclusion_key = {
         "data": "exclude_data_tracks",
         "video": "exclude_video_tracks",
@@ -191,13 +195,12 @@ def validate_names_and_identity(value):
                 validate_keys(child, f"{path}[{index}]")
 
     validate_keys(value, "discovery")
-    for collection in ("audio_tracks", "control_interfaces"):
-        for key, entry in value.get(collection, {}).items():
-            if "id" in entry:
-                raise ValueError(f"{collection}.{key} repeats its map ID")
-            label = entry.get("label")
-            if not isinstance(label, str) or not label.strip():
-                raise ValueError(f"{collection}.{key} needs a non-empty label")
+    for key, entry in value.get("control_interfaces", {}).items():
+        if "id" in entry:
+            raise ValueError(f"control_interfaces.{key} repeats its map ID")
+        label = entry.get("label")
+        if not isinstance(label, str) or not label.strip():
+            raise ValueError(f"control_interfaces.{key} needs a non-empty label")
 
 
 def positive_rate(value):
@@ -227,15 +230,6 @@ def validate_document(value):
                 raise ValueError(f"Invalid {key} pattern {pattern!r}: {error}") from error
     if not positive_rate(value["default_video_rate_hz"]):
         raise ValueError("A positive default video rate is required")
-    for collection in ("audio_tracks",):
-        names = set()
-        for key, entry in value.get(collection, {}).items():
-            name = entry.get("track_name")
-            if not isinstance(name, str) or not name or name in names:
-                raise ValueError(f"Invalid or repeated track name: {collection}.{key}")
-            names.add(name)
-            if "expected_rate_hz" in entry and not positive_rate(entry["expected_rate_hz"]):
-                raise ValueError(f"Invalid expected rate: {collection}.{key}")
     for interface_id, interface in value["control_interfaces"].items():
         if not interface["operations"]:
             raise ValueError(f"Control interface has no operations: {interface_id}")
@@ -246,21 +240,21 @@ def validate_document(value):
             modes = op["presentations"]
             if not modes or len(set(modes)) != len(modes) or not set(modes) <= PRESENTATIONS[profile]:
                 raise ValueError(f"Incompatible presentation: {interface_id}.{operation_id}")
+            channel = op.get("control_channel", "primary")
+            if not isinstance(channel, str) or not IDENTIFIER.fullmatch(channel):
+                raise ValueError("Invalid control channel")
+            if profile == "gripper.position.v1" and (len(op.get("joint_names", [])) != 1 or channel == "primary"):
+                raise ValueError("Gripper needs one exact joint and an independent channel")
             command = op["command"]
             if command.get("format") != "json":
                 raise ValueError(f"Unsupported command format: {interface_id}.{operation_id}")
             for field in ("track_name", "msg_type"):
                 if not isinstance(command.get(field), str) or not command[field]:
                     raise ValueError(f"Missing command {field}: {interface_id}.{operation_id}")
-            feedback = op["feedback_tracks"]
+            feedback = op.get("feedback_tracks", [])
             if not isinstance(feedback, list) or any(not isinstance(name, str) or not name for name in feedback):
                 raise ValueError(f"Invalid feedback track binding: {interface_id}.{operation_id}")
-            required = op.get("required_feedback_tracks", [])
-            if not isinstance(required, list) or any(not isinstance(name, str) or not name for name in required):
-                raise ValueError(f"Invalid required feedback: {interface_id}.{operation_id}")
-            if not set(required) <= set(feedback):
-                raise ValueError(f"Required feedback must also be associated feedback: {interface_id}.{operation_id}")
-            if profile in ("joints.trajectory.v1", "arm.cartesian_pose.v1") and not required:
+            if profile in ("joints.trajectory.v1", "arm.cartesian_pose.v1", "gripper.position.v1") and not feedback:
                 raise ValueError(f"Position and pose profiles require feedback: {interface_id}.{operation_id}")
 
 

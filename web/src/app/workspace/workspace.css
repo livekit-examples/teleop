@@ -944,6 +944,24 @@ body:has(.workspace-app) > header {
   border-color: var(--lk-separator-accent);
   box-shadow: var(--lk-shadow-cyan-glow-sm);
 }
+.control-channel + .control-channel {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--lk-separator1);
+}
+.control-channel h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+.control-channel.armed > .control-card-heading {
+  color: var(--lk-fg-accent);
+}
+.gripper-controls input[type='range'] {
+  width: 100%;
+}
+.gripper-controls p {
+  font-size: 12px;
+}
 .control-card h3 {
   font-size: 14px;
   font-weight: 500;

@@ -55,7 +55,11 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
       try {
         const run = await demoRequest<DemoRun>(`sessions/${id}`, { signal: abort.signal });
         if (!['ready', 'starting'].includes(run.state)) {
-          finish(run.reason);
+          finish(
+            run.state === 'failed' || run.reason
+              ? run.reason || 'Simulation execution failed.'
+              : '',
+          );
           return;
         }
       } catch {
@@ -65,6 +69,15 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
     };
     void (async () => {
       try {
+        const run = await demoRequest<DemoRun>(`sessions/${id}`, { signal: abort.signal });
+        if (!['queued', 'starting', 'ready'].includes(run.state)) {
+          finish(
+            run.state === 'failed' || run.reason
+              ? run.reason || 'Simulation execution failed.'
+              : '',
+          );
+          return;
+        }
         const credentials = await demoRequest<DemoCredentials>(`sessions/${id}/credentials`, {
           method: 'POST',
           body: JSON.stringify({ mode }),

@@ -13,12 +13,11 @@ const operation = (
   track: string,
   type: string,
   presentations: string[],
-  required: string[] = [],
+  feedback: string[] = [],
 ): Operation => ({
   profile,
   command: { track_name: track, msg_type: type, format: 'json' },
-  feedback_tracks: required,
-  required_feedback_tracks: required,
+  feedback_tracks: feedback,
   presentations,
 });
 export const fixtureConfig: RobotConfig = {
@@ -29,7 +28,6 @@ export const fixtureConfig: RobotConfig = {
   exclude_video_tracks: ['private-.*'],
   exclude_audio_tracks: ['private-.*'],
   control: { scope: 'robot', ownership: 'portal_active_operator' },
-  audio_tracks: { microphone: { label: 'Cabin microphone', track_name: 'microphone' } },
   control_interfaces: {
     base: {
       label: 'Rover base',
@@ -79,6 +77,17 @@ export const fixtureConfig: RobotConfig = {
           ['/left/pose'],
         ),
         future: operation('vendor.future.v2', '/left/future', 'vendor/Future', ['vr']),
+        gripper_position: {
+          ...operation(
+            'gripper.position.v1',
+            '/left/gripper_trajectory',
+            'trajectory_msgs/msg/JointTrajectory',
+            ['gripper_controls'],
+            ['/joint_states'],
+          ),
+          control_channel: 'gripper',
+          joint_names: ['left_gripper_joint'],
+        },
       },
     },
     right_arm: {
@@ -87,6 +96,17 @@ export const fixtureConfig: RobotConfig = {
       frame_id: 'right_base',
       joint_names: ['right_1', 'right_2'],
       operations: {
+        gripper_position: {
+          ...operation(
+            'gripper.position.v1',
+            '/right/gripper_trajectory',
+            'trajectory_msgs/msg/JointTrajectory',
+            ['gripper_controls'],
+            ['/joint_states'],
+          ),
+          control_channel: 'gripper',
+          joint_names: ['right_gripper_joint'],
+        },
         position: operation(
           'joints.trajectory.v1',
           '/right/trajectory',
@@ -314,9 +334,23 @@ export class FixtureTransport implements Transport {
       this.push('/enabled', { data: Math.floor(t / 4) % 2 === 0 });
       this.push('/state', { data: Math.floor(t / 3) % 3 });
       this.push('/joint_states', {
-        name: ['left_1', 'left_2', 'right_1', 'right_2'],
-        position: [Math.sin(t) / 2, Math.cos(t) / 2, Math.sin(t + 1) / 2, Math.cos(t + 1) / 2],
-        velocity: [0.1, 0.1, 0.1, 0.1],
+        name: [
+          'left_1',
+          'left_2',
+          'right_1',
+          'right_2',
+          'left_gripper_joint',
+          'right_gripper_joint',
+        ],
+        position: [
+          Math.sin(t) / 2,
+          Math.cos(t) / 2,
+          Math.sin(t + 1) / 2,
+          Math.cos(t + 1) / 2,
+          0.02,
+          0.02,
+        ],
+        velocity: [0.1, 0.1, 0.1, 0.1, 0, 0],
       });
       for (const hand of ['left', 'right'])
         this.push(`/${hand}/pose`, {

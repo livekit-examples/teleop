@@ -1,0 +1,66 @@
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+let visitor: string | undefined;
+vi.mock('next/headers', () => ({
+  cookies: async () => ({ get: () => (visitor ? { value: visitor } : undefined) }),
+}));
+const upstream = vi.fn();
+beforeEach(() => {
+  vi.stubGlobal('fetch', upstream);
+  vi.stubEnv('SIM_SUPERVISOR_URL', 'https://service.modal.run');
+  vi.stubEnv('SIM_SUPERVISOR_KEY', 'test-server-secret');
+  visitor = 'a'.repeat(32);
+  upstream.mockReset();
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+const route = async (method: string, path: string[], headers: Record<string, string> = {}) => {
+  const { GET } = await import('../src/app/api/demo/[...path]/route');
+  return GET(
+    new Request('http://localhost:3001/api/demo/' + path.join('/'), {
+      method,
+      headers: { host: '127.0.0.1:3001', ...headers },
+      ...(method === 'POST'
+        ? {
+            body: JSON.stringify({
+              simulation_id: 'trossen-wxai',
+              request_id: 'request-aaaaaaaaaa',
+            }),
+          }
+        : {}),
+    }),
+    { params: Promise.resolve({ path }) },
+  );
+};
+it('uses the incoming host for same-origin protection and forwards the stable visitor', async () => {
+  upstream.mockResolvedValue(
+    new Response(JSON.stringify({ id: 'b'.repeat(32), state: 'starting' }), { status: 202 }),
+  );
+  const response = await route('POST', ['sessions'], { origin: 'http://127.0.0.1:3001' });
+  expect(response.status).toBe(202);
+  expect(upstream.mock.calls[0][1].headers).toMatchObject({
+    Authorization: 'Bearer test-server-secret',
+    'X-Demo-Owner': visitor,
+  });
+  expect(response.headers.get('cache-control')).toBe('no-store');
+});
+it('rejects foreign origins and missing visitor identity before contacting the service', async () => {
+  expect((await route('POST', ['sessions'], { origin: 'http://evil.test' })).status).toBe(403);
+  visitor = undefined;
+  expect((await route('POST', ['sessions'], { origin: 'http://127.0.0.1:3001' })).status).toBe(401);
+  expect(upstream).not.toHaveBeenCalled();
+});
+it('cannot proxy worker callbacks, launcher cleanup, or arbitrary room credentials', async () => {
+  expect((await route('POST', ['workers', 'a'.repeat(32), 'events'])).status).toBe(404);
+  expect((await route('DELETE', ['launchers', 'a'.repeat(32), 'sessions'])).status).toBe(404);
+  expect((await route('POST', ['rooms', 'direct', 'credentials'])).status).toBe(404);
+  expect(upstream).not.toHaveBeenCalled();
+});
+it('establishes an HTTP-only visitor cookie when reading the catalog', async () => {
+  visitor = undefined;
+  upstream.mockResolvedValue(new Response('[]'));
+  const response = await route('GET', ['simulations']);
+  expect(response.headers.get('set-cookie')).toContain('HttpOnly');
+  expect(await response.json()).toEqual({ enabled: true, simulations: [] });
+});

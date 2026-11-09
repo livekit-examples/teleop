@@ -33,9 +33,11 @@ export type Publication = {
 };
 export type Operation = {
   profile: string;
+  control_channel?: string;
+  joint_names?: string[];
   command: { track_name: string; msg_type: string; format: 'json' };
+  /** All listed tracks are required; discovery defaults an omitted list to []. */
   feedback_tracks: string[];
-  required_feedback_tracks: string[];
   presentations: string[];
 };
 export type ControlInterface = {
@@ -43,7 +45,6 @@ export type ControlInterface = {
   kind: string;
   frame_id?: string;
   joint_names?: string[];
-  kinematics?: string;
   operations: Record<string, Operation>;
 };
 export type RobotConfig = {
@@ -54,7 +55,6 @@ export type RobotConfig = {
   exclude_video_tracks: string[];
   exclude_audio_tracks: string[];
   control: { scope: 'robot'; ownership: 'portal_active_operator' };
-  audio_tracks: Record<string, { label: string; track_name: string }>;
   control_interfaces: Record<string, ControlInterface>;
 };
 export type Source = {
@@ -90,12 +90,16 @@ export type Placement = {
   floating: { node: PlacementNode; x: number; y: number; width: number; height: number }[];
 };
 export type Layout = {
-  layout_schema_version: 1;
+  layout_schema_version: 1 | 2;
   label: string;
   robot_identity: string;
   panels: Record<string, Panel>;
   panel_order: string[];
   control_preferences: Record<string, { operation: string; presentation: string }>;
+  control_channel_preferences?: Record<
+    string,
+    Record<string, { operation: string; presentation: string }>
+  >;
   controller_hands?: Partial<Record<'left' | 'right', string>>;
   workspace?: Placement;
 };

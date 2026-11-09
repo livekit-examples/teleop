@@ -1,3 +1,18 @@
+.try-page {
+  height: 100dvh;
+  overflow: auto;
+  padding: 2rem max(1rem, calc((100vw - 1100px) / 2));
+}
+.try-page nav {
+  padding-bottom: 1.5rem;
+}
+.try-page nav a {
+  text-decoration: underline;
+}
+.demo-session-banner button {
+  margin-left: 1rem;
+  text-decoration: underline;
+}
 .teleop-landing {
   height: 100dvh;
   overflow: auto;
@@ -52,6 +67,7 @@
   margin: 1.5rem 0 2rem;
 }
 .demo-sim-card {
+  overflow: hidden;
   text-align: left;
   padding: 1.3rem;
   display: flex;
@@ -63,6 +79,24 @@
   transition:
     background 0.15s,
     border-color 0.15s;
+}
+.demo-sim-photo {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  width: calc(100% + 2.6rem);
+  margin: -1.3rem -1.3rem 0;
+}
+.demo-sim-photo img {
+  object-fit: cover;
+  object-position: center 65%;
+}
+.demo-sim-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 0.45);
 }
 .demo-sim-card:hover:not(:disabled) {
   background: var(--lk-bg3);

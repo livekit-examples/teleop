@@ -20,14 +20,18 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
     return NextResponse.json(
       route === 'simulations'
         ? { enabled: false, simulations: [] }
-        : { error: 'Local simulations are not configured.' },
+        : { error: 'Simulation trials are not configured.' },
       { status: route === 'simulations' ? 200 : 503 },
     );
   }
   const origin = request.headers.get('origin');
   let sameOrigin = false;
   try {
-    sameOrigin = !!origin && new URL(origin).host === request.headers.get('host');
+    sameOrigin =
+      !!origin &&
+      new URL(origin).host === request.headers.get('host') &&
+      new URL(origin).protocol ===
+        `${request.headers.get('x-forwarded-proto') ?? new URL(request.url).protocol.slice(0, -1)}:`;
   } catch {
     /* Reject invalid origins. */
   }
@@ -55,11 +59,14 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
       headers: {
         Authorization: `Bearer ${key}`,
         'X-Demo-Owner': owner,
+        ...(process.env.SIM_LAUNCHER_ID ? { 'X-Demo-Launcher': process.env.SIM_LAUNCHER_ID } : {}),
         'Content-Type': 'application/json',
       },
     });
     if (upstream.ok) {
       const data = await upstream.json();
+      if (route === 'sessions' && request.method === 'POST')
+        console.info(`session=${data.id} state=${data.state}`);
       response = NextResponse.json(
         route === 'simulations' ? { enabled: true, simulations: data } : data,
         { status: upstream.status },
@@ -69,7 +76,7 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
     }
   } catch {
     response = NextResponse.json(
-      { error: 'The local simulation service is unavailable.' },
+      { error: 'The simulation service is unavailable. Retry with the same launch request.' },
       { status: 503 },
     );
   }

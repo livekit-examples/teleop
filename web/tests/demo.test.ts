@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { discoveredSimulationAdapters, simulationAdapters } from '../src/lib/demo/trajectory-adapter';
+import {
+  discoveredSimulationAdapters,
+  simulationAdapters,
+} from '../src/lib/demo/trajectory-adapter';
 import type { AdapterContext } from '../src/lib/teleop/controls';
 import type { SimulationPolicy } from '../src/lib/demo/types';
 
@@ -29,7 +32,6 @@ const context = (): AdapterContext => ({
       format: 'json',
     },
     feedback_tracks: ['/feedback'],
-    required_feedback_tracks: ['/feedback'],
     presentations: ['joint_sliders'],
   },
   feedback: {
@@ -80,10 +82,104 @@ it('keeps omitted measured positions inside soft joint boundaries without accept
 
 it('requires an explicit supported simulator implementation and validates its policy', () => {
   expect(discoveredSimulationAdapters('{}').size).toBe(0);
-  const payload = (implementation: string, value: unknown = policy) => JSON.stringify({
-    simulation_control: { implementation, policy: value },
-  });
+  const payload = (implementation: string, value: unknown = policy) =>
+    JSON.stringify({
+      simulation_control: { implementation, policy: value },
+    });
   expect(discoveredSimulationAdapters(payload('mujoco.joint_trajectory.v1')).size).toBe(1);
   expect(() => discoveredSimulationAdapters(payload('unknown'))).toThrow('implementation');
   expect(() => discoveredSimulationAdapters(payload('mujoco.joint_trajectory.v1', {}))).toThrow();
+});
+
+const positionPolicy = () => ({
+  version: 2 as const,
+  max_feedback_age_ms: 1000,
+  operations: {
+    left_arm: {
+      gripper_position: {
+        profile: 'gripper.position.v1' as const,
+        control_channel: 'gripper',
+        joint_names: ['grip'],
+        units: 'm' as const,
+        joints: { grip: { min: 0, max: 0.044, max_velocity: 0.025 } },
+        coordinate_label: 'Finger displacement',
+        open_position: 0.044,
+        closed_position: 0,
+      },
+    },
+  },
+});
+function gripperContext(): AdapterContext {
+  const ctx = context();
+  ctx.interfaceId = 'left_arm';
+  ctx.operationId = 'gripper_position';
+  ctx.sessionKey = {};
+  ctx.operation = {
+    ...ctx.operation,
+    profile: 'gripper.position.v1',
+    control_channel: 'gripper',
+    joint_names: ['grip'],
+    presentations: ['gripper_controls'],
+  };
+  ctx.feedback = { '/feedback': { name: ['grip', 'joint_a'], position: [0.02, 0.4] } };
+  return ctx;
+}
+it('executes the explicit gripper capability with meters, separate names, finite motion and cancellation', () => {
+  const adapters = discoveredSimulationAdapters(
+    JSON.stringify({
+      simulation_control: { implementation: 'mujoco.position.v2', policy: positionPolicy() },
+    }),
+  );
+  const adapter = adapters.get('gripper.position.v1')!,
+    ctx = gripperContext();
+  expect(adapter.repeatIntervalMs).toBe(200);
+  expect(adapter.gripperTargets!(ctx)).toEqual({
+    open: 0.044,
+    closed: 0,
+    label: 'Finger displacement',
+  });
+  expect(adapter.encode({ joints: { grip: 0.04 } }, ctx)).toMatchObject({
+    joint_names: ['grip'],
+    points: [{ positions: [0.04] }],
+  });
+  expect(adapter.release(ctx)).toEqual({ joint_names: ['grip'], points: [] });
+  expect(() => adapter.encode({ joints: { joint_a: 1 } }, ctx)).toThrow('Unknown joint');
+  expect(() => adapter.encode({ joints: { grip: 0.05 } }, ctx)).toThrow('limits');
+  expect(() => adapter.jointLimits!({ ...ctx, interfaceId: 'right_arm' })).toThrow(
+    'does not match',
+  );
+  expect(() =>
+    adapter.validateFeedback(
+      {},
+      { ...ctx, feedback: { '/feedback': { name: ['joint_a'], position: [0] } } },
+    ),
+  ).toThrow();
+});
+it('rejects invalid gripper units, endpoint targets and policy versions', () => {
+  for (const mutate of [
+    (p: ReturnType<typeof positionPolicy>) => {
+      p.operations.left_arm.gripper_position.open_position = 0.1;
+    },
+    (p: ReturnType<typeof positionPolicy>) => {
+      Object.assign(p.operations.left_arm.gripper_position, { units: 'rad' });
+    },
+    (p: ReturnType<typeof positionPolicy>) => {
+      Object.assign(p, { version: 3 });
+    },
+  ]) {
+    const p = positionPolicy();
+    mutate(p);
+    expect(() => simulationAdapters(p)).toThrow();
+  }
+});
+it('does not carry a prior target into another gripper session', () => {
+  const adapter = simulationAdapters(positionPolicy()).get('gripper.position.v1')!;
+  const first = gripperContext(),
+    second = gripperContext();
+  adapter.encode({ joints: { grip: 0.044 } }, first);
+  second.feedback = { '/feedback': { name: ['grip'], position: [0] } };
+  const value = adapter.encode({ joints: { grip: 0 } }, second) as {
+    points: { time_from_start: { sec: number; nanosec: number } }[];
+  };
+  expect(value.points[0].time_from_start).toEqual({ sec: 0, nanosec: 500000000 });
 });

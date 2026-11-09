@@ -9,7 +9,6 @@
     "scope": "robot",
     "ownership": "portal_active_operator"
   },
-  "audio_tracks": {},
   "control_interfaces": {
     "arm": {
       "label": "Arm",
@@ -31,10 +30,6 @@
             "msg_type": "control_msgs/msg/JointJog",
             "format": "json"
           },
-          "feedback_tracks": [
-            "/arm/joint_states"
-          ],
-          "required_feedback_tracks": [],
           "presentations": [
             "gamepad",
             "joint_sliders"
@@ -50,11 +45,26 @@
           "feedback_tracks": [
             "/arm/joint_states"
           ],
-          "required_feedback_tracks": [
+          "presentations": [
+            "joint_sliders"
+          ]
+        },
+        "gripper_position": {
+          "profile": "gripper.position.v1",
+          "command": {
+            "track_name": "/arm/gripper_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
             "/arm/joint_states"
           ],
           "presentations": [
-            "joint_sliders"
+            "gripper_controls"
+          ],
+          "control_channel": "gripper",
+          "joint_names": [
+            "arm_gripper_joint"
           ]
         },
         "cartesian_pose": {
@@ -65,10 +75,6 @@
             "format": "json"
           },
           "feedback_tracks": [
-            "/arm/joint_states",
-            "/arm/end_effector_pose"
-          ],
-          "required_feedback_tracks": [
             "/arm/end_effector_pose"
           ],
           "presentations": [

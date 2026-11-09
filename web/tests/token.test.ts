@@ -9,7 +9,6 @@ vi.mock('node:fs', () => ({
       'LIVEKIT_API_KEY=devkey',
       'LIVEKIT_API_SECRET=test-secret-that-is-long-enough-for-hs256',
       'LIVEKIT_ROOM_NAME=robo-sims-space',
-      'LIVEKIT_USER_PASS=test-password',
     ].join('\n'),
 }));
 vi.mock('livekit-server-sdk', async (original) => ({
@@ -23,16 +22,10 @@ vi.mock('livekit-server-sdk', async (original) => ({
 
 beforeEach(() => vi.resetModules());
 afterEach(() => vi.unstubAllEnvs());
-const request = (password?: string) =>
-  new Request('http://localhost:3000/api/credentials', {
-    headers: password ? { Authorization: `Bearer ${password}` } : {},
-  });
-
 it('uses .env.local over inherited settings and signs a ten-minute token for that room', async () => {
   vi.stubEnv('LIVEKIT_ROOM_NAME', 'wrong-room');
-  vi.stubEnv('LIVEKIT_USER_PASS', 'wrong-password');
   const { GET } = await import('../src/app/api/credentials/route');
-  const response = await GET(request('test-password'));
+  const response = await GET();
   expect(response.status).toBe(200);
   const data = await response.json();
   const claims = await new TokenVerifier(
@@ -52,8 +45,10 @@ it('uses .env.local over inherited settings and signs a ten-minute token for tha
   expect(data).not.toHaveProperty('apiSecret');
 });
 
-it('requires the configured password', async () => {
+it('public deployments cannot mint direct-room tokens', async () => {
+  vi.stubEnv('TELEOP_PUBLIC_DEPLOYMENT', '1');
   const { GET } = await import('../src/app/api/credentials/route');
-  expect((await GET(request())).status).toBe(401);
-  expect((await GET(request('incorrect'))).status).toBe(403);
+  const response = await GET();
+  expect(response.status).toBe(404);
+  expect(await response.json()).not.toHaveProperty('token');
 });

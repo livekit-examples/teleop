@@ -10,8 +10,7 @@ Layouts save locally per robot and support JSON import/export.
 Use `/workspace?fixture=1` to explore generated media and dynamic topics without
 hardware. The legacy `/robot` and `/rover` pages remain available.
 
-See [workspace implementation notes](../generalization/workspace-implementation.md)
-for usage, layout format, testing, and the remaining live-adapter integration work.
+See the [robot configuration reference](../docs/configuration.md) for the discovery document.
 Executable command adapters are currently limited to fixture mode; unverified
 live profiles remain visible with an explanation.
 
@@ -59,10 +58,9 @@ LIVEKIT_API_KEY=<your-api-key>
 LIVEKIT_API_SECRET=<your-api-secret>
 LIVEKIT_URL=wss://<your-livekit-server>
 LIVEKIT_ROOM_NAME=robo-sims-space
-LIVEKIT_USER_PASS=<your-connection-password>
 ```
 
-The dynamic workspace (`/workspace`) uses a password to request a fresh, ten-minute token from `/api/credentials`. Configure `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_ROOM_NAME`, and `LIVEKIT_USER_PASS` in `web/.env.local`. The file takes priority over process environment variables. Match the URL, API key, secret, and room to `robo-sims/.env.local`. The API secret stays on the server. Restart the UI server after changing settings. Each connection gets an available `controller-<scientist>` identity.
+The dashboard (`/` or `/workspace`) opens directly and automatically requests a fresh, ten-minute token from `/api/credentials`, then connects to the configured room so you can select a compatible robot. No sign-in or password is required. Configure `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, and `LIVEKIT_ROOM_NAME` in `web/.env.local`. The file takes priority over process environment variables. Match the URL, API key, secret, and room to `robo-sims/.env.local`. The API secret stays on the server. Restart the UI server after changing settings. Each connection gets an available `controller-<scientist>` identity.
 
 ## Getting started
 
@@ -73,13 +71,13 @@ git submodule update --init
 # Install dependencies
 pnpm install
 
-# Run the development server
-pnpm dev
+# Run the website only (direct robot testing)
+pnpm dev:web
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-The rover needs `livekit-client` with data-track schema metadata. No published release has it. The app uses a fork on the `ladvoc/schema-metadata` branch, which is a git submodule at `vendor/client-sdk-js`. `pnpm dev` and `pnpm build` build the fork first. If the fork is missing, the rover ignores the drive and pan/tilt tracks.
+The rover needs `livekit-client` with data-track schema metadata. No published release has it. The app uses a fork on the `ladvoc/schema-metadata` branch, which is a git submodule at `vendor/client-sdk-js`. `pnpm dev:web` and `pnpm build` build the fork first; the trial launcher also uses `dev:web`. If the fork is missing, the rover ignores the drive and pan/tilt tracks.
 
 ### Rover vs Pan/Tilt Robot
 
@@ -130,7 +128,7 @@ src/
   app/
     page.tsx               # Main entry point, LiveKit session setup
     layout.tsx             # Root layout
-    api/credentials/route.ts # Password-authenticated room credentials
+    api/credentials/route.ts # Server-generated room credentials
   components/
     app.tsx                # Main UI shell: video viewport, scales, joystick, status bar
     joystick.tsx           # Draggable 3x3 grid joystick with spring animation
@@ -150,5 +148,22 @@ src/
 
 ## On-demand simulations
 
-Run the local simulation experience from the main landing page.
+Run the local simulation experience from `/try`.
 See [the local deployment guide](../docs/modal.md) for setup and test commands.
+
+
+Customer simulations use `/try`; direct discovery remains at `/` and `/workspace`.
+From the repository root, run `python3 scripts/demo-local.py` for local
+workers or `python3 scripts/demo-local.py --modal` for a deployed development API.
+See [the trial runbook](../docs/try-teleop-deployment.md) for prerequisites and public deployment settings.
+
+From `web/`, you can also start the complete trial stack with:
+
+```sh
+pnpm dev            # Local LiveKit and simulation workers (default)
+pnpm dev --modal    # Deployed Modal development API
+```
+
+Both use `http://127.0.0.1:3001/try` by default (`SIM_WEB_PORT` changes the port).
+`pnpm dev` defaults to local workers. Use `pnpm dev --modal` to select Modal.
+For the website alone, run `pnpm dev:web` (port 3000; accepts Next.js flags).

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { ControlInput } from '@/lib/teleop/controls';
+import { controlKey, controlChannels, type ControlInput } from '@/lib/teleop/controls';
 import { selectJoints } from '@/lib/teleop/selectors';
 import type { WorkspaceRuntime } from '@/lib/teleop/runtime';
 import { own } from '@/lib/teleop/types';
@@ -13,7 +13,7 @@ function InputPresentation({ id }: { id: string }) {
   const manager = runtime.controls;
   const session = manager.session(id)!;
   const operation = manager.operation(id)!;
-  const equipment = runtime.config!.control_interfaces[id];
+  const equipment = manager.context(id).equipment;
   const activation = session.activation;
   const axes = useRef([0, 0, 0]);
   const held = useRef(new Set<string>());
@@ -29,7 +29,10 @@ function InputPresentation({ id }: { id: string }) {
           (j) => {
             const limits = manager.adapter(id)?.jointLimits?.(manager.context(id))[j.name];
             const measured = j.position ?? 0;
-            return [j.name, limits ? Math.max(limits.min, Math.min(limits.max, measured)) : measured];
+            return [
+              j.name,
+              limits ? Math.max(limits.min, Math.min(limits.max, measured)) : measured,
+            ];
           },
         ),
       );
@@ -42,7 +45,10 @@ function InputPresentation({ id }: { id: string }) {
     positionRef.current = positions;
   }, [positions]);
   useEffect(() => {
-    if (!session.armed || session.presentation === 'vr' || session.presentation === 'joint_sliders')
+    if (
+      !session.armed ||
+      ['vr', 'joint_sliders', 'gripper_controls'].includes(session.presentation)
+    )
       return;
     const presentation = session.presentation;
     const keys = held.current;
@@ -127,6 +133,7 @@ function InputPresentation({ id }: { id: string }) {
     activation,
   ]);
 
+  if (session.presentation === 'gripper_controls') return <GripperControls id={id} />;
   if (session.presentation === 'joint_sliders') {
     const velocity = operation.profile === 'joints.velocity_jog.v1';
     const neutral = () => {
@@ -144,8 +151,14 @@ function InputPresentation({ id }: { id: string }) {
             <input
               aria-label={`${name} ${velocity ? 'velocity' : 'position'}`}
               type="range"
-              min={manager.adapter(id)?.jointLimits?.(manager.context(id))[name]?.min ?? (velocity ? -1 : -3.14)}
-              max={manager.adapter(id)?.jointLimits?.(manager.context(id))[name]?.max ?? (velocity ? 1 : 3.14)}
+              min={
+                manager.adapter(id)?.jointLimits?.(manager.context(id))[name]?.min ??
+                (velocity ? -1 : -3.14)
+              }
+              max={
+                manager.adapter(id)?.jointLimits?.(manager.context(id))[name]?.max ??
+                (velocity ? 1 : 3.14)
+              }
               step="0.001"
               value={positions[name] ?? 0}
               disabled={!session.armed}
@@ -276,6 +289,65 @@ function InputPresentation({ id }: { id: string }) {
   );
 }
 
+function GripperControls({ id }: { id: string }) {
+  const runtime = useRuntime();
+  const manager = runtime.controls;
+  const session = manager.session(id)!;
+  const [target, setTarget] = useState<number>();
+  let measured: number | undefined;
+  let bounds: { min: number; max: number } | undefined;
+  let targets: { open: number; closed: number; label: string } | undefined;
+  const ctx = manager.context(id);
+  const name = ctx.equipment.joint_names![0];
+  try {
+    measured = selectJoints(Object.values(ctx.feedback)[0], [name])[0].position;
+    bounds = manager.adapter(id)?.jointLimits?.(ctx)[name];
+    targets = manager.adapter(id)?.gripperTargets?.(ctx);
+  } catch {
+    /* The channel status explains missing or incompatible feedback. */
+  }
+  const move = (value: number) => {
+    if (manager.send(id, { joints: { [name]: value } }, session.activation)) setTarget(value);
+    runtime.notify();
+  };
+  const enabled =
+    session.armed && !manager.reason(id) && bounds && targets && measured !== undefined;
+  return (
+    <div className="gripper-controls">
+      <label>
+        {targets?.label ?? 'Gripper position'} (m)
+        <input
+          aria-label={`${name} position`}
+          type="range"
+          step="0.0001"
+          min={bounds?.min ?? 0}
+          max={bounds?.max ?? 0}
+          value={
+            target ??
+            (measured !== undefined && bounds
+              ? Math.max(bounds.min, Math.min(bounds.max, measured))
+              : 0)
+          }
+          disabled={!enabled}
+          onChange={(event) => move(Number(event.target.value))}
+        />
+      </label>
+      <p>
+        Measured: {measured?.toFixed(4) ?? 'Unavailable'} m · Target: {target?.toFixed(4) ?? 'None'}{' '}
+        m
+      </p>
+      <div className="control-actions">
+        <button disabled={!enabled} onClick={() => move(targets!.open)}>
+          Open
+        </button>
+        <button disabled={!enabled} onClick={() => move(targets!.closed)}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SliderHeartbeat({
   id,
   values,
@@ -288,7 +360,8 @@ function SliderHeartbeat({
   const runtime = useRuntime();
   const latest = useRef(values);
   const armed = runtime.controls.session(id)?.armed;
-  const repeatInterval = runtime.controls.adapter(id)?.repeatIntervalMs ?? (velocity ? 50 : 0);
+  // Position refresh belongs to the manager and starts only after explicit input.
+  const repeatInterval = velocity ? (runtime.controls.adapter(id)?.repeatIntervalMs ?? 50) : 0;
   const activation = runtime.controls.session(id)?.activation;
   useEffect(() => {
     latest.current = values;
@@ -312,7 +385,11 @@ function capabilityReason(
 ) {
   if (presentation === 'gamepad' && !gamepad) return 'Gamepad disconnected';
   if (presentation === 'vr' && !xr) return 'Immersive VR unavailable';
-  if (!['joystick', 'keyboard', 'gamepad', 'joint_sliders', 'vr'].includes(presentation))
+  if (
+    !['joystick', 'keyboard', 'gamepad', 'joint_sliders', 'gripper_controls', 'vr'].includes(
+      presentation,
+    )
+  )
     return 'Presentation is not implemented';
   return '';
 }
@@ -359,21 +436,9 @@ export function ControlPanel({ active }: { active: boolean }) {
     ...new Set([
       ...Object.keys(interfaces),
       ...Object.keys(runtime.layout?.control_preferences ?? {}),
+      ...Object.keys(runtime.layout?.control_channel_preferences ?? {}),
     ]),
   ];
-  const choose = async (id: string, operation: string, presentation: string) => {
-    await runtime.controls.select(id, operation, presentation);
-    const current = runtime.controls.session(id);
-    if (runtime.layout && current)
-      runtime.editLayout({
-        ...runtime.layout,
-        control_preferences: {
-          ...runtime.layout.control_preferences,
-          [id]: { operation: current.operation, presentation: current.presentation },
-        },
-      });
-    runtime.notify();
-  };
   return (
     <div className="control-panel">
       <label>
@@ -401,118 +466,26 @@ export function ControlPanel({ active }: { active: boolean }) {
           This robot advertises no control interfaces. Viewing remains available.
         </p>
       )}
-      {ids.map((id) => {
-        const equipment = own(interfaces, id);
-        const session = runtime.controls.session(id);
-        const op = runtime.controls.operation(id);
-        const adapter = runtime.controls.adapter(id);
-        if (!equipment || !session)
-          return (
-            <section className="control-card" key={id}>
-              <h3>{equipment?.label ?? id}</h3>
-              <p>Saved interface or operation unavailable.</p>
-            </section>
-          );
-        const reason = runtime.controls.reason(id, false);
-        const capability = capabilityReason(runtime, session.presentation, gamepad, xr);
-        const operationIds = [
-          ...new Set([...Object.keys(equipment.operations), session.operation]),
-        ];
-        const presentations = [...new Set([...(op?.presentations ?? []), session.presentation])];
+      {ids.map((equipmentId) => {
+        const equipment = interfaces[equipmentId];
+        const channels = new Set([
+          ...(equipment ? controlChannels(equipment) : ['primary']),
+          ...Object.keys(runtime.layout?.control_channel_preferences?.[equipmentId] ?? {}),
+        ]);
+        if (runtime.layout?.control_preferences[equipmentId]) channels.add('primary');
         return (
-          <section
-            className={`control-card ${session.armed ? 'armed' : ''}`}
-            id={`control-${id}`}
-            key={id}
-          >
-            <div className="control-card-heading">
-              <h3>{equipment.label}</h3>
-              <span className={`status status-${session.armed ? 'healthy' : 'not_requested'}`}>
-                {session.armed ? 'Armed' : 'Disarmed'}
-              </span>
-            </div>
-            <label>
-              Operation
-              <select
-                aria-label={`${equipment.label} operation`}
-                disabled={session.switching}
-                value={session.operation}
-                onChange={(event) => {
-                  const next = equipment.operations[event.target.value];
-                  void choose(
-                    id,
-                    event.target.value,
-                    next?.presentations.includes(session.presentation)
-                      ? session.presentation
-                      : (next?.presentations[0] ?? session.presentation),
-                  );
-                }}
-              >
-                {operationIds.map((opId) => (
-                  <option key={opId} value={opId}>
-                    {opId}
-                    {!equipment.operations[opId] ? ' (unavailable)' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Presentation
-              <select
-                aria-label={`${equipment.label} presentation`}
-                disabled={session.switching}
-                value={session.presentation}
-                onChange={(event) => void choose(id, session.operation, event.target.value)}
-              >
-                {presentations.map((presentation) => (
-                  <option key={presentation} value={presentation}>
-                    {presentation}
-                    {capabilityReason(runtime, presentation, gamepad, xr)
-                      ? ` (${capabilityReason(runtime, presentation, gamepad, xr)})`
-                      : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="profile-name">
-              {op?.profile ?? 'Operation absent'}
-              <br />
-              {adapter?.units ?? ''}
-            </p>
-            {(reason || capability) && <p className="view-reason">{reason ?? capability}</p>}
-            <div className="control-actions">
-              <button
-                className={session.armed ? 'danger' : 'primary'}
-                disabled={
-                  !active ||
-                  session.switching ||
-                  (!session.armed && (!!reason || !!capability || !runtime.controls.ownsControl))
-                }
-                onClick={() => {
-                  void (session.armed ? runtime.controls.stop(id) : runtime.controls.arm(id)).then(
-                    runtime.notify,
-                  );
-                }}
-              >
-                {session.switching ? 'Switching…' : session.armed ? 'Disarm' : 'Arm input'}
-              </button>
-              {session.error && (
-                <button
-                  onClick={() => {
-                    runtime.controls.acknowledge(id);
-                    runtime.notify();
-                  }}
-                >
-                  Acknowledge failure
-                </button>
-              )}
-            </div>
-            {adapter && op && (
-              <InputPresentation
-                id={id}
-                key={`${id}:${session.operation}:${session.presentation}:${session.activation}`}
+          <section className="control-card" id={`control-${equipmentId}`} key={equipmentId}>
+            <h3>{equipment?.label ?? equipmentId}</h3>
+            {[...channels].map((channel) => (
+              <ControlChannel
+                key={channel}
+                equipmentId={equipmentId}
+                channel={channel}
+                active={active}
+                gamepad={gamepad}
+                xr={xr}
               />
-            )}
+            ))}
           </section>
         );
       })}
@@ -524,5 +497,176 @@ export function ControlPanel({ active }: { active: boolean }) {
         </p>
       )}
     </div>
+  );
+}
+
+function ControlChannel({
+  equipmentId,
+  channel,
+  active,
+  gamepad,
+  xr,
+}: {
+  equipmentId: string;
+  channel: string;
+  active: boolean;
+  gamepad: boolean;
+  xr: boolean;
+}) {
+  const runtime = useRuntime();
+  const id = controlKey(equipmentId, channel);
+  const choose = async (id: string, operation: string, presentation: string) => {
+    await runtime.controls.select(id, operation, presentation);
+    const current = runtime.controls.session(id);
+    if (runtime.layout && current) {
+      const pref = { operation: current.operation, presentation: current.presentation };
+      runtime.editLayout(
+        channel === 'primary'
+          ? {
+              ...runtime.layout,
+              control_preferences: { ...runtime.layout.control_preferences, [equipmentId]: pref },
+            }
+          : {
+              ...runtime.layout,
+              layout_schema_version: 2,
+              control_channel_preferences: {
+                ...runtime.layout.control_channel_preferences,
+                [equipmentId]: {
+                  ...runtime.layout.control_channel_preferences?.[equipmentId],
+                  [channel]: pref,
+                },
+              },
+            },
+      );
+    }
+    runtime.notify();
+  };
+  const equipment = own(runtime.config?.control_interfaces, equipmentId);
+  const session = runtime.controls.session(id);
+  const op = runtime.controls.operation(id);
+  const adapter = runtime.controls.adapter(id);
+  if (!equipment || !session)
+    return (
+      <section className="control-card" key={id}>
+        <h3>{equipment?.label ?? id}</h3>
+        <p>Saved interface or operation unavailable.</p>
+      </section>
+    );
+  const reason = runtime.controls.reason(id, false);
+  const capability = capabilityReason(runtime, session.presentation, gamepad, xr);
+  const operationIds = [
+    ...new Set([
+      ...Object.keys(equipment.operations).filter(
+        (key) => (equipment.operations[key].control_channel ?? 'primary') === channel,
+      ),
+      session.operation,
+    ]),
+  ];
+  const presentations = [...new Set([...(op?.presentations ?? []), session.presentation])];
+  return (
+    <section
+      className={`control-channel ${session.armed ? 'armed' : ''}`}
+      data-control-channel={channel}
+      key={id}
+    >
+      <div className="control-card-heading">
+        <h4>
+          {channel === 'primary' ? 'Arm / motion' : channel === 'gripper' ? 'Gripper' : channel}
+        </h4>
+        <span className={`status status-${session.armed ? 'healthy' : 'not_requested'}`}>
+          {session.armed ? 'Armed' : 'Disarmed'}
+        </span>
+      </div>
+      <label>
+        Operation
+        <select
+          aria-label={`${equipment.label}${channel === 'primary' ? '' : ` ${channel}`} operation`}
+          disabled={session.switching}
+          value={session.operation}
+          onChange={(event) => {
+            const next = equipment.operations[event.target.value];
+            void choose(
+              id,
+              event.target.value,
+              next?.presentations.includes(session.presentation)
+                ? session.presentation
+                : (next?.presentations[0] ?? session.presentation),
+            );
+          }}
+        >
+          {operationIds.map((opId) => (
+            <option key={opId} value={opId}>
+              {opId}
+              {!equipment.operations[opId] ? ' (unavailable)' : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Presentation
+        <select
+          aria-label={`${equipment.label}${channel === 'primary' ? '' : ` ${channel}`} presentation`}
+          disabled={session.switching}
+          value={session.presentation}
+          onChange={(event) => void choose(id, session.operation, event.target.value)}
+        >
+          {presentations.map((presentation) => (
+            <option key={presentation} value={presentation}>
+              {presentation}
+              {capabilityReason(runtime, presentation, gamepad, xr)
+                ? ` (${capabilityReason(runtime, presentation, gamepad, xr)})`
+                : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="profile-name">
+        {op?.profile ?? 'Operation absent'}
+        <br />
+        {adapter?.units ?? ''}
+      </p>
+      {(reason || capability) && <p className="view-reason">{reason ?? capability}</p>}
+      <div className="control-actions">
+        <button
+          className={session.armed ? 'danger' : 'primary'}
+          disabled={
+            !active ||
+            session.switching ||
+            (!session.armed && (!!reason || !!capability || !runtime.controls.ownsControl))
+          }
+          onClick={() => {
+            void (session.armed ? runtime.controls.stop(id) : runtime.controls.arm(id)).then(
+              runtime.notify,
+            );
+          }}
+        >
+          {session.switching
+            ? 'Switching…'
+            : session.armed
+              ? channel === 'gripper'
+                ? 'Disarm gripper'
+                : 'Disarm'
+              : channel === 'gripper'
+                ? 'Enable gripper'
+                : 'Arm input'}
+        </button>
+        {session.error && (
+          <button
+            onClick={() => {
+              runtime.controls.acknowledge(id);
+              runtime.notify();
+            }}
+          >
+            Acknowledge failure
+          </button>
+        )}
+      </div>
+      {adapter && op && (
+        <InputPresentation
+          id={id}
+          key={`${id}:${session.operation}:${session.presentation}:${session.activation}`}
+        />
+      )}
+    </section>
   );
 }

@@ -178,13 +178,16 @@ export function parseLayout(payload: string, robot?: string): Layout {
       'panels',
       'panel_order',
       'control_preferences',
+      'control_channel_preferences',
       'controller_hands',
       'workspace',
     ],
     'layout',
   );
-  if (root.layout_schema_version !== 1)
-    throw new Error('Unsupported layout_schema_version. Expected 1.');
+  if (![1, 2].includes(root.layout_schema_version as number))
+    throw new Error('Unsupported layout_schema_version. Expected 1 or 2.');
+  if (root.layout_schema_version === 1 && root.control_channel_preferences !== undefined)
+    throw new Error('Control channels require layout_schema_version 2.');
   const identity = string(root.robot_identity, 'Robot identity');
   if (robot !== undefined && identity !== robot)
     throw new Error(`Layout belongs to ${identity}. Select that robot before importing it.`);
@@ -211,13 +214,38 @@ export function parseLayout(payload: string, robot?: string): Layout {
     ),
   );
   const result: Layout = {
-    layout_schema_version: 1,
+    layout_schema_version: root.layout_schema_version as 1 | 2,
     label: string(root.label, 'Layout label'),
     robot_identity: identity,
     panels,
     panel_order: order,
     control_preferences: preferences,
   };
+  if (root.control_channel_preferences !== undefined) {
+    result.control_channel_preferences = Object.fromEntries(
+      Object.entries(object(root.control_channel_preferences, 'Control channel preferences')).map(
+        ([id, raw]) => [
+          localId(id),
+          Object.fromEntries(
+            Object.entries(object(raw, 'Control channels')).map(([channel, value]) => {
+              localId(channel);
+              if (channel === 'primary')
+                throw new Error('Primary preferences belong in control_preferences.');
+              const pref = object(value, 'Channel preference');
+              known(pref, ['operation', 'presentation'], 'channel preference');
+              return [
+                channel,
+                {
+                  operation: localId(string(pref.operation, 'Operation')),
+                  presentation: string(pref.presentation, 'Presentation'),
+                },
+              ];
+            }),
+          ),
+        ],
+      ),
+    );
+  }
   if (root.controller_hands !== undefined) {
     const hands = object(root.controller_hands, 'Controller hands');
     known(hands, ['left', 'right'], 'controller hand');

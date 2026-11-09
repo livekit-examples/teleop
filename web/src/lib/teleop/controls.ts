@@ -21,6 +21,9 @@ export type ControlInput = {
   };
 };
 export type AdapterContext = {
+  sessionKey?: object;
+  interfaceId?: string;
+  operationId?: string;
   equipment: ControlInterface;
   operation: Operation;
   feedback: Record<string, unknown>;
@@ -34,6 +37,7 @@ export type ProfileAdapter = {
   maxFeedbackAgeMs: number;
   repeatIntervalMs?: number;
   jointLimits?(context: AdapterContext): Record<string, { min: number; max: number }>;
+  gripperTargets?(context: AdapterContext): { open: number; closed: number; label: string };
   encode(input: ControlInput, context: AdapterContext): unknown;
   release(context: AdapterContext): unknown;
   validateFeedback(value: unknown, context: AdapterContext): void;
@@ -48,6 +52,7 @@ export type ControlSession = {
   writer?: CommandWriter;
   token: number;
   lastInputAt?: number;
+  lastInput?: ControlInput;
   ending?: Promise<boolean>;
   feedback: (() => void)[];
 };
@@ -58,7 +63,21 @@ export const knownProfiles = [
   'joints.velocity_jog.v1',
   'joints.trajectory.v1',
   'arm.cartesian_pose.v1',
+  'gripper.position.v1',
 ];
+
+/** Non-primary session IDs are serialized tuples; primary IDs remain backward compatible. */
+export function controlKey(id: string, channel = 'primary'): string {
+  return channel === 'primary' ? id : JSON.stringify([id, channel]);
+}
+export function controlTarget(key: string): [string, string] {
+  return key.startsWith('[') ? JSON.parse(key) : [key, 'primary'];
+}
+export function controlChannels(equipment: ControlInterface): string[] {
+  return [
+    ...new Set(Object.values(equipment.operations).map((op) => op.control_channel ?? 'primary')),
+  ];
+}
 
 /** Adapters here apply ONLY to FixtureTransport. Their limits are not hardware defaults. */
 export function fixtureAdapters(): Map<string, ProfileAdapter> {
@@ -162,6 +181,32 @@ export function fixtureAdapters(): Map<string, ProfileAdapter> {
     maxFeedbackAgeMs: 1000,
     encode: (input, ctx) => trajectory(jointValues(input, ctx, false), ctx),
     release: (ctx) => trajectory(positions(ctx), ctx),
+    validateFeedback: (_value, ctx) => {
+      positions(ctx);
+    },
+  });
+  adapters.push({
+    profile: 'gripper.position.v1',
+    msgType: 'trajectory_msgs/msg/JointTrajectory',
+    presentations: ['gripper_controls'],
+    units: 'm · finger displacement (fixture)',
+    repeatIntervalMs: 200,
+    mandatoryFeedback: 'joints',
+    maxFeedbackAgeMs: 1000,
+    jointLimits: (ctx) =>
+      Object.fromEntries((ctx.equipment.joint_names ?? []).map((n) => [n, { min: 0, max: 0.044 }])),
+    gripperTargets: () => ({ open: 0.044, closed: 0, label: 'Finger displacement' }),
+    encode: (input, ctx) => {
+      const name = ctx.equipment.joint_names?.[0];
+      const value = name ? input.joints?.[name] : undefined;
+      if (value === undefined || !Number.isFinite(value) || value < 0 || value > 0.044)
+        throw new Error('Fixture gripper position must be within 0–0.044 m.');
+      return {
+        joint_names: [name],
+        points: [{ positions: [value], time_from_start: { sec: 3, nanosec: 0 } }],
+      };
+    },
+    release: (ctx) => ({ joint_names: ctx.equipment.joint_names, points: [] }),
     validateFeedback: (_value, ctx) => {
       positions(ctx);
     },
@@ -300,20 +345,31 @@ export class ControlManager {
   }
   operation(id: string) {
     const s = this.sessions.get(id);
-    return s ? own(own(this.config?.control_interfaces, id)?.operations, s.operation) : undefined;
+    const [equipmentId, channel] = controlTarget(id);
+    const op = s
+      ? own(own(this.config?.control_interfaces, equipmentId)?.operations, s.operation)
+      : undefined;
+    return op && (op.control_channel ?? 'primary') === channel ? op : undefined;
   }
   adapter(id: string) {
     const op = this.operation(id);
     return op ? this.adapters.get(op.profile) : undefined;
   }
   context(id: string): AdapterContext {
-    const equipment = own(this.config?.control_interfaces, id)!;
+    const [interfaceId] = controlTarget(id);
+    const rawEquipment = own(this.config?.control_interfaces, interfaceId)!;
     const operation = this.operation(id)!;
+    const equipment = operation.joint_names
+      ? { ...rawEquipment, joint_names: operation.joint_names }
+      : rawEquipment;
     return {
+      sessionKey: this.sessions.get(id),
+      interfaceId,
+      operationId: this.sessions.get(id)?.operation,
       equipment,
       operation,
       feedback: Object.fromEntries(
-        operation.required_feedback_tracks.map((track) => [
+        operation.feedback_tracks.map((track) => [
           track,
           this.streams.view(this.feedbackId(id, track)).value,
         ]),
@@ -321,7 +377,7 @@ export class ControlManager {
     };
   }
   private feedbackId(id: string, track: string) {
-    return `control:${id}:${track}`;
+    return JSON.stringify(['control', id, track]);
   }
   private bindFeedback(id: string) {
     const s = this.sessions.get(id);
@@ -335,7 +391,7 @@ export class ControlManager {
         : this.adapter(id)?.mandatoryFeedback === 'pose'
           ? 'geometry_msgs/msg/PoseStamped'
           : undefined;
-    for (const track of op.required_feedback_tracks)
+    for (const track of op.feedback_tracks)
       s.feedback.push(
         this.streams.acquire(this.feedbackId(id, track), {
           robot: this.robot,
@@ -384,7 +440,7 @@ export class ControlManager {
   }
   reason(id: string, includeOwnership = true): string | undefined {
     const s = this.sessions.get(id);
-    const equipment = own(this.config?.control_interfaces, id);
+    const equipment = own(this.config?.control_interfaces, controlTarget(id)[0]);
     const op = this.operation(id);
     if (!this.connected || !this.config) return 'Connect and complete robot discovery.';
     if (!this.visible) return 'Control panel is hidden; show it before enabling an input.';
@@ -398,11 +454,14 @@ export class ControlManager {
         : `Unsupported profile: ${op.profile}.`;
     if (!adapter.presentations.includes(s.presentation) || adapter.msgType !== op.command.msg_type)
       return 'Profile command schema or presentation is incompatible.';
-    if (adapter.mandatoryFeedback && !op.required_feedback_tracks.length)
+    if (adapter.mandatoryFeedback && !op.feedback_tracks.length)
       return `This profile must declare required ${adapter.mandatoryFeedback} feedback.`;
-    if (adapter.mandatoryFeedback === 'joints' && !equipment.joint_names?.length)
+    if (
+      adapter.mandatoryFeedback === 'joints' &&
+      !(op.joint_names ?? equipment.joint_names)?.length
+    )
       return 'Exact joint names are required.';
-    for (const track of op.required_feedback_tracks) {
+    for (const track of op.feedback_tracks) {
       const view = this.streams.view(this.feedbackId(id, track));
       if (
         ['invalid', 'unsupported', 'excluded', 'unavailable', 'not_requested'].includes(view.status)
@@ -473,6 +532,7 @@ export class ControlManager {
     try {
       s.writer.push(adapter.encode(input, this.context(id)));
       s.lastInputAt = this.clock.now();
+      s.lastInput = structuredClone(input);
       return true;
     } catch (error) {
       s.error = `Command rejected: ${errorMessage(error)}`;
@@ -488,6 +548,7 @@ export class ControlManager {
     s.token++;
     s.activation++;
     s.lastInputAt = undefined;
+    s.lastInput = undefined;
     const writer = s.writer;
     s.writer = undefined;
     if (!writer) {
@@ -541,11 +602,23 @@ export class ControlManager {
       if (
         s.armed &&
         (this.reason(id) ||
-          (this.operation(id)?.profile !== 'joints.trajectory.v1' &&
+          (!['joints.trajectory.v1', 'gripper.position.v1'].includes(
+            this.operation(id)?.profile ?? '',
+          ) &&
             s.lastInputAt !== undefined &&
             this.clock.now() - s.lastInputAt > 250))
       )
         void this.stop(id);
+      else if (
+        s.armed &&
+        s.lastInput &&
+        s.lastInputAt !== undefined &&
+        ['joints.trajectory.v1', 'gripper.position.v1'].includes(this.operation(id)?.profile ?? '')
+      ) {
+        const interval = this.adapter(id)?.repeatIntervalMs;
+        if (interval && this.clock.now() - s.lastInputAt >= interval)
+          this.send(id, s.lastInput, s.activation);
+      }
     }
   }
   dispose() {

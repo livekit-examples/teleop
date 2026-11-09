@@ -80,6 +80,21 @@ describe('discovery and exact identities', () => {
       parseDiscovery(JSON.stringify(config)).control_interfaces.base.operations.drive.profile,
     ).toBe('new.profile.v8');
   });
+  it('defaults omitted feedback_tracks to an empty list', () => {
+    const config = structuredClone(fixtureConfig);
+    Reflect.deleteProperty(config.control_interfaces.base.operations.drive, 'feedback_tracks');
+    expect(
+      parseDiscovery(JSON.stringify(config)).control_interfaces.base.operations.drive
+        .feedback_tracks,
+    ).toEqual([]);
+  });
+  it.each([undefined, []])('keeps the gripper feedback requirement for %s', (feedback) => {
+    const config = structuredClone(fixtureConfig);
+    const operation = config.control_interfaces.left_arm.operations.gripper_position;
+    if (feedback === undefined) Reflect.deleteProperty(operation, 'feedback_tracks');
+    else operation.feedback_tracks = feedback;
+    expect(() => parseDiscovery(JSON.stringify(config))).toThrow('required feedback');
+  });
   it.each([0, -1, true, null, '30'])('rejects invalid video rate %s', (rate) =>
     expect(() =>
       parseDiscovery(JSON.stringify({ ...fixtureConfig, default_video_rate_hz: rate })),
@@ -367,7 +382,7 @@ describe('client-owned layout persistence', () => {
   it.each([
     { panel_order: ['yaw', 'yaw'] },
     { panel_order: ['missing'] },
-    { layout_schema_version: 2 },
+    { layout_schema_version: 99 },
     { label: '' },
   ])('rejects a malformed layout without replacing a working copy', (change) => {
     const store = new LayoutStore('fixture-rover', storage());
@@ -530,7 +545,7 @@ describe('control ownership and command sessions', () => {
     await manager.release();
     expect(transport.calls).toHaveLength(count);
   });
-  it('does not require optional odometry, but gates current required named-joint feedback independently of monitoring', async () => {
+  it('permits controls without feedback and requires fresh named-joint feedback for position control', async () => {
     const { manager, transport, clock } = controlsSetup();
     await manager.select('base', 'drive', 'joystick');
     expect(manager.reason('base', false)).toBeUndefined();
@@ -541,6 +556,56 @@ describe('control ownership and command sessions', () => {
     expect(manager.reason('left_arm', false)).toBeUndefined();
     clock.time = 1001;
     expect(manager.reason('left_arm', false)).toContain('too old');
+  });
+  it.each([
+    ['position', 'joint_sliders'],
+    ['pose', 'vr'],
+  ])(
+    'keeps the profile feedback requirement when %s omits feedback_tracks',
+    async (operation, presentation) => {
+      const { manager } = controlsSetup();
+      const config = structuredClone(fixtureConfig);
+      Reflect.deleteProperty(
+        config.control_interfaces.left_arm.operations[operation],
+        'feedback_tracks',
+      );
+      manager.configure(parseDiscovery(JSON.stringify(config)), 'fixture-rover', true, 1);
+      await manager.select('left_arm', operation, presentation);
+      expect(manager.reason('left_arm', false)).toContain('must declare required');
+    },
+  );
+  it('requires every listed feedback track and stops when any track becomes too old', async () => {
+    const { manager, transport, clock } = controlsSetup();
+    const config = structuredClone(fixtureConfig);
+    config.control_interfaces.base.operations.drive.feedback_tracks = ['/imu', '/battery'];
+    manager.configure(parseDiscovery(JSON.stringify(config)), 'fixture-rover', true, 1);
+    await manager.select('base', 'drive', 'joystick');
+    expect(manager.reason('base', false)).toContain('/imu');
+    transport.push('/imu', {});
+    await flush();
+    expect(manager.reason('base', false)).toContain('/battery');
+    transport.push('/battery', {});
+    await flush();
+    expect(manager.reason('base', false)).toBeUndefined();
+    manager.observeOwner(transport.identity);
+    await manager.request();
+    await manager.arm('base');
+    expect(manager.session('base')?.armed).toBe(true);
+    clock.time = 1001;
+    transport.push('/battery', {});
+    await flush();
+    expect(manager.reason('base', false)).toContain('/imu: missing or too old');
+    expect(manager.send('base', { axes: [1, 0] })).toBe(false);
+    expect(manager.session('base')?.armed).toBe(false);
+    await manager.stopAll();
+  });
+  it('blocks an operation when a listed feedback track is excluded', async () => {
+    const { manager } = controlsSetup();
+    const config = structuredClone(fixtureConfig);
+    config.control_interfaces.base.operations.drive.feedback_tracks = ['/debug/cpu'];
+    manager.configure(config, 'fixture-rover', true, 1);
+    await manager.select('base', 'drive', 'joystick');
+    expect(manager.reason('base', false)).toContain('data exclusions');
   });
   it('supports two independent interface selectors on one shared joint stream', async () => {
     const { manager, transport } = controlsSetup();
@@ -569,15 +634,21 @@ describe('runtime reconnect, discovery and demand isolation', () => {
     Object.defineProperty(transport, 'fixture', { value: false });
     const config = structuredClone(fixtureConfig);
     const policy = {
-      profile: 'joints.trajectory.v1', max_feedback_age_ms: 1000,
-      interfaces: { left_arm: {
-        left_1: { min: -1, max: 1, max_velocity: 0.5 },
-        left_2: { min: -2, max: 2, max_velocity: 0.5 },
-      } },
+      profile: 'joints.trajectory.v1',
+      max_feedback_age_ms: 1000,
+      interfaces: {
+        left_arm: {
+          left_1: { min: -1, max: 1, max_velocity: 0.5 },
+          left_2: { min: -2, max: 2, max_velocity: 0.5 },
+        },
+      },
     };
-    vi.spyOn(transport, 'rpc').mockResolvedValue(JSON.stringify({ ...config,
-      simulation_control: { implementation: 'mujoco.joint_trajectory.v1', policy },
-    }));
+    vi.spyOn(transport, 'rpc').mockResolvedValue(
+      JSON.stringify({
+        ...config,
+        simulation_control: { implementation: 'mujoco.joint_trajectory.v1', policy },
+      }),
+    );
     const runtime = new WorkspaceRuntime(transport, storage());
     transport.emit('connected');
     await flush();
@@ -607,7 +678,7 @@ describe('runtime reconnect, discovery and demand isolation', () => {
     expect(transport.mediaDemand.has('microphone')).toBe(false);
     await runtime.dispose();
   });
-  it('reference-counts audio listening and exclusion wins over an expectation', async () => {
+  it('reference-counts audio listening and never subscribes to excluded audio', async () => {
     const transport = new FixtureTransport();
     const runtime = new WorkspaceRuntime(transport, storage());
     transport.emit('connected');
@@ -619,6 +690,61 @@ describe('runtime reconnect, discovery and demand isolation', () => {
     expect(transport.mediaDemand.has('microphone')).toBe(true);
     b();
     expect(transport.mediaDemand.has('microphone')).toBe(false);
+    transport.add({
+      id: 'private-microphone',
+      robot: 'fixture-rover',
+      name: 'private-microphone',
+      kind: 'audio',
+    });
+    const excluded = runtime.listen('private-microphone');
+    expect(transport.mediaDemand.has('private-microphone')).toBe(false);
+    expect(runtime.catalog().find((p) => p.name === 'private-microphone')?.excluded).toBe(true);
+    excluded();
+    await runtime.dispose();
+  });
+  it('discovers new audio without a declaration and retains absent tracks only through saved bindings', async () => {
+    const transport = new FixtureTransport();
+    const runtime = new WorkspaceRuntime(transport, storage());
+    transport.emit('connected');
+    await flush();
+    const pub: Publication = {
+      id: 'new-audio',
+      robot: 'fixture-rover',
+      name: 'New microphone',
+      kind: 'audio',
+    };
+    transport.add(pub);
+    expect(runtime.catalog().find((p) => p.name === pub.name)).toMatchObject({
+      kind: 'audio',
+      available: true,
+      excluded: false,
+    });
+    expect(transport.mediaDemand.has(pub.id)).toBe(false);
+    const release = runtime.listen(pub.name);
+    expect(transport.mediaDemand.has(pub.id)).toBe(true);
+    transport.remove(pub.id);
+    expect(transport.mediaDemand.has(pub.id)).toBe(false);
+    expect(runtime.catalog().some((p) => p.name === pub.name)).toBe(false);
+    const audioPanel: Panel = {
+      label: 'Microphone',
+      visualization: 'audio',
+      visible: true,
+      source: { kind: 'audio', track_name: pub.name, field_path: [] },
+      settings: {},
+    };
+    runtime.editLayout({
+      ...emptyLayout('fixture-rover'),
+      panels: { microphone: audioPanel },
+      panel_order: ['microphone'],
+    });
+    expect(runtime.catalog().find((p) => p.name === pub.name)).toMatchObject({
+      kind: 'audio',
+      available: false,
+    });
+    transport.add({ ...pub, id: 'republished-audio' });
+    expect(transport.mediaDemand.has('republished-audio')).toBe(true);
+    expect(runtime.catalog().filter((p) => p.name === pub.name)).toHaveLength(1);
+    release();
     await runtime.dispose();
   });
   it('discovers a new data topic without a robot-side declaration or background reader', async () => {
@@ -729,4 +855,97 @@ describe('runtime reconnect, discovery and demand isolation', () => {
     expect(runtime.layout).toEqual(l);
     await runtime.dispose();
   });
+});
+
+it('runs arm and gripper channels together, shares feedback and stops them independently', async () => {
+  const { controlKey } = await import('../src/lib/teleop/controls');
+  const { manager, transport, clock } = controlsSetup();
+  const gripper = controlKey('left_arm', 'gripper');
+  await manager.select('left_arm', 'position', 'joint_sliders');
+  await manager.select(gripper, 'gripper_position', 'gripper_controls');
+  transport.push('/joint_states', {
+    name: ['left_1', 'left_2', 'left_gripper_joint'],
+    position: [0.1, 0.2, 0.02],
+  });
+  await flush();
+  expect(manager.reason(gripper, false)).toBeUndefined();
+  expect(transport.reads.get('/joint_states')).toBe(1);
+  manager.observeOwner(transport.identity);
+  await manager.request();
+  await manager.arm('left_arm');
+  await manager.arm(gripper);
+  expect(transport.commands).toHaveLength(0); // Arming never sends a target.
+  clock.time = 200;
+  manager.tick();
+  expect(transport.commands).toHaveLength(0); // No target refresh before explicit input.
+  expect(manager.send(gripper, { joints: { left_gripper_joint: 0.04 } })).toBe(true);
+  const oldActivation = manager.session(gripper)!.activation;
+  expect(transport.commands.at(-1)?.track).toBe('/left/gripper_trajectory');
+  await manager.select('left_arm', 'velocity', 'joint_sliders');
+  expect(manager.session(gripper)?.armed).toBe(true);
+  clock.time = 500;
+  manager.tick();
+  expect(manager.session(gripper)?.armed).toBe(true); // Finite motion has no input watchdog.
+  expect(transport.commands.filter((c) => c.track === '/left/gripper_trajectory')).toHaveLength(2);
+  await manager.stop(gripper);
+  await manager.arm(gripper);
+  expect(manager.send(gripper, { joints: { left_gripper_joint: 0.03 } }, oldActivation)).toBe(
+    false,
+  );
+  const count = transport.commands.length;
+  clock.time = 600;
+  manager.tick();
+  expect(transport.commands).toHaveLength(count); // No old target after rearming.
+  manager.observeOwner('another-operator');
+  expect(manager.session(gripper)?.armed).toBe(false);
+});
+
+it('gates missing gripper joints independently and prevents cross-channel endpoint writers', async () => {
+  const { controlKey } = await import('../src/lib/teleop/controls');
+  const { manager, transport } = controlsSetup();
+  const grip = controlKey('left_arm', 'gripper');
+  await manager.select('left_arm', 'position', 'joint_sliders');
+  await manager.select(grip, 'gripper_position', 'gripper_controls');
+  transport.push('/joint_states', { name: ['left_1', 'left_2'], position: [0.1, 0.2] });
+  await flush();
+  expect(manager.reason('left_arm', false)).toBeUndefined();
+  expect(manager.reason(grip, false)).toContain('left_gripper_joint');
+  const config = structuredClone(fixtureConfig);
+  config.control_interfaces.left_arm.operations.gripper_position.command.track_name =
+    '/left/trajectory';
+  manager.configure(config, 'fixture-rover', true, 1);
+  transport.push('/joint_states', {
+    name: ['left_1', 'left_2', 'left_gripper_joint'],
+    position: [0.1, 0.2, 0.02],
+  });
+  await flush();
+  manager.observeOwner(transport.identity);
+  await manager.request();
+  await manager.arm('left_arm');
+  await manager.arm(grip);
+  expect(manager.reason(grip)).toContain('command destination');
+  expect(manager.session('left_arm')?.armed).toBe(true);
+  await manager.stopAll();
+});
+
+it('round trips channel preferences in version 2 and imports version 1 without motion', async () => {
+  const old = emptyLayout('fixture-rover');
+  expect(parseLayout(JSON.stringify(old)).layout_schema_version).toBe(1);
+  const channels: Layout = {
+    ...old,
+    layout_schema_version: 2,
+    control_channel_preferences: {
+      left_arm: { gripper: { operation: 'gripper_position', presentation: 'gripper_controls' } },
+    },
+  };
+  expect(parseLayout(JSON.stringify(channels))).toEqual(channels);
+  const transport = new FixtureTransport();
+  const runtime = new WorkspaceRuntime(transport, storage());
+  transport.emit('connected');
+  await flush();
+  await runtime.importLayout(JSON.stringify(channels));
+  expect(runtime.controls.session(JSON.stringify(['left_arm', 'gripper']))?.armed).toBe(false);
+  expect(transport.commands).toHaveLength(0);
+  expect(transport.calls.filter((c) => c.method === 'portal.set_active_operator')).toHaveLength(0);
+  await runtime.dispose();
 });

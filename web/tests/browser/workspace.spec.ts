@@ -16,6 +16,30 @@ async function add(page: Page, title: string, type = 'raw', topic = '/imu', path
   await expect(dialog).not.toBeVisible();
 }
 
+test('home opens the dashboard and requests credentials without sign-in', async ({ page }) => {
+  let requests = 0;
+  await page.route('**/api/credentials', async (route) => {
+    requests += 1;
+    expect(route.request().headers()).not.toHaveProperty('authorization');
+    await route.fulfill({ status: 500, json: { error: 'Server misconfigured' } });
+  });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Choose a compatible robot' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Robot', exact: true })).toBeVisible();
+  await expect(page.locator('.workspace-alert')).toContainText('Check the server');
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toHaveCount(0);
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  const beforeRetry = requests;
+  await page.getByRole('button', { name: 'Retry connection', exact: true }).click();
+  await expect.poll(() => requests).toBeGreaterThan(beforeRetry);
+});
+
+test('home dashboard lists compatible robots', async ({ page }) => {
+  await page.goto('/?fixture=1');
+  await expect(page.locator('.connection-badge')).toContainText('ready');
+  await expect(page.getByRole('combobox', { name: 'Robot', exact: true })).toHaveValue('fixture-rover');
+});
+
 test('automatic cameras render live, swap stably and fall back when main is removed', async ({
   page,
 }) => {
@@ -162,9 +186,60 @@ test('control modes remain visible, switching stops old input and reconnect neve
 
 test('legacy routes and home remain reachable', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Open dynamic workspace' })).toBeVisible();
+  await expect(
+    page.getByRole('combobox', { name: 'Robot', exact: true }),
+  ).toBeVisible();
   for (const route of ['/robot', '/rover']) {
     const response = await page.request.get(route);
     expect(response.status()).toBe(200);
   }
+});
+
+test('gripper stays in its arm card, runs beside arm input and never moves on enable or reload', async ({
+  page,
+}, testInfo) => {
+  await fixture(page);
+  await page.getByRole('tab', { name: 'Controls', exact: true }).click();
+  await page.getByRole('button', { name: 'Request control', exact: true }).click();
+  const left = page.locator('#control-left_arm');
+  const primary = left.locator('[data-control-channel="primary"]');
+  const gripper = left.locator('[data-control-channel="gripper"]');
+  await expect(gripper.getByRole('heading', { name: 'Gripper', exact: true })).toBeVisible();
+  await expect(gripper.getByRole('button', { name: 'Enable gripper', exact: true })).toBeEnabled();
+  await primary.getByRole('button', { name: 'Arm input', exact: true }).click();
+  await gripper.getByRole('button', { name: 'Enable gripper', exact: true }).click();
+  await expect(page.locator('.fixture-toolbar')).toContainText('0 command frames');
+  await gripper.getByRole('button', { name: 'Open', exact: true }).click();
+  await expect(gripper).toContainText('Target: 0.0440 m');
+  await expect
+    .poll(async () =>
+      Number(
+        (await page.locator('.fixture-toolbar').innerText()).match(/(\d+) command frames/)?.[1] ??
+          0,
+      ),
+    )
+    .toBeGreaterThan(1);
+  await expect(primary.getByRole('button', { name: 'Disarm', exact: true })).toBeVisible();
+  await primary.getByLabel('Left arm operation', { exact: true }).selectOption('velocity');
+  await expect(gripper.getByRole('button', { name: 'Disarm gripper', exact: true })).toBeVisible();
+  await left.screenshot({ path: testInfo.outputPath('gripper-panel.png') });
+  // An explicit presentation selection persists this independent channel.
+  await gripper
+    .getByLabel('Left arm gripper presentation', { exact: true })
+    .selectOption('gripper_controls');
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem('teleop.layout.v1:fixture-rover') ?? '{}')
+            .layout_schema_version,
+      ),
+    )
+    .toBe(2);
+  await page.reload();
+  await expect(page.locator('.connection-badge')).toContainText('ready');
+  await page.getByRole('tab', { name: 'Controls', exact: true }).click();
+  await expect(gripper.getByRole('button', { name: 'Enable gripper', exact: true })).toBeVisible();
+  await expect(gripper).toContainText('Target: None m');
+  await expect(page.locator('.fixture-toolbar')).toContainText('0 command frames');
 });

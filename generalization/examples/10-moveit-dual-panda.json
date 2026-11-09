@@ -9,7 +9,6 @@
     "scope": "robot",
     "ownership": "portal_active_operator"
   },
-  "audio_tracks": {},
   "control_interfaces": {
     "left_arm": {
       "label": "Left Panda arm",
@@ -33,9 +32,6 @@
             "format": "json"
           },
           "feedback_tracks": [
-            "/joint_states"
-          ],
-          "required_feedback_tracks": [
             "/joint_states"
           ],
           "presentations": [
@@ -66,9 +62,6 @@
             "format": "json"
           },
           "feedback_tracks": [
-            "/joint_states"
-          ],
-          "required_feedback_tracks": [
             "/joint_states"
           ],
           "presentations": [
