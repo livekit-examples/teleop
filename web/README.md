@@ -155,6 +155,8 @@ See [the local deployment guide](../docs/modal.md) for setup and test commands.
 Customer simulations use `/try`; direct discovery remains at `/` and `/workspace`.
 From the repository root, run `python3 scripts/demo-local.py` for local
 workers or `python3 scripts/demo-local.py --modal` for a deployed development API.
+Use `python3 scripts/demo-local.py --remote --port 5005` to run local workers against the LiveKit
+server in `robo-sims/.env.local`. It starts no local LiveKit server.
 See [the trial runbook](../docs/try-teleop-deployment.md) for prerequisites and public deployment settings.
 
 From `web/`, you can also start the complete trial stack with:

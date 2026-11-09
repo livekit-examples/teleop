@@ -24,6 +24,7 @@ import type { Prefill } from './add-visualization';
 import { useRuntime } from './context';
 import { Cameras } from './media';
 import { ControlPanel } from './control-panel';
+import { SeriesPane } from './series-pane';
 import { VisualizationView } from './visualizations';
 
 const KIND_ICONS: Record<string, LucideIcon> = {
@@ -31,7 +32,11 @@ const KIND_ICONS: Record<string, LucideIcon> = {
   video: Video,
   audio: AudioLines,
 };
-const KIND_LABELS: Record<string, string> = { data: 'Data', video: 'Video', audio: 'Audio' };
+const KIND_LABELS: Record<string, string> = {
+  data: 'Data',
+  video: 'Video',
+  audio: 'Audio',
+};
 
 function TopicKind({ kind }: { kind: string }) {
   const Icon = KIND_ICONS[kind];
@@ -49,7 +54,9 @@ function TopicKind({ kind }: { kind: string }) {
   );
 }
 
-const ActionsContext = createContext<{ edit(id: string, prefill?: Prefill): void }>({
+const ActionsContext = createContext<{
+  edit(id: string, prefill?: Prefill): void;
+}>({
   edit: () => {},
 });
 
@@ -215,6 +222,7 @@ function DockPanel(props: IDockviewPanelProps) {
   );
   const visibilitySnapshot = useCallback(() => props.api.isVisible, [props.api]);
   const visible = useSyncExternalStore(subscribeVisibility, visibilitySnapshot, visibilitySnapshot);
+  const [paneOpen, setPaneOpen] = useState(false);
   const id = props.api.id;
   if (id === '@cameras') return <Cameras />;
   if (id === '@controls') return <ControlPanel active={visible} />;
@@ -267,7 +275,13 @@ function DockPanel(props: IDockviewPanelProps) {
             <option value="center">Tab with cameras</option>
             <option value="float">Float</option>
           </select>
-          <button onClick={() => actions.edit(id)} aria-label={`Settings for ${panel.label}`}>
+          <button
+            onClick={() =>
+              panel.visualization === 'plot' ? setPaneOpen((open) => !open) : actions.edit(id)
+            }
+            aria-label={`Settings for ${panel.label}`}
+            aria-expanded={panel.visualization === 'plot' ? paneOpen : undefined}
+          >
             Settings
           </button>
           <button onClick={() => change(false)} aria-label={`Hide ${panel.label}`}>
@@ -278,7 +292,16 @@ function DockPanel(props: IDockviewPanelProps) {
           </button>
         </div>
       </div>
-      <VisualizationView id={id} panel={panel} active={visible && panel.visible} />
+      <div className="panel-body">
+        <VisualizationView id={id} panel={panel} active={visible && panel.visible} />
+        {paneOpen && panel.visualization === 'plot' && (
+          <SeriesPane
+            panel={panel}
+            onSave={(next) => updatePanel(runtime, id, next)}
+            onClose={() => setPaneOpen(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -377,7 +400,10 @@ export function WorkspaceHost({ onEdit }: { onEdit(id: string, prefill?: Prefill
       timer = setTimeout(() => {
         if (!runtime.layout) return;
         try {
-          runtime.editLayout({ ...runtime.layout, workspace: readPlacement(dockApi.toJSON()) });
+          runtime.editLayout({
+            ...runtime.layout,
+            workspace: readPlacement(dockApi.toJSON()),
+          });
         } catch (error) {
           runtime.notices.push(`Placement save failed: ${(error as Error).message}`);
           runtime.notify();

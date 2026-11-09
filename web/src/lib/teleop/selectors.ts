@@ -1,4 +1,4 @@
-import type { FieldPath, Panel, Publication } from './types';
+import type { FieldPath, Panel, PlotSeries, Publication } from './types';
 
 export function selectPath(value: unknown, path: FieldPath): unknown {
   let current = value;
@@ -10,7 +10,12 @@ export function selectPath(value: unknown, path: FieldPath): unknown {
   return current;
 }
 
-export type NamedJoint = { name: string; position?: number; velocity?: number; effort?: number };
+export type NamedJoint = {
+  name: string;
+  position?: number;
+  velocity?: number;
+  effort?: number;
+};
 export function selectJoints(value: unknown, names: string[] = []): NamedJoint[] {
   if (!value || typeof value !== 'object') throw new Error('Expected a named joint-state object.');
   const state = value as Record<string, unknown>;
@@ -58,6 +63,37 @@ export function panelSelector(panel: Panel): (value: unknown) => unknown {
       throw new Error('Selected state is not a scalar value.');
     return selected;
   };
+}
+/** The series a numeric plot draws. Plots saved without `series` draw their single source. */
+export function panelSeries(panel: Panel): PlotSeries[] {
+  if (panel.series?.length) return panel.series;
+  return [
+    {
+      label: panel.label,
+      track_name: panel.source.track_name,
+      field_path: panel.source.field_path,
+      ...(panel.source.expected_msg_type
+        ? { expected_msg_type: panel.source.expected_msg_type }
+        : {}),
+      ...(panel.settings.expected_rate_hz
+        ? { expected_rate_hz: panel.settings.expected_rate_hz }
+        : {}),
+    },
+  ];
+}
+export function seriesSelector(panel: Panel, index: number): (value: unknown) => unknown {
+  // A plot saved without `series` keeps its own source, including any single-joint selection.
+  if (!panel.series) return panelSelector(panel);
+  const series = panel.series[index];
+  return panelSelector({
+    ...panel,
+    source: {
+      ...panel.source,
+      track_name: series.track_name,
+      field_path: series.field_path,
+      joint_names: undefined,
+    },
+  });
 }
 export function compatibility(panel: Panel, pub?: Publication): string | undefined {
   if (!pub) return;

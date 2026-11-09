@@ -3,65 +3,139 @@
 import { useEffect, useRef } from 'react';
 import uPlot from 'uplot';
 import type { NamedJoint } from '@/lib/teleop/selectors';
-import { compatibility } from '@/lib/teleop/selectors';
+import { compatibility, panelSeries } from '@/lib/teleop/selectors';
 import { monitoringPolicy, type Sample } from '@/lib/teleop/streams';
 import type { Panel } from '@/lib/teleop/types';
 import { own } from '@/lib/teleop/types';
-import { useDataView, useRuntime } from './context';
+import { useDataView, useRuntime, useSeriesViews } from './context';
 import { AudioView, ExtraVideo } from './media';
 
-function NumericPlot({ samples, panel }: { samples: Sample[]; panel: Panel }) {
+export const SERIES_COLORS = [
+  '#1fd5f9',
+  '#23de6b',
+  '#ffb752',
+  '#dc85ff',
+  '#ff6b6b',
+  '#f5e663',
+  '#6b8cff',
+  '#9be3c6',
+];
+
+/** Merge per-series samples onto one sorted time axis. Missing points are `undefined` (spanned). */
+function mergeSeries(
+  all: Sample[][],
+  rates: (number | undefined)[],
+): [number[], ...(number | null | undefined)[][]] {
+  const columns = all.map((samples, index) => {
+    const points: [number, number | null][] = [];
+    let previous: number | undefined;
+    for (const sample of samples) {
+      const rate = rates[index];
+      if (previous !== undefined && rate && sample.t - previous > monitoringPolicy.stale(rate))
+        points.push([(previous + 1) / 1000, null]);
+      points.push([sample.t / 1000, typeof sample.value === 'number' ? sample.value : null]);
+      previous = sample.t;
+    }
+    return points;
+  });
+  const x = [...new Set(columns.flatMap((points) => points.map(([t]) => t)))].sort((a, b) => a - b);
+  const ys = columns.map((points) => {
+    const byTime = new Map(points);
+    return x.map((t) => byTime.get(t));
+  });
+  return [x, ...ys];
+}
+
+function NumericPlot({ samples, panel }: { samples: Sample[][]; panel: Panel }) {
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<uPlot | null>(null);
+  // The user's drag-zoom on time survives new samples until a double click resets it.
+  const zoomed = useRef(false);
+  // Y range covers every value seen since this plot began, so the scale only widens.
+  const seen = useRef<{ min: number; max: number; upTo: number[] }>({
+    min: Infinity,
+    max: -Infinity,
+    upTo: [],
+  });
+  const series = panelSeries(panel);
+  const seriesKey = JSON.stringify(series.map((item) => item.label));
   useEffect(() => {
     const host = ref.current!;
+    zoomed.current = false;
+    seen.current = { min: Infinity, max: -Infinity, upTo: [] };
+    const size = () => ({
+      width: Math.max(200, host.clientWidth),
+      // The legend sits below the canvas, so leave room for it.
+      height: Math.max(120, host.clientHeight - 30),
+    });
     const plot = new uPlot(
       {
-        width: Math.max(200, host.clientWidth),
-        height: Math.max(160, host.clientHeight),
-        scales: { x: { time: false } },
+        ...size(),
+        scales: { x: { time: false }, y: { auto: false, range: [0, 1] } },
         axes: [
           { label: 'Receive time (s)', stroke: '#999999', grid: { stroke: '#202020' } },
           { stroke: '#999999', grid: { stroke: '#202020' } },
         ],
-        series: [{}, { label: panel.label, stroke: '#1fd5f9', width: 1.5, spanGaps: false }],
+        series: [
+          {},
+          ...series.map((item, index) => ({
+            label: item.label,
+            stroke: SERIES_COLORS[index % SERIES_COLORS.length],
+            width: 1.5,
+            spanGaps: false,
+          })),
+        ],
         cursor: { drag: { x: true, y: false } },
+        hooks: {
+          // A finished drag selection is a user zoom. Automatic range changes are not.
+          setSelect: [
+            (u) => {
+              if (u.select.width > 0) zoomed.current = true;
+            },
+          ],
+        },
       },
-      [[], []],
+      [[], ...series.map(() => [])],
       host,
     );
     chart.current = plot;
-    const observer = new ResizeObserver(() =>
-      plot.setSize({
-        width: Math.max(200, host.clientWidth),
-        height: Math.max(160, host.clientHeight),
-      }),
-    );
+    const reset = () => (zoomed.current = false);
+    host.addEventListener('dblclick', reset);
+    const observer = new ResizeObserver(() => plot.setSize(size()));
     observer.observe(host);
     return () => {
+      host.removeEventListener('dblclick', reset);
       observer.disconnect();
       plot.destroy();
       chart.current = null;
     };
-  }, [panel.label]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seriesKey]);
   useEffect(() => {
-    const x: number[] = [];
-    const y: (number | null)[] = [];
-    let previous: number | undefined;
-    for (const sample of samples) {
-      if (
-        previous !== undefined &&
-        panel.settings.expected_rate_hz &&
-        sample.t - previous > monitoringPolicy.stale(panel.settings.expected_rate_hz)
-      ) {
-        x.push((previous + 1) / 1000);
-        y.push(null);
+    const plot = chart.current;
+    if (!plot) return;
+    const range = seen.current;
+    samples.forEach((list, index) => {
+      const from = range.upTo[index] ?? -Infinity;
+      for (const sample of list) {
+        if (sample.t <= from) continue;
+        if (typeof sample.value === 'number' && Number.isFinite(sample.value)) {
+          range.min = Math.min(range.min, sample.value);
+          range.max = Math.max(range.max, sample.value);
+        }
       }
-      x.push(sample.t / 1000);
-      y.push(typeof sample.value === 'number' ? sample.value : null);
-      previous = sample.t;
+      range.upTo[index] = list.at(-1)?.t ?? from;
+    });
+    const data = mergeSeries(
+      samples,
+      series.map((item) => item.expected_rate_hz),
+    );
+    if (!data[0].length) return;
+    plot.setData(data as uPlot.AlignedData, !zoomed.current);
+    if (range.min <= range.max) {
+      const pad = (range.max - range.min) * 0.05 || Math.max(Math.abs(range.min) * 0.05, 1);
+      plot.setScale('y', { min: range.min - pad, max: range.max + pad });
     }
-    if (x.length) chart.current?.setData([x, y]);
   });
   return <div ref={ref} className="numeric-plot" aria-label={`${panel.label} numeric plot`} />;
 }
@@ -124,7 +198,14 @@ export function VisualizationView({
   active: boolean;
 }) {
   const runtime = useRuntime();
-  const view = useDataView(id, panel, active);
+  const isPlot = panel.visualization === 'plot';
+  const view = useDataView(id, panel, active && !isPlot);
+  const seriesViews = useSeriesViews(id, panel, active && isPlot);
+  // A plot header reports its worst series so one stale topic is not hidden by a healthy one.
+  const worst = seriesViews.find((v) =>
+    ['stale', 'invalid', 'unsupported', 'excluded', 'unavailable'].includes(v.status),
+  );
+  const head = isPlot ? (worst ?? seriesViews[0] ?? view) : view;
   const publication = runtime
     .catalog()
     .find((pub) => pub.kind === panel.source.kind && pub.name === panel.source.track_name);
@@ -178,11 +259,30 @@ export function VisualizationView({
   return (
     <div className="workspace-view" data-testid={`view-${id}`}>
       <div className="view-status">
-        <span className={`status status-${view.status}`}>{view.status}</span>
-        <span>{view.observedRate.toFixed(1)} arrivals/s</span>
+        <span className={`status status-${head.status}`}>{head.status}</span>
+        <span>{head.observedRate.toFixed(1)} arrivals/s</span>
       </div>
-      {view.reason && <p className="view-reason">{view.reason}</p>}
-      {panel.visualization === 'plot' && <NumericPlot samples={view.samples} panel={panel} />}
+      {head.reason && <p className="view-reason">{head.reason}</p>}
+      {isPlot && (
+        <>
+          <ul className="series-legend" aria-label="Plotted data">
+            {panelSeries(panel).map((item, index) => (
+              <li key={`${item.track_name}:${index}`} title={item.track_name}>
+                <i
+                  style={{
+                    background: SERIES_COLORS[index % SERIES_COLORS.length],
+                  }}
+                />
+                {item.label}
+                <span className={`status status-${seriesViews[index]?.status}`}>
+                  {seriesViews[index]?.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <NumericPlot samples={seriesViews.map((v) => v.samples)} panel={panel} />
+        </>
+      )}
       {panel.visualization === 'value' && (
         <div className="numeric-value">
           {typeof display === 'number'

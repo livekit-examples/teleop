@@ -19,7 +19,11 @@ export type Status =
   | 'invalid'
   | 'unsupported'
   | 'excluded';
-export type Participant = { identity: string; name?: string; attributes: Record<string, string> };
+export type Participant = {
+  identity: string;
+  name?: string;
+  attributes: Record<string, string>;
+};
 export type Publication = {
   id: string;
   robot: string;
@@ -29,7 +33,9 @@ export type Publication = {
   encoding?: string;
   error?: string;
   /** Optional definition supplied by a supported transport, never inferred from an ID. */
-  schema?: { fields: { path: FieldPath; type: string; enum?: Record<string, string> }[] };
+  schema?: {
+    fields: { path: FieldPath; type: string; enum?: Record<string, string> }[];
+  };
 };
 export type Operation = {
   profile: string;
@@ -87,6 +93,13 @@ export type Source = {
   expected_msg_type?: string;
   joint_names?: string[];
 };
+export type PlotSeries = {
+  label: string;
+  track_name: string;
+  field_path: FieldPath;
+  expected_msg_type?: string;
+  expected_rate_hz?: number;
+};
 export type PanelSettings = {
   expected_rate_hz?: number;
   window_seconds?: number;
@@ -101,16 +114,30 @@ export type Panel = {
   label: string;
   visible: boolean;
   source: Source;
+  /** Numeric plots only. When present, series[0] mirrors `source`. */
+  series?: PlotSeries[];
   settings: PanelSettings;
 };
 export type PlacementNode =
-  | { type: 'group'; id: string; panels: string[]; active: string; weight: number }
+  | {
+      type: 'group';
+      id: string;
+      panels: string[];
+      active: string;
+      weight: number;
+    }
   | { type: 'split'; children: PlacementNode[]; weight: number };
 export type Placement = {
   version: 1;
   orientation: 'HORIZONTAL' | 'VERTICAL';
   root: PlacementNode;
-  floating: { node: PlacementNode; x: number; y: number; width: number; height: number }[];
+  floating: {
+    node: PlacementNode;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }[];
 };
 export type Layout = {
   layout_schema_version: 1 | 2;

@@ -4,6 +4,7 @@ import type {
   PanelSettings,
   Placement,
   PlacementNode,
+  PlotSeries,
   Source,
   Visualization,
 } from './types';
@@ -20,13 +21,14 @@ export const visualizationNames: Record<Visualization, string> = {
   video: 'Video',
   audio: 'Audio listening',
 };
+export const MAX_SERIES = 8;
 const known = (value: Record<string, unknown>, keys: string[], label: string) => {
   for (const key of Object.keys(value))
     if (!keys.includes(key)) throw new Error(`Unsupported ${label} setting: ${key}.`);
 };
 export function validatePanel(raw: unknown): Panel {
   const p = object(raw, 'Panel');
-  known(p, ['visualization', 'label', 'visible', 'source', 'settings'], 'panel');
+  known(p, ['visualization', 'label', 'visible', 'source', 'series', 'settings'], 'panel');
   if (typeof p.visualization !== 'string' || !Object.hasOwn(visualizationNames, p.visualization))
     throw new Error('Unsupported visualization.');
   const visualization = p.visualization as Visualization;
@@ -48,6 +50,32 @@ export function validatePanel(raw: unknown): Panel {
       throw new Error('Joint selection requires a joint or numeric view.');
     if (visualization !== 'joints' && result.joint_names.length !== 1)
       throw new Error('Numeric joint views select exactly one named joint.');
+  }
+  let series: PlotSeries[] | undefined;
+  if (p.series !== undefined) {
+    if (visualization !== 'plot') throw new Error('Only numeric plots can have several series.');
+    if (!Array.isArray(p.series) || p.series.length < 1 || p.series.length > MAX_SERIES)
+      throw new Error(`A plot needs 1 to ${MAX_SERIES} series.`);
+    series = p.series.map((raw) => {
+      const item = object(raw, 'Series');
+      known(
+        item,
+        ['label', 'track_name', 'field_path', 'expected_msg_type', 'expected_rate_hz'],
+        'series',
+      );
+      const entry: PlotSeries = {
+        label: string(item.label, 'Data label'),
+        track_name: string(item.track_name, 'Track name'),
+        field_path: fieldPath(item.field_path),
+      };
+      if (item.expected_msg_type !== undefined)
+        entry.expected_msg_type = string(item.expected_msg_type, 'Expected message type');
+      if (item.expected_rate_hz !== undefined)
+        entry.expected_rate_hz = positive(item.expected_rate_hz, 'Expected rate');
+      return entry;
+    });
+    if (series[0].track_name !== result.track_name)
+      throw new Error('The first series must use the panel source track.');
   }
   const input = object(p.settings, 'Settings');
   const settings: PanelSettings = {};
@@ -104,6 +132,7 @@ export function validatePanel(raw: unknown): Panel {
     label: string(p.label, 'Panel label'),
     visible: p.visible,
     source: result,
+    ...(series ? { series } : {}),
     settings,
   };
 }
@@ -123,7 +152,11 @@ function validatePlacement(value: unknown, panels: Record<string, Panel>): Place
       known(n, ['type', 'weight', 'children'], 'split');
       if (!Array.isArray(n.children) || n.children.length > 100)
         throw new Error('Invalid workspace split.');
-      return { type: 'split', weight, children: n.children.map((child) => node(child, depth + 1)) };
+      return {
+        type: 'split',
+        weight,
+        children: n.children.map((child) => node(child, depth + 1)),
+      };
     }
     known(n, ['type', 'weight', 'id', 'panels', 'active'], 'group');
     if (n.type !== 'group') throw new Error('Unknown workspace node type.');
@@ -164,7 +197,12 @@ function validatePlacement(value: unknown, panels: Record<string, Panel>): Place
       height: positive(f.height, 'Floating height'),
     };
   });
-  return { version: 1, orientation: p.orientation as Placement['orientation'], root, floating };
+  return {
+    version: 1,
+    orientation: p.orientation as Placement['orientation'],
+    root,
+    floating,
+  };
 }
 
 export function parseLayout(payload: string, robot?: string): Layout {

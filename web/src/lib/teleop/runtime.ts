@@ -23,7 +23,10 @@ import {
 } from './types';
 import { isExcluded, parseDiscovery } from './validation';
 
-export type CatalogEntry = Publication & { available: boolean; excluded: boolean };
+export type CatalogEntry = Publication & {
+  available: boolean;
+  excluded: boolean;
+};
 
 /** One runtime per connection. React does not own stream readers or command writers. */
 export class WorkspaceRuntime {
@@ -320,7 +323,13 @@ export class WorkspaceRuntime {
     );
     const expected: { kind: Publication['kind']; name: string }[] = Object.values(
       this.layout?.panels ?? {},
-    ).map((p) => ({ kind: p.source.kind, name: p.source.track_name }));
+    ).flatMap((p) => [
+      { kind: p.source.kind, name: p.source.track_name },
+      ...(p.series ?? []).map((s) => ({
+        kind: 'data' as const,
+        name: s.track_name,
+      })),
+    ]);
     for (const equipment of Object.values(this.config?.control_interfaces ?? {}))
       for (const op of Object.values(equipment.operations))
         for (const name of op.feedback_tracks) expected.push({ kind: 'data', name });
@@ -336,7 +345,9 @@ export class WorkspaceRuntime {
           excluded: !!this.config && isExcluded(this.config, kind, name),
         });
     }
-    return [...entries.values()];
+    return [...entries.values()].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }),
+    );
   }
   mediaPublications() {
     return [...this.media.values()].filter((p) => p.kind === 'video');

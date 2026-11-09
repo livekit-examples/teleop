@@ -34,6 +34,20 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(port, 3050)
         with self.assertRaisesRegex(ValueError, '--port'):
             launcher.profile(launcher.arguments(['--port', '70000']), {})
+    def test_remote_uses_livekit_values_and_a_free_supervisor_port(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / '.env.local'
+            path.write_text('LIVEKIT_URL=wss://x.livekit.cloud\nLIVEKIT_API_KEY="k"\nLIVEKIT_API_SECRET=s\nOTHER=1\n')
+            args = launcher.arguments(['--remote'])
+            _, values, _ = launcher.profile(args, {}, path)
+            self.assertEqual(values['LIVEKIT_URL'], 'wss://x.livekit.cloud')
+            self.assertEqual(values['LIVEKIT_API_KEY'], 'k')
+            self.assertNotIn('OTHER', values)
+            self.assertNotIn(':8001', values['SIM_SUPERVISOR_URL'])
+            path.write_text('LIVEKIT_URL=wss://x\n')
+            with self.assertRaisesRegex(ValueError, 'LIVEKIT_API_KEY'):
+                launcher.profile(args, {}, path)
+        with self.assertRaises(SystemExit): launcher.arguments(['--remote', '--modal'])
     def test_modal_requires_https_service_but_no_local_dependencies(self):
         args = launcher.arguments(['--modal'])
         for values in ({}, {'SIM_SUPERVISOR_URL':'http://localhost:8001','SIM_SUPERVISOR_KEY':'k'*32}):

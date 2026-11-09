@@ -203,6 +203,22 @@ export function AddVisualization({
               }
             : {}),
         },
+        // Keep extra plot series when the dialog edits the first one.
+        ...(visualization === 'plot' && initial?.series
+          ? {
+              series: initial.series.map((item, index) =>
+                index === 0
+                  ? {
+                      ...item,
+                      track_name: track,
+                      field_path: JSON.parse(path),
+                      ...(publication.msgType ? { expected_msg_type: publication.msgType } : {}),
+                      ...(rate ? { expected_rate_hz: Number(rate) } : {}),
+                    }
+                  : item,
+              ),
+            }
+          : {}),
         settings,
       });
       onSave(panel);
