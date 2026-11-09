@@ -33,6 +33,7 @@ A top-level field belongs directly to the document. A map stores values under na
 | `default_video_rate_hz` | Yes | A number greater than zero. It gives the expected number of video frames per second for every video. The app uses this rate to detect missing video. |
 | `control` | Yes | An object that describes control ownership. See [control](#control). |
 | `control_interfaces` | Yes | A map of equipment that the app can control. An empty map means that the user can view the robot but cannot control it. |
+| `camera_info` | No | A map of fixed camera calibration. If you omit this field, the robot provides no camera calibration. See [camera_info](#camera_info). |
 | `exclude_data_tracks` | No | A list of patterns that exclude data tracks. The default is `[]`. |
 | `exclude_video_tracks` | No | A list of patterns that exclude video tracks. The default is `[]`. |
 | `exclude_audio_tracks` | No | A list of patterns that exclude audio tracks. The default is `[]`. |
@@ -41,7 +42,7 @@ The app rejects a document with an unknown `schema_version` or an invalid known 
 
 ## How the app finds tracks
 
-The document does not list data, video, or audio tracks. A publication describes a track that a participant publishes. The app finds tracks through the LiveKit publications of the robot. Unless an exclusion list blocks a track, the app shows it in track selectors.
+The document does not define which data, video, or audio tracks the robot publishes. A publication describes a track that a participant publishes. The app finds tracks through the LiveKit publications of the robot. Unless an exclusion list blocks a track, the app shows it in track selectors.
 
 A subscription lets the app receive a track. The app subscribes to every video track. A visualization displays data in the app. The app subscribes to a data track when a visualization or control needs that track. It subscribes to an audio track when the user chooses to listen.
 
@@ -99,6 +100,105 @@ The `control` object provides a way to control existing portal robots.
 ## Video behavior
 
 The first video that arrives becomes the main view. The other videos appear as small tiles on the left. When the user selects a tile, that video becomes the main view. The browser keeps this choice locally. The choice does not change any subscription.
+
+## camera_info
+
+Camera calibration describes how an image relates to physical space. The optional `camera_info` map gives fixed calibration for video tracks. Each key is a local ID, such as `front` or `left_wrist`.
+
+These entries add metadata to tracks that the app discovers. An entry does not require a track to exist or make the app subscribe to it. Video tracks without an entry still work. Exclusion lists still apply.
+
+The app stores this metadata for future calibrated views. The current VR view does not use it to change image projection. This field belongs to the robot configuration and does not depend on a VR presentation.
+
+Each camera entry has these fields:
+
+| Field | Description |
+| --- | --- |
+| `track_name` | The exact LiveKit video track name. Each name can appear in only one camera entry. |
+| `width` | The width of the full video image in pixels. It must be a positive integer. |
+| `height` | The height of the full video image in pixels. It must be a positive integer. |
+| `views` | An object with either `mono`, or both `left` and `right`. Each value describes one camera image. |
+
+A stereo video can contain both eye images in one frame. The `image_region` of each view selects that eye from the full image. The two regions must not overlap. For separate video tracks, use separate camera entries with a `mono` view in each.
+
+Each view has these fields:
+
+| Field | Description |
+| --- | --- |
+| `frame_id` | The name of the camera optical frame. The two views of a stereo entry must use different names. |
+| `image_region` | An object with integer `x`, `y`, `width`, and `height` values in pixels. The origin must be nonnegative. The size must be positive. The region must fit inside the full video image. |
+| `intrinsics` | The projection and distortion values for this region. |
+| `extrinsics` | The fixed position and orientation of this optical frame relative to a named parent frame. |
+
+An optical frame has its origin at the camera. Its X axis points right, Y points down, and Z points forward. Pixel coordinates start at the top-left image boundary. The center of the first pixel is at `(0.5, 0.5)`.
+
+Intrinsics map camera rays to image pixels. Use values for the transmitted image after any crop, resize, or distortion correction. The values of `cx` and `cy` use coordinates within `image_region`, with its top-left corner as the origin.
+
+The `intrinsics` object has these fields:
+
+| Field | Description |
+| --- | --- |
+| `fx`, `fy` | Positive focal lengths in pixels. |
+| `cx`, `cy` | The coordinates of the principal point, where the optical axis meets the image. Both values must be finite numbers. |
+| `distortion_model` | One of `none`, `plumb_bob`, `rational_polynomial`, or `equidistant`. |
+| `distortion_coefficients` | A list of finite numbers. The required lengths are 0, 5, 8, and 4 for the models above, respectively. |
+
+For `none`, the projection is `u = fx * X / Z + cx` and `v = fy * Y / Z + cy`. The coordinates `(X, Y, Z)` belong to the optical frame. The coordinates `(u, v)` belong to the image region. The other models use the [ROS distortion conventions](https://github.com/ros2/common_interfaces/blob/rolling/sensor_msgs/msg/CameraInfo.msg).
+
+Extrinsics describe the camera position and orientation. The `extrinsics` object has these fields:
+
+| Field | Description |
+| --- | --- |
+| `parent_frame_id` | The named reference frame for the transform. It must differ from `frame_id`. |
+| `translation` | Three finite numbers, `[x, y, z]`, in meters. They give the optical frame origin in the parent frame. |
+| `rotation_xyzw` | Four finite numbers, `[x, y, z, w]`, that form a unit quaternion. A quaternion represents a rotation. |
+
+The transform maps optical-frame coordinates into the parent frame. Apply the rotation first, then add the translation. The quaternion length must differ from 1 by no more than `0.0001`.
+
+For a moving wrist camera, use its mount frame as the parent. A fixed camera-to-mount transform stays valid when the wrist moves. It does not give the changing mount pose in the world. This version does not publish live transforms or calibration updates.
+
+The RPC returns a snapshot of the calibration. If the calibration or video dimensions change, restart the robot and reconnect the app. The dimensions and regions must match the video that the robot publishes.
+
+The example below describes two 640-by-480 eye images in one 1280-by-480 video. Both optical frames use the same parent axes. The right camera sits 0.06 meters along the parent X axis from the left camera.
+
+```json
+{
+  "camera_info": {
+    "front": {
+      "track_name": "front-stereo",
+      "width": 1280,
+      "height": 480,
+      "views": {
+        "left": {
+          "frame_id": "front_left_optical",
+          "image_region": { "x": 0, "y": 0, "width": 640, "height": 480 },
+          "intrinsics": {
+            "fx": 500, "fy": 500, "cx": 320, "cy": 240,
+            "distortion_model": "none", "distortion_coefficients": []
+          },
+          "extrinsics": {
+            "parent_frame_id": "front_mount",
+            "translation": [0, 0, 0],
+            "rotation_xyzw": [0, 0, 0, 1]
+          }
+        },
+        "right": {
+          "frame_id": "front_right_optical",
+          "image_region": { "x": 640, "y": 0, "width": 640, "height": 480 },
+          "intrinsics": {
+            "fx": 500, "fy": 500, "cx": 320, "cy": 240,
+            "distortion_model": "none", "distortion_coefficients": []
+          },
+          "extrinsics": {
+            "parent_frame_id": "front_mount",
+            "translation": [0.06, 0, 0],
+            "rotation_xyzw": [0, 0, 0, 1]
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 ## control_interfaces
 
@@ -241,7 +341,7 @@ A layout stores the bindings of the user. The browser saves the layout locally a
 Version 1 does not support these features:
 
 - Live document updates
-- Coordinate transforms
+- Live coordinate transforms
 - Coordinated arm control
 - Custom RPC lists
 - Separate gripper components
@@ -253,7 +353,7 @@ The app has no form for custom RPCs. Before the app can offer Home or clear-faul
 
 ## Examples
 
-The folder `generalization/examples/` has 13 example documents. The examples include a differential rover, an Ackermann rover, and an arm. They also include two arms on a mobile base, a humanoid, and a camera-only station.
+The folder `generalization/examples/` has 14 example documents. The examples include a differential rover, an Ackermann rover, and an arm. They also include two arms on a mobile base, a humanoid, and a camera-only station. The file `generalization/examples/14-stereo-camera.json` shows fixed stereo calibration.
 
 To change the examples, edit `generalization/scripts/build_examples.py`. From the repository root, run the script with Python 3:
 

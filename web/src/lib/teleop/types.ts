@@ -46,6 +46,29 @@ export type ControlInterface = {
   joint_names?: string[];
   operations: Record<string, Operation>;
 };
+export type CameraView = {
+  frame_id: string;
+  image_region: { x: number; y: number; width: number; height: number };
+  intrinsics: {
+    fx: number;
+    fy: number;
+    cx: number;
+    cy: number;
+    distortion_model: 'none' | 'plumb_bob' | 'rational_polynomial' | 'equidistant';
+    distortion_coefficients: number[];
+  };
+  extrinsics: {
+    parent_frame_id: string;
+    translation: number[];
+    rotation_xyzw: number[];
+  };
+};
+export type CameraInfo = {
+  track_name: string;
+  width: number;
+  height: number;
+  views: { mono: CameraView } | { left: CameraView; right: CameraView };
+};
 export type RobotConfig = {
   schema_version: 1;
   label: string;
@@ -55,6 +78,7 @@ export type RobotConfig = {
   exclude_audio_tracks: string[];
   control: { scope: 'robot'; ownership: 'portal_active_operator' };
   control_interfaces: Record<string, ControlInterface>;
+  camera_info?: Record<string, CameraInfo>;
 };
 export type Source = {
   kind: MediaKind;

@@ -164,6 +164,24 @@ examples["13-track-exclusions"].update({
     "exclude_audio_tracks": [r"private-.*"],
 })
 
+examples["14-stereo-camera"] = document("Station with a calibrated stereo camera")
+examples["14-stereo-camera"]["camera_info"] = {
+    "front": {
+        "track_name": "front-stereo", "width": 1280, "height": 480,
+        "views": {
+            eye: {
+                "frame_id": f"front_{eye}_optical",
+                "image_region": {"x": index * 640, "y": 0, "width": 640, "height": 480},
+                "intrinsics": {"fx": 500, "fy": 500, "cx": 320, "cy": 240,
+                    "distortion_model": "none", "distortion_coefficients": []},
+                "extrinsics": {"parent_frame_id": "front_mount",
+                    "translation": [index * 0.06, 0, 0], "rotation_xyzw": [0, 0, 0, 1]},
+            }
+            for index, eye in enumerate(("left", "right"))
+        },
+    },
+}
+
 
 def is_excluded(track_name, patterns):
     """Use case-sensitive full-name matching; never normalize external names."""

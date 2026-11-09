@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "label": "Station with a calibrated stereo camera",
+  "exclude_data_tracks": [],
+  "exclude_video_tracks": [],
+  "exclude_audio_tracks": [],
+  "default_video_rate_hz": 30,
+  "control": {
+    "scope": "robot",
+    "ownership": "portal_active_operator"
+  },
+  "control_interfaces": {},
+  "camera_info": {
+    "front": {
+      "track_name": "front-stereo",
+      "width": 1280,
+      "height": 480,
+      "views": {
+        "left": {
+          "frame_id": "front_left_optical",
+          "image_region": {
+            "x": 0,
+            "y": 0,
+            "width": 640,
+            "height": 480
+          },
+          "intrinsics": {
+            "fx": 500,
+            "fy": 500,
+            "cx": 320,
+            "cy": 240,
+            "distortion_model": "none",
+            "distortion_coefficients": []
+          },
+          "extrinsics": {
+            "parent_frame_id": "front_mount",
+            "translation": [
+              0.0,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "right": {
+          "frame_id": "front_right_optical",
+          "image_region": {
+            "x": 640,
+            "y": 0,
+            "width": 640,
+            "height": 480
+          },
+          "intrinsics": {
+            "fx": 500,
+            "fy": 500,
+            "cx": 320,
+            "cy": 240,
+            "distortion_model": "none",
+            "distortion_coefficients": []
+          },
+          "extrinsics": {
+            "parent_frame_id": "front_mount",
+            "translation": [
+              0.06,
+              0,
+              0
+            ],
+            "rotation_xyzw": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    }
+  }
+}
