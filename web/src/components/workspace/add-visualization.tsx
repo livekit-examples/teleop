@@ -3,33 +3,94 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { validatePanel, visualizationNames } from '@/lib/teleop/layout';
 import { inspectFields } from '@/lib/teleop/selectors';
-import type { Panel, Visualization } from '@/lib/teleop/types';
+import type { FieldPath, MediaKind, Panel, Visualization } from '@/lib/teleop/types';
 import { useRuntime } from './context';
+
+/** A topic picked from the catalog; the dialog pre-fills everything it can infer from it. */
+export type Prefill = { kind: MediaKind; track: string };
+
+type Field = { path: FieldPath; type: string; enum?: Record<string, string> };
+
+/** Pick the most useful visualization and field for a topic from its known/inspected fields. */
+export function suggestVisualization(
+  kind: MediaKind,
+  fields: Field[],
+): { visualization: Visualization; field?: Field } {
+  if (kind === 'video') return { visualization: 'video' };
+  if (kind === 'audio') return { visualization: 'audio' };
+  const joints = fields.find(
+    (field) =>
+      field.type === 'object' &&
+      fields.some(
+        (f) =>
+          f.type === 'array' && JSON.stringify(f.path) === JSON.stringify([...field.path, 'name']),
+      ) &&
+      fields.some(
+        (f) =>
+          f.type === 'array' && JSON.stringify(f.path) === JSON.stringify([...field.path, 'position']),
+      ),
+  );
+  if (joints) return { visualization: 'joints', field: joints };
+  const leaf = (type: string) => fields.find((field) => field.path.length && field.type === type);
+  const enumField = fields.find((field) => field.path.length && field.enum);
+  if (enumField) return { visualization: 'state', field: enumField };
+  const number = leaf('number');
+  if (number) return { visualization: 'plot', field: number };
+  const boolean = leaf('boolean');
+  if (boolean) return { visualization: 'boolean', field: boolean };
+  const string = leaf('string');
+  if (string) return { visualization: 'state', field: string };
+  return { visualization: fields.length ? 'raw' : 'plot', field: fields[0] };
+}
+
 
 export function AddVisualization({
   initial,
+  prefill,
   onSave,
   onClose,
 }: {
   initial?: Panel;
+  prefill?: Prefill;
   onSave(panel: Panel): void;
   onClose(): void;
 }) {
   const runtime = useRuntime();
   const dialog = useRef<HTMLElement>(null);
+  const prefillFields = (topic: Prefill): Field[] =>
+    runtime.catalog().find((pub) => pub.kind === topic.kind && pub.name === topic.track)?.schema
+      ?.fields ?? [];
   const [visualization, setVisualization] = useState<Visualization>(
-    initial?.visualization ?? 'plot',
+    initial?.visualization ??
+      (prefill ? suggestVisualization(prefill.kind, prefillFields(prefill)).visualization : 'plot'),
   );
-  const [track, setTrack] = useState(initial?.source.track_name ?? '');
-  const [path, setPath] = useState(JSON.stringify(initial?.source.field_path ?? []));
-  const [label, setLabel] = useState(initial?.label ?? '');
+  const [track, setTrack] = useState(initial?.source.track_name ?? prefill?.track ?? '');
+  const [path, setPath] = useState(() =>
+    JSON.stringify(
+      initial?.source.field_path ??
+        (prefill ? suggestVisualization(prefill.kind, prefillFields(prefill)).field?.path : []) ??
+        [],
+    ),
+  );
+  const [label, setLabel] = useState(initial?.label ?? prefill?.track ?? '');
   const [rate, setRate] = useState(String(initial?.settings.expected_rate_hz ?? ''));
   const [window, setWindow] = useState(String(initial?.settings.window_seconds ?? 30));
   const [enumLabels, setEnumLabels] = useState(
-    JSON.stringify(initial?.settings.enum_labels ?? {}, null, 2),
+    JSON.stringify(
+      initial?.settings.enum_labels ??
+        (prefill ? suggestVisualization(prefill.kind, prefillFields(prefill)).field?.enum : {}) ??
+        {},
+      null,
+      2,
+    ),
   );
   const [jointNames, setJointNames] = useState(initial?.source.joint_names?.join('\n') ?? '');
-  const [preview, setPreview] = useState(false);
+  // Without a published schema, a topic picked from the catalog opens its JSON preview so the
+  // dialog can discover fields and pre-select one.
+  const [preview, setPreview] = useState(
+    () => !!prefill && prefill.kind === 'data' && !prefillFields(prefill).length,
+  );
+  const autofill = useRef(!!prefill && prefill.kind === 'data' && !prefillFields(prefill).length);
   const [error, setError] = useState('');
   const [image, setImage] = useState(initial?.settings.image_layout ?? 'mono');
   const [eye, setEye] = useState(initial?.settings.eye ?? 'left');
@@ -84,6 +145,13 @@ export function AddVisualization({
       publication?.schema?.fields ?? (view.value !== undefined ? inspectFields(view.value) : []),
     [publication?.schema, view.value],
   );
+  useEffect(() => {
+    if (!autofill.current || !fields.length) return;
+    autofill.current = false;
+    const suggestion = suggestVisualization('data', fields);
+    setVisualization(suggestion.visualization);
+    if (suggestion.field) setPath(JSON.stringify(suggestion.field.path));
+  }, [fields]);
   const fieldType =
     visualization === 'boolean'
       ? 'boolean'
@@ -168,7 +236,12 @@ export function AddVisualization({
             <select
               value={visualization}
               onChange={(event) => {
-                setVisualization(event.target.value as Visualization);
+                const next = event.target.value as Visualization;
+                const nextKind = next === 'video' ? 'video' : next === 'audio' ? 'audio' : 'data';
+                autofill.current = false;
+                setVisualization(next);
+                // Keep a pre-filled topic when it still matches the visualization's media kind.
+                if (nextKind === kind && track) return;
                 setTrack('');
                 setPreview(false);
                 setPath('[]');
@@ -186,6 +259,7 @@ export function AddVisualization({
             <select
               value={track}
               onChange={(event) => {
+                autofill.current = false;
                 setTrack(event.target.value);
                 setPreview(false);
                 setPath('[]');

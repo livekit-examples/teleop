@@ -7,6 +7,8 @@ import type { WorkspaceRuntime } from '@/lib/teleop/runtime';
 import { own } from '@/lib/teleop/types';
 import { useRuntime } from './context';
 import { XrControls } from './xr-controls';
+import { RacingTelemetry } from './racing-telemetry';
+import { KeyboardSteering } from '@/lib/teleop/keyboard-steering';
 
 function InputPresentation({ id }: { id: string }) {
   const runtime = useRuntime();
@@ -15,6 +17,8 @@ function InputPresentation({ id }: { id: string }) {
   const operation = manager.operation(id)!;
   const equipment = manager.context(id).equipment;
   const activation = session.activation;
+  const driving = operation.profile === 'base.ackermann_drive.v1';
+  const inputInterval = manager.adapter(id)?.repeatIntervalMs ?? 50;
   const axes = useRef([0, 0, 0]);
   const held = useRef(new Set<string>());
   const fresh = useRef(false);
@@ -52,6 +56,8 @@ function InputPresentation({ id }: { id: string }) {
       return;
     const presentation = session.presentation;
     const keys = held.current;
+    const keyboardSteering = new KeyboardSteering();
+    let lastSample = performance.now();
     const editable = (target: EventTarget | null) =>
       target instanceof HTMLElement &&
       (target.isContentEditable ||
@@ -74,6 +80,7 @@ function InputPresentation({ id }: { id: string }) {
       keys.clear();
       axes.current = [0, 0, 0];
       fresh.current = false;
+      keyboardSteering.reset();
       void manager.stop(id);
       runtime.notify();
     };
@@ -81,6 +88,9 @@ function InputPresentation({ id }: { id: string }) {
     window.addEventListener('keyup', up);
     window.addEventListener('blur', release);
     const interval = setInterval(() => {
+      const sampledAt = performance.now();
+      const elapsedMs = sampledAt - lastSample;
+      lastSample = sampledAt;
       let values = axes.current;
       if (presentation === 'keyboard') {
         const pressed = (key: string) => (keys.has(key) ? 1 : 0);
@@ -97,22 +107,30 @@ function InputPresentation({ id }: { id: string }) {
         }
         const clean = (value: number) =>
           Math.abs(value) < 0.12 ? 0 : Math.max(-1, Math.min(1, value));
-        values = [clean(-(pad.axes[1] ?? 0)), clean(-(pad.axes[0] ?? 0)), clean(pad.axes[2] ?? 0)];
+        values = [
+          clean(-(pad.axes[1] ?? 0)),
+          clean(-(pad.axes[0] ?? 0)),
+          driving ? 0 : clean(pad.axes[2] ?? 0),
+        ];
       }
+      if (driving) values = [values[0], values[1], 0];
       // A displaced gamepad or joystick cannot become motion merely by arming.
       if (!fresh.current) {
+        keyboardSteering.reset();
         if (values.every((v) => v === 0)) {
           fresh.current = true;
           setWaiting(false);
         }
         return;
       }
+      if (driving && presentation === 'keyboard')
+        values = [values[0], keyboardSteering.sample(values[1], elapsedMs), 0];
       const input: ControlInput =
         operation.profile === 'joints.velocity_jog.v1'
           ? { joints: { [joint]: values[0] } }
           : { axes: values };
       manager.send(id, input, activation);
-    }, 50);
+    }, inputInterval);
     return () => {
       clearInterval(interval);
       window.removeEventListener('keydown', down);
@@ -121,6 +139,7 @@ function InputPresentation({ id }: { id: string }) {
       keys.clear();
       axes.current = [0, 0, 0];
       fresh.current = false;
+      keyboardSteering.reset();
     };
   }, [
     runtime,
@@ -131,6 +150,8 @@ function InputPresentation({ id }: { id: string }) {
     operation.profile,
     joint,
     activation,
+    driving,
+    inputInterval,
   ]);
 
   if (session.presentation === 'gripper_controls') return <GripperControls id={id} />;
@@ -277,7 +298,9 @@ function InputPresentation({ id }: { id: string }) {
       )}
       <p className="muted">
         {session.presentation === 'keyboard'
-          ? 'Arrow keys: forward / turn. Q / E: strafe for holonomic drive.'
+          ? driving
+            ? 'Up/down: target speed; release to brake. Left/right: hold to steer progressively, release to center.'
+            : 'Arrow keys: forward / turn. Q / E: strafe for holonomic drive.'
           : session.presentation === 'gamepad'
             ? 'Use the connected gamepad sticks.'
             : 'Drag from the center. Release to stop.'}
@@ -476,6 +499,7 @@ export function ControlPanel({ active }: { active: boolean }) {
         return (
           <section className="control-card" id={`control-${equipmentId}`} key={equipmentId}>
             <h3>{equipment?.label ?? equipmentId}</h3>
+            <RacingTelemetry equipmentId={equipmentId} active={active} />
             {[...channels].map((channel) => (
               <ControlChannel
                 key={channel}
@@ -489,7 +513,9 @@ export function ControlPanel({ active }: { active: boolean }) {
           </section>
         );
       })}
-      <XrControls supported={xr} />
+      {Object.values(interfaces).some((equipment) =>
+        Object.values(equipment.operations).some((op) => op.presentations.includes('vr')),
+      ) && <XrControls supported={xr} />}
       {!runtime.transport.fixture && (
         <p className="muted">
           Live adapters require verified robot-specific limits, units, cancellation and watchdog
@@ -571,7 +597,13 @@ function ControlChannel({
     >
       <div className="control-card-heading">
         <h4>
-          {channel === 'primary' ? 'Arm / motion' : channel === 'gripper' ? 'Gripper' : channel}
+          {channel === 'primary'
+            ? op?.profile === 'base.ackermann_drive.v1'
+              ? 'Driving'
+              : 'Arm / motion'
+            : channel === 'gripper'
+              ? 'Gripper'
+              : channel}
         </h4>
         <span className={`status status-${session.armed ? 'healthy' : 'not_requested'}`}>
           {session.armed ? 'Armed' : 'Disarmed'}

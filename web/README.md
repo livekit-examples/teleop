@@ -164,6 +164,6 @@ pnpm dev            # Local LiveKit and simulation workers (default)
 pnpm dev --modal    # Deployed Modal development API
 ```
 
-Both use `http://127.0.0.1:3001/try` by default (`SIM_WEB_PORT` changes the port).
+Both use `http://127.0.0.1:3001/try` by default (`--port 3050` or `SIM_WEB_PORT` changes the port).
 `pnpm dev` defaults to local workers. Use `pnpm dev --modal` to select Modal.
 For the website alone, run `pnpm dev:web` (port 3000; accepts Next.js flags).

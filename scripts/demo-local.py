@@ -23,14 +23,16 @@ def arguments(argv=None):
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--modal', action='store_true', help='use deployed development session API')
     modes.add_argument('--no-modal', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--port', type=int, help='website port (default: SIM_WEB_PORT or 3001)')
     return parser.parse_args(argv)
 
 
 def profile(args, environ):
     """Validate only the selected mode. Never read or rewrite a direct-room profile."""
-    port = int(environ.get('SIM_WEB_PORT', '3001'))
+    name = '--port' if args.port is not None else 'SIM_WEB_PORT'
+    port = args.port if args.port is not None else int(environ.get('SIM_WEB_PORT', '3001'))
     if not 1 <= port <= 65535:
-        raise ValueError('SIM_WEB_PORT must be between 1 and 65535.')
+        raise ValueError(f'{name} must be between 1 and 65535.')
     if args.modal:
         base, key = environ.get('SIM_SUPERVISOR_URL', ''), environ.get('SIM_SUPERVISOR_KEY', '')
         parsed = urlparse(base)

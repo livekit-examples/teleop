@@ -2,6 +2,7 @@ import type { AdapterContext, ProfileAdapter } from '@/lib/teleop/controls';
 import { selectJoints } from '../teleop/selectors';
 import type { JointLimit, PositionCapability, SimulationPolicy } from './types';
 import { object, parseJson } from '../teleop/validation';
+import { racingAdapters } from './racing-adapter';
 
 /** Explicit simulator opt-in. A robot label or profile never enables a live adapter. */
 export function discoveredSimulationAdapters(payload: string): Map<string, ProfileAdapter> {
@@ -9,6 +10,7 @@ export function discoveredSimulationAdapters(payload: string): Map<string, Profi
   if (root.simulation_control === undefined) return new Map();
   const extension = object(root.simulation_control, 'simulation_control');
   const policy = object(extension.policy, 'Simulation policy');
+  if (extension.implementation === 'rc.ackermann.v1') return racingAdapters(policy);
   if (extension.implementation === 'mujoco.position.v2') {
     if (policy.version !== 2) throw new Error('Unsupported simulation policy version.');
   } else if (extension.implementation === 'mujoco.joint_trajectory.v1') {
@@ -37,6 +39,7 @@ function validateLimits(value: unknown): Record<string, JointLimit> {
 
 /** Manual discovery and managed sessions use the same validated capabilities. */
 export function simulationAdapters(policy: SimulationPolicy): Map<string, ProfileAdapter> {
+  if ('kind' in policy) return racingAdapters(policy);
   if (
     typeof policy.max_feedback_age_ms !== 'number' ||
     !Number.isFinite(policy.max_feedback_age_ms) ||

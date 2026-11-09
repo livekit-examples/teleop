@@ -17,9 +17,10 @@ import {
   type DockviewReadyEvent,
   type IDockviewPanelProps,
 } from 'dockview-react';
-import { AudioLines, Database, Video, type LucideIcon } from 'lucide-react';
+import { AudioLines, Database, Plus, Video, type LucideIcon } from 'lucide-react';
 import { readPlacement, writePlacement, prunePlacement } from '@/lib/teleop/placement';
 import type { Panel } from '@/lib/teleop/types';
+import type { Prefill } from './add-visualization';
 import { useRuntime } from './context';
 import { Cameras } from './media';
 import { ControlPanel } from './control-panel';
@@ -48,7 +49,9 @@ function TopicKind({ kind }: { kind: string }) {
   );
 }
 
-const ActionsContext = createContext<{ edit(id: string): void }>({ edit: () => {} });
+const ActionsContext = createContext<{ edit(id: string, prefill?: Prefill): void }>({
+  edit: () => {},
+});
 
 function Catalog() {
   const runtime = useRuntime();
@@ -106,6 +109,19 @@ function Catalog() {
                   Blocked by the robot’s current {pub.kind} exclusions. No subscription or
                   monitoring demand is created.
                 </p>
+              )}
+              {!pub.excluded && (
+                <div className="topic-actions">
+                  <button
+                    className="primary"
+                    disabled={!pub.available || (pub.kind === 'data' && pub.encoding !== 'json')}
+                    onClick={() => actions.edit('new', { kind: pub.kind, track: pub.name })}
+                    aria-label={`Add visualization for ${pub.name}`}
+                  >
+                    <Plus size={12} strokeWidth={2} aria-hidden="true" />
+                    Add visualization
+                  </button>
+                </div>
               )}
             </details>
           ))}
@@ -273,7 +289,7 @@ const titles: Record<string, string> = {
   '@catalog': 'Topics & panels',
 };
 
-export function WorkspaceHost({ onEdit }: { onEdit(id: string): void }) {
+export function WorkspaceHost({ onEdit }: { onEdit(id: string, prefill?: Prefill): void }) {
   const runtime = useRuntime();
   const api = useRef<DockviewApi | null>(null);
   const [dockApi, setDockApi] = useState<DockviewApi | null>(null);

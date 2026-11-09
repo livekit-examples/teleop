@@ -44,7 +44,27 @@ export type PositionSimulationPolicy = {
   max_feedback_age_ms: number;
   operations: Record<string, Record<string, PositionCapability>>;
 };
-export type SimulationPolicy = LegacySimulationPolicy | PositionSimulationPolicy;
+export type RacingPolicy = {
+  version: 1;
+  kind: 'rc.ackermann.v1';
+  interface_id: 'base';
+  operation_id: 'drive';
+  command_track: '/ackermann_cmd';
+  profile: 'base.ackermann_drive.v1';
+  control_channel: 'primary';
+  min_speed: number;
+  max_speed: number;
+  max_steering_angle: number;
+  max_steering_rate: number;
+  steering_input_exponent?: number;
+  max_acceleration: number;
+  max_braking: number;
+  command_timeout_ms: number;
+  input_interval_ms: number;
+  neutral: 'brake_and_center';
+  state_track: '/vehicle_state';
+};
+export type SimulationPolicy = LegacySimulationPolicy | PositionSimulationPolicy | RacingPolicy;
 export type DemoCredentials = {
   server_url: string;
   room_name: string;

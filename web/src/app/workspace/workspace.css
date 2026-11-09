@@ -893,6 +893,16 @@ body:has(.workspace-app) > header {
   font-size: 12px;
   color: var(--lk-fg-moderate);
 }
+.topic-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 4px;
+}
+.topic-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .saved-panel {
   padding: 12px 0;
   border-bottom: 1px solid var(--lk-separator1);

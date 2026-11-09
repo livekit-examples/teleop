@@ -36,6 +36,7 @@ export type ProfileAdapter = {
   mandatoryFeedback?: 'joints' | 'pose';
   maxFeedbackAgeMs: number;
   repeatIntervalMs?: number;
+  telemetryTrack?: string;
   jointLimits?(context: AdapterContext): Record<string, { min: number; max: number }>;
   gripperTargets?(context: AdapterContext): { open: number; closed: number; label: string };
   encode(input: ControlInput, context: AdapterContext): unknown;

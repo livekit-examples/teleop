@@ -28,6 +28,12 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(port,3001)
         self.assertEqual(provider,'native')
         self.assertEqual(values['SIM_SUPERVISOR_URL'],'http://127.0.0.1:8001')
+    def test_port_option_overrides_environment_and_is_validated(self):
+        args = launcher.arguments(['--port', '3050'])
+        port, _, _ = launcher.profile(args, dict(SIM_WEB_PORT='3010'))
+        self.assertEqual(port, 3050)
+        with self.assertRaisesRegex(ValueError, '--port'):
+            launcher.profile(launcher.arguments(['--port', '70000']), {})
     def test_modal_requires_https_service_but_no_local_dependencies(self):
         args = launcher.arguments(['--modal'])
         for values in ({}, {'SIM_SUPERVISOR_URL':'http://localhost:8001','SIM_SUPERVISOR_KEY':'k'*32}):

@@ -18,7 +18,7 @@ import { compatibleRobot, type Panel } from "@/lib/teleop/types";
 import { RuntimeContext } from "./context";
 import { MediaProvider } from "./media";
 import { WorkspaceHost, updatePanel } from "./workspace-host";
-import { AddVisualization } from "./add-visualization";
+import { AddVisualization, type Prefill } from "./add-visualization";
 import { demoRequest } from "@/lib/demo/types";
 import { useDemoSession, useSeconds } from "@/lib/demo/use-session";
 import "@/components/demo/simulations.css";
@@ -36,11 +36,13 @@ function ConnectedWorkspace({
 }) {
   useSyncExternalStore(runtime.subscribe, runtime.snapshot, runtime.snapshot);
   const [editing, setEditing] = useState<string | undefined>(undefined);
+  const [prefill, setPrefill] = useState<Prefill | undefined>(undefined);
   const [error, setError] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
   const close = useCallback(() => setEditing(undefined), []);
-  const edit = (id: string) => {
+  const edit = (id: string, topic?: Prefill) => {
     void runtime.controls.stopAll();
+    setPrefill(topic);
     setEditing(id);
   };
   const exported = () => {
@@ -344,7 +346,8 @@ function ConnectedWorkspace({
           </footer>
           {editing && (
             <AddVisualization
-              key={editing}
+              key={`${editing}:${prefill?.kind ?? ""}:${prefill?.track ?? ""}`}
+              prefill={editing === "new" ? prefill : undefined}
               initial={
                 editing === "new" ? undefined : runtime.layout?.panels[editing]
               }
