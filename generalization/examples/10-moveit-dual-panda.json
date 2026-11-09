@@ -12,7 +12,6 @@
   "control_interfaces": {
     "left_arm": {
       "label": "Left Panda arm",
-      "kind": "arm",
       "frame_id": "left_panda_link0",
       "joint_names": [
         "left_panda_joint1",
@@ -42,7 +41,6 @@
     },
     "right_arm": {
       "label": "Right Panda arm",
-      "kind": "arm",
       "frame_id": "right_panda_link0",
       "joint_names": [
         "right_panda_joint1",

@@ -109,7 +109,6 @@ Feedback is data that describes the current robot state.
 | Field | Required | Description |
 | --- | --- | --- |
 | `label` | Yes | The name that the app shows. |
-| `kind` | Yes | One of `mobile_base`, `arm`, `lift`, `pan_tilt`. The app uses this value only to group interfaces and choose icons. |
 | `operations` | Yes | A map of ways to command this interface. |
 | `frame_id` | No | A coordinate frame gives reference axes. This field names the coordinate frame for commands, for example `base_link`. |
 | `joint_names` | No | A list of joint names. The app uses these names to select feedback for this interface from a shared joint state track. |
@@ -147,7 +146,7 @@ The `command` object tells the app where to send commands. It also names the sch
 | --- | --- |
 | `track_name` | The LiveKit data track that the app publishes. The robot does not need to publish it. |
 | `msg_type` | The name of the schema for command messages, for example `geometry_msgs/msg/Twist`. |
-| `format` | Must be `"json"`. |
+| `format` | Currently we only support `"json"`. |
 
 ```json
 {

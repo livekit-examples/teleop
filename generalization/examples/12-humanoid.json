@@ -12,7 +12,6 @@
   "control_interfaces": {
     "head": {
       "label": "Camera head",
-      "kind": "pan_tilt",
       "frame_id": "head_base_link",
       "joint_names": [
         "pan_joint",
@@ -35,7 +34,6 @@
     },
     "left_arm": {
       "label": "Left arm",
-      "kind": "arm",
       "frame_id": "left_arm_base_link",
       "joint_names": [
         "left_arm_joint_1",
@@ -108,7 +106,6 @@
     },
     "right_arm": {
       "label": "Right arm",
-      "kind": "arm",
       "frame_id": "right_arm_base_link",
       "joint_names": [
         "right_arm_joint_1",

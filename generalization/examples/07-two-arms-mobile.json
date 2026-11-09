@@ -12,7 +12,6 @@
   "control_interfaces": {
     "base": {
       "label": "Rover",
-      "kind": "mobile_base",
       "frame_id": "base_link",
       "operations": {
         "drive": {
@@ -32,7 +31,6 @@
     },
     "left_arm": {
       "label": "Left arm",
-      "kind": "arm",
       "frame_id": "left_arm_base_link",
       "joint_names": [
         "left_arm_joint_1",
@@ -105,7 +103,6 @@
     },
     "right_arm": {
       "label": "Right arm",
-      "kind": "arm",
       "frame_id": "right_arm_base_link",
       "joint_names": [
         "right_arm_joint_1",

@@ -51,7 +51,6 @@ def base_model(kinematics="differential"):
         "control_interfaces": {
             "base": {
                 "label": "Rover",
-                "kind": "mobile_base",
                 "frame_id": "base_link",
                 "operations": {"drive": operation(profile, command_track, command_type)},
             }
@@ -59,14 +58,13 @@ def base_model(kinematics="differential"):
     }
 
 
-def joint_model(key, label, kind="arm", names=None, vr=False):
+def joint_model(key, label, names=None, *, arm=True, vr=False):
     names = names or [f"{key}_joint_{i}" for i in range(1, 7)]
     state_track = f"/{key}/joint_states"
     model = {
         "control_interfaces": {
             key: {
                 "label": label,
-                "kind": kind,
                 "frame_id": f"{key}_base_link",
                 "joint_names": names,
                 "operations": {
@@ -78,12 +76,12 @@ def joint_model(key, label, kind="arm", names=None, vr=False):
             }
         },
     }
-    if kind == "arm":
+    if arm:
         model["control_interfaces"][key]["operations"]["joint_position"] = operation(
             "joints.trajectory.v1", f"/{key}/joint_trajectory",
             "trajectory_msgs/msg/JointTrajectory", [state_track],
         )
-    if kind == "arm":
+    if arm:
         gripper = operation("gripper.position.v1", f"/{key}/gripper_trajectory",
                             "trajectory_msgs/msg/JointTrajectory", [state_track])
         gripper.update(control_channel="gripper", joint_names=[f"{key}_gripper_joint"])
@@ -102,7 +100,6 @@ def panda_model():
         key = f"{side}_arm"
         model["control_interfaces"][key] = {
             "label": f"{side.capitalize()} Panda arm",
-            "kind": "arm",
             "frame_id": f"{side}_panda_link0",
             "joint_names": [f"{side}_panda_joint{i}" for i in range(1, 8)],
             "operations": {
@@ -136,13 +133,13 @@ def document(label, *models):
 
 
 base = base_model()
-head = joint_model("head", "Camera head", "pan_tilt", ["pan_joint", "tilt_joint"])
+head = joint_model("head", "Camera head", ["pan_joint", "tilt_joint"], arm=False)
 single_arm = joint_model("arm", "Arm", vr=True)
 dual = (
     joint_model("left_arm", "Left arm", vr=True),
     joint_model("right_arm", "Right arm", vr=True),
 )
-lift = joint_model("lift", "Lift", "lift", ["lift_joint"])
+lift = joint_model("lift", "Lift", ["lift_joint"], arm=False)
 
 examples = {
     "01-rover-differential": document("Differential rover", base),

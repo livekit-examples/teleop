@@ -12,7 +12,6 @@
   "control_interfaces": {
     "arm": {
       "label": "Arm",
-      "kind": "arm",
       "frame_id": "arm_base_link",
       "joint_names": [
         "arm_joint_1",

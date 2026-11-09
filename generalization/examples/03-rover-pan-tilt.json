@@ -12,7 +12,6 @@
   "control_interfaces": {
     "base": {
       "label": "Rover",
-      "kind": "mobile_base",
       "frame_id": "base_link",
       "operations": {
         "drive": {
@@ -32,7 +31,6 @@
     },
     "head": {
       "label": "Camera head",
-      "kind": "pan_tilt",
       "frame_id": "head_base_link",
       "joint_names": [
         "pan_joint",

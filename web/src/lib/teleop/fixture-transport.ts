@@ -31,7 +31,6 @@ export const fixtureConfig: RobotConfig = {
   control_interfaces: {
     base: {
       label: 'Rover base',
-      kind: 'mobile_base',
       frame_id: 'base_link',
       operations: {
         drive: operation('base.twist.v1', '/cmd_vel', 'geometry_msgs/msg/Twist', [
@@ -54,7 +53,6 @@ export const fixtureConfig: RobotConfig = {
     },
     left_arm: {
       label: 'Left arm',
-      kind: 'arm',
       frame_id: 'left_base',
       joint_names: ['left_1', 'left_2'],
       operations: {
@@ -92,7 +90,6 @@ export const fixtureConfig: RobotConfig = {
     },
     right_arm: {
       label: 'Right arm',
-      kind: 'arm',
       frame_id: 'right_base',
       joint_names: ['right_1', 'right_2'],
       operations: {

@@ -168,7 +168,6 @@ export function parseDiscovery(payload: string): RobotConfig {
       );
       const result: ControlInterface = {
         label: string(entry.label, `${id}.label`),
-        kind: string(entry.kind, `${id}.kind`),
         operations,
       };
       if (entry.frame_id !== undefined) result.frame_id = string(entry.frame_id, 'frame_id');

@@ -12,7 +12,6 @@
   "control_interfaces": {
     "base": {
       "label": "Rover",
-      "kind": "mobile_base",
       "frame_id": "base_link",
       "operations": {
         "drive": {

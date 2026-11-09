@@ -18,7 +18,6 @@ const policy: SimulationPolicy = {
 };
 const context = (): AdapterContext => ({
   equipment: {
-    kind: 'arm',
     label: 'Arm',
     frame_id: 'base',
     joint_names: ['joint_a', 'joint_b'],

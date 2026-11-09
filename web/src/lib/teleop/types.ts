@@ -42,7 +42,6 @@ export type Operation = {
 };
 export type ControlInterface = {
   label: string;
-  kind: string;
   frame_id?: string;
   joint_names?: string[];
   operations: Record<string, Operation>;
