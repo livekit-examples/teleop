@@ -1,6 +1,6 @@
 "use client";
 
-import type { ThreeEvent } from "@react-three/fiber";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CanvasTexture, SRGBColorSpace } from "three";
 
@@ -37,6 +37,8 @@ export type Rect = { x: number; y: number; w: number; h: number };
 export type Hit = Rect & {
   id: string;
   onClick?: () => void;
+  /** Called instead of `onClick` with the canvas x of the hit, for sliders. */
+  onPoint?(x: number): void;
   disabled?: boolean;
   /** The visible part of a scrolled area. The pointer must be inside it too. */
   clip?: Rect;
@@ -224,6 +226,9 @@ export function frame(p: Painter, title: string, subtitle?: string) {
 
 const inside = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
+/** The fastest that one panel redraws. Panels hold text and buttons, so 10 Hz reads as live. */
+const REDRAW_INTERVAL_MS = 100;
+
 export function VrCanvasPanel({
   position,
   rotation,
@@ -261,14 +266,30 @@ export function VrCanvasPanel({
   useEffect(() => () => texture?.dispose(), [texture]);
   const hits = useRef<Hit[]>([]);
   const [hovered, setHovered] = useState<string | null>(null);
-  // Reading `paint` here and not in a dependency list is deliberate. The caller redraws the panel
-  // whenever its own state changes, and a new `paint` closure arrives with each such render.
+  // The caller renders on every runtime update, and telemetry updates many times a second. Drawing
+  // and uploading a large canvas for each one stalls the headset frame loop, which shows as jitter.
+  // So each render only marks the panel dirty, and the frame loop redraws it at a limited rate.
+  const latest = useRef(paint);
+  const dirty = useRef(true);
+  const drawnAt = useRef(0);
   useEffect(() => {
+    latest.current = paint;
+    dirty.current = true;
+  });
+  useEffect(() => {
+    dirty.current = true;
+  }, [hovered, canvas]);
+  useFrame(() => {
+    if (!dirty.current) return;
+    const now = performance.now();
+    if (now - drawnAt.current < REDRAW_INTERVAL_MS) return;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || !texture) return;
+    dirty.current = false;
+    drawnAt.current = now;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const list: Hit[] = [];
-    paint({ ctx, hits: list, hovered, width: canvas.width, height: canvas.height, ox: 0, oy: 0 });
+    latest.current({ ctx, hits: list, hovered, width: canvas.width, height: canvas.height, ox: 0, oy: 0 });
     hits.current = list;
     texture.needsUpdate = true;
   });
@@ -296,7 +317,9 @@ export function VrCanvasPanel({
         const hit = at(event);
         if (!hit) return;
         event.stopPropagation();
-        if (!hit.disabled) hit.onClick?.();
+        if (hit.disabled) return;
+        if (hit.onPoint && event.uv) hit.onPoint(event.uv.x * canvasWidth);
+        else hit.onClick?.();
       }}
     >
       <planeGeometry args={[1, 1]} />

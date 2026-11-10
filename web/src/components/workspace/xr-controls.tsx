@@ -3,7 +3,7 @@
 import { bindHand, type Hand } from "@/lib/teleop/xr-bindings";
 import { CollapsibleSection } from "./collapsible-section";
 import { useRuntime } from "./context";
-import { useImmersiveVr } from "./immersive-vr";
+import { ImmersiveVrButton, useImmersiveVr } from "./immersive-vr";
 
 export function XrControls({ supported }: { supported: boolean }) {
   const runtime = useRuntime();
@@ -35,6 +35,9 @@ export function XrControls({ supported }: { supported: boolean }) {
               ? "Bind a hand and arm its interface, then select Immersive VR. Hold grip to move, release to stop."
               : "Immersive VR is unavailable in this browser.")}
         </p>
+        <div className="control-actions">
+          <ImmersiveVrButton />
+        </div>
       </CollapsibleSection>
     </section>
   );

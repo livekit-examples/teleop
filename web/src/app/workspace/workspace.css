@@ -626,6 +626,55 @@ body:has(.workspace-app) > header {
   font-size: 10px;
   color: var(--lk-fg3);
 }
+.view-status-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.view-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--lk-fg-moderate);
+  font-family: inherit;
+  font-size: 9px;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1;
+  cursor: help;
+}
+.view-info {
+  position: relative;
+}
+.view-info-tip {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 20;
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 8px;
+  border: 1px solid var(--lk-separator-moderate);
+  border-radius: var(--lk-radius);
+  background: var(--lk-bg-moderate1);
+  color: var(--lk-fg-moderate);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: normal;
+  pointer-events: none;
+}
+.view-info:hover .view-info-tip,
+.view-info:focus-visible .view-info-tip {
+  display: block;
+}
 .view-reason {
   color: var(--lk-fg-moderate);
   font-size: 12px;

@@ -10,6 +10,8 @@ function setup(armed = true) {
   const sent: unknown[] = [];
   const stop = vi.fn(async () => {});
   const runtime = {
+    xrHands: {},
+    notify() {},
     layout: { controller_hands: { right: 'arm' } },
     controls: {
       sessions: new Map([['arm', state]]),
@@ -53,20 +55,28 @@ describe('XrTeleop', () => {
     expect(last.pose.position.x).toBeCloseTo(0.3);
   });
 
-  it('stops the robot when grip is released', () => {
-    const { teleop, stop, hand } = setup();
+  it('stops following on release and stays armed', () => {
+    const { teleop, stop, sent, hand } = setup();
     teleop.update(0, [hand(false)]);
     teleop.update(20, [hand(true)]);
-    teleop.update(40, [hand(false)]);
-    expect(stop).toHaveBeenCalledWith('arm');
+    teleop.update(40, [hand(true, 0.01)]);
+    const before = sent.length;
+    teleop.update(60, [hand(false, 0.05)]);
+    // One command aims the robot at its measured pose, so it does not travel to the last target.
+    expect(sent).toHaveLength(before + 1);
+    expect(sent.at(-1)).toEqual({ pose: robotPose });
+    teleop.update(80, [hand(false, 0.06)]);
+    teleop.update(100, [hand(false, 0.07)]);
+    expect(sent).toHaveLength(before + 1);
+    expect(stop).not.toHaveBeenCalled();
   });
 
-  it('stops on a tracking jump and says why', () => {
+  it('stops following on a tracking jump, says why, and stays armed', () => {
     const { teleop, stop, messages, hand } = setup();
     teleop.update(0, [hand(false)]);
     teleop.update(20, [hand(true)]);
     teleop.update(40, [hand(true, 0.2)]);
-    expect(stop).toHaveBeenCalledWith('arm');
+    expect(stop).not.toHaveBeenCalled();
     expect(messages.at(-1)).toContain('tracking gap/jump');
   });
 

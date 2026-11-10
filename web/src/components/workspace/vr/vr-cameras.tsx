@@ -5,6 +5,7 @@ import type { Mesh } from "three";
 import type { WorkspaceRuntime } from "@/lib/teleop/runtime";
 import { useRuntime } from "../context";
 import { THEME, VrCanvasPanel, dot, fillRound, fit, text, type Painter } from "./canvas-panel";
+import { useVrEyeOffsetCm } from "./vr-settings";
 import { eyeGeometry, useLeftEyeGeometry, useVideoAspect, useVideoTexture } from "./vr-video";
 
 export type VrCamera = {
@@ -51,6 +52,7 @@ const statusColor = (status: string) =>
 /** One side-by-side frame. The left half goes to the left eye and the right half to the right eye. */
 function StereoMeshes({ video, width, height }: { video: HTMLVideoElement; width: number; height: number }) {
   const texture = useVideoTexture(video);
+  const eyeOffset = useVrEyeOffsetCm() / 100;
   const leftGeometry = useMemo(() => eyeGeometry("left"), []);
   const rightGeometry = useMemo(() => eyeGeometry("right"), []);
   const left = useRef<Mesh>(null);
@@ -65,10 +67,10 @@ function StereoMeshes({ video, width, height }: { video: HTMLVideoElement; width
   }, [leftGeometry, rightGeometry]);
   return (
     <>
-      <mesh ref={left} geometry={leftGeometry} scale={[width, height, 1]} pointerEvents="none">
+      <mesh ref={left} geometry={leftGeometry} position={[-eyeOffset, 0, 0]} scale={[width, height, 1]} pointerEvents="none">
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
-      <mesh ref={right} geometry={rightGeometry} scale={[width, height, 1]} pointerEvents="none">
+      <mesh ref={right} geometry={rightGeometry} position={[eyeOffset, 0, 0]} scale={[width, height, 1]} pointerEvents="none">
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
     </>

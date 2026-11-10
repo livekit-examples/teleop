@@ -259,10 +259,18 @@ export function VisualizationView({
   return (
     <div className="workspace-view" data-testid={`view-${id}`}>
       <div className="view-status">
-        <span className={`status status-${head.status}`}>{head.status}</span>
+        <span className="view-status-main">
+          {head.status === 'unmonitored' ? (
+            !isPlot && <UnmonitoredInfo reason={head.reason} />
+          ) : (
+            <span className={`status status-${head.status}`}>{head.status}</span>
+          )}
+        </span>
         <span>{head.observedRate.toFixed(1)} arrivals/s</span>
       </div>
-      {head.reason && <p className="view-reason">{head.reason}</p>}
+      {head.reason && head.status !== 'unmonitored' && (
+        <p className="view-reason">{head.reason}</p>
+      )}
       {isPlot && (
         <>
           <ul className="series-legend" aria-label="Plotted data">
@@ -274,9 +282,13 @@ export function VisualizationView({
                   }}
                 />
                 {item.label}
-                <span className={`status status-${seriesViews[index]?.status}`}>
-                  {seriesViews[index]?.status}
-                </span>
+                {seriesViews[index]?.status === 'unmonitored' ? (
+                  <UnmonitoredInfo reason={seriesViews[index]?.reason} />
+                ) : (
+                  <span className={`status status-${seriesViews[index]?.status}`}>
+                    {seriesViews[index]?.status}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -347,5 +359,15 @@ export function VisualizationView({
         </p>
       </details>
     </div>
+  );
+}
+
+/** Orange "i" icon: the reason shows only while the pointer or keyboard focus is on it. */
+function UnmonitoredInfo({ reason }: { reason?: string }) {
+  if (!reason) return null;
+  return (
+    <span className="view-info" tabIndex={0} aria-label={reason}>
+      i<span className="view-info-tip" role="tooltip">{reason}</span>
+    </span>
   );
 }

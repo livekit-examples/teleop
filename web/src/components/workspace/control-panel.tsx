@@ -582,7 +582,7 @@ export function ControlPanel({ active }: { active: boolean }) {
           </div>
         </>
       )}
-      {ids.map((equipmentId, index) => {
+      {ids.map((equipmentId) => {
         const equipment = interfaces[equipmentId];
         const channels = new Set([
           ...(equipment ? controlChannels(equipment) : ["primary"]),
@@ -603,12 +603,11 @@ export function ControlPanel({ active }: { active: boolean }) {
               title={equipment?.label ?? equipmentId}
             >
               <RacingTelemetry equipmentId={equipmentId} active={active} />
-              {[...channels].map((channel, position) => (
+              {[...channels].map((channel) => (
                 <ControlChannel
                   key={channel}
                   equipmentId={equipmentId}
                   channel={channel}
-                  immersive={index === 0 && position === 0}
                   active={active}
                   gamepad={gamepad}
                   xr={xr}
@@ -640,15 +639,12 @@ function ControlChannel({
   active,
   gamepad,
   xr,
-  immersive,
 }: {
   equipmentId: string;
   channel: string;
   active: boolean;
   gamepad: boolean;
   xr: boolean;
-  /** Show the Immersive VR button beside Arm. One channel of the panel shows it. */
-  immersive: boolean;
 }) {
   const runtime = useRuntime();
   const id = controlKey(equipmentId, channel);
@@ -814,7 +810,6 @@ function ControlChannel({
                   ? "Enable gripper"
                   : "Arm"}
           </button>
-          {immersive && <ImmersiveVrButton />}
           {session.error && (
             <button
               onClick={() => {

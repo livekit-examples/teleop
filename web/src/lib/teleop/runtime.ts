@@ -39,6 +39,8 @@ export class WorkspaceRuntime {
   discovery: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
   error = '';
   xrActive = false;
+  /** What each controller is doing, for the VR Controls panel. */
+  xrHands: Partial<Record<'left' | 'right', string>> = {};
   layoutStore?: LayoutStore;
   layoutRevision = 0;
   readonly notices: string[] = [];
@@ -110,11 +112,25 @@ export class WorkspaceRuntime {
     };
   };
   snapshot = () => this.revision;
+  private notifyTimer: ReturnType<typeof setTimeout> | undefined;
   notify = () => {
+    if (this.disposed) return;
+    // In a headset every listener rebuilds a large 3D scene on the same thread that draws it. Updates
+    // that arrive many times a second would drop frames, so they are merged to at most 10 per second.
+    if (this.xrActive) {
+      this.notifyTimer ??= setTimeout(() => {
+        this.notifyTimer = undefined;
+        this.flush();
+      }, 100);
+      return;
+    }
+    this.flush();
+  };
+  private flush() {
     if (this.disposed) return;
     this.revision++;
     for (const listener of this.listeners) listener();
-  };
+  }
   robots() {
     return this.transport.participants().filter((p) => p.attributes['lk.portal.role'] === 'robot');
   }

@@ -143,7 +143,9 @@ export class StreamHub {
         });
         if (this.retained.size > 100) this.retained.delete(this.retained.keys().next().value!);
         this.consumers.delete(id);
-        this.reconcile();
+        // Defer teardown one microtask: a panel edit releases and re-acquires every series in
+        // the same commit, and aborting then instantly resubscribing a track times out.
+        queueMicrotask(() => this.reconcile());
       }
     };
   }

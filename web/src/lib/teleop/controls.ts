@@ -72,6 +72,12 @@ export const knownProfiles = [
 ];
 
 /** Non-primary session IDs are serialized tuples; primary IDs remain backward compatible. */
+/** Profiles that stay armed while idle, until the operator disarms them. */
+const IDLE_PROFILES = ['joints.trajectory.v1', 'gripper.position.v1', 'arm.cartesian_pose.v1'];
+/** Profiles whose last target repeats while idle. A Cartesian target does not repeat, so that a
+ * released arm is not sent back to an old target. */
+const REPEAT_PROFILES = ['joints.trajectory.v1', 'gripper.position.v1'];
+
 export function controlKey(id: string, channel = 'primary'): string {
   return channel === 'primary' ? id : JSON.stringify([id, channel]);
 }
@@ -609,9 +615,7 @@ export class ControlManager {
       if (
         s.armed &&
         (this.reason(id) ||
-          (!['joints.trajectory.v1', 'gripper.position.v1'].includes(
-            this.operation(id)?.profile ?? '',
-          ) &&
+          (!IDLE_PROFILES.includes(this.operation(id)?.profile ?? '') &&
             s.lastInputAt !== undefined &&
             this.clock.now() - s.lastInputAt > 250))
       )
@@ -620,7 +624,7 @@ export class ControlManager {
         s.armed &&
         s.lastInput &&
         s.lastInputAt !== undefined &&
-        ['joints.trajectory.v1', 'gripper.position.v1'].includes(this.operation(id)?.profile ?? '')
+        REPEAT_PROFILES.includes(this.operation(id)?.profile ?? '')
       ) {
         const interval = this.adapter(id)?.repeatIntervalMs;
         if (interval && this.clock.now() - s.lastInputAt >= interval)
