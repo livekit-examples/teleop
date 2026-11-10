@@ -12,6 +12,7 @@ import './simulations.css';
 
 const simulationCards = new Map([
   ['f1tenth', { name: 'Formula RC', photo: '/simulations/f1tenth.png' }],
+  ['vacuum', { name: 'Vacuum robot', photo: '/simulations/vacuum.png' }],
   ['trossen-wxai', { name: 'wxai', photo: '/simulations/wxai.png' }],
   ['trossen-wxai-whack', { name: 'wxai whack', photo: '/simulations/wxai-whack.png' }],
   ['trossen-workbench', { name: 'workbench', photo: '/simulations/workbench.png' }],

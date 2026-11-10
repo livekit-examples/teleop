@@ -390,8 +390,11 @@ describe('client-owned layout persistence', () => {
     expect(() => store.import(JSON.stringify({ ...layout(), ...change }))).toThrow();
     expect(store.layout).toEqual(layout());
   });
-  it('rejects foreign identity and credentials/executable settings', () => {
-    expect(() => parseLayout(JSON.stringify(layout()), 'different')).toThrow('belongs');
+  it('rebinds a layout from another robot and rejects credentials/executable settings', () => {
+    expect(parseLayout(JSON.stringify(layout()), 'different').robot_identity).toBe('different');
+    const { robot_identity: _omit, ...missing } = layout();
+    expect(parseLayout(JSON.stringify(missing), 'different').robot_identity).toBe('different');
+    expect(parseLayout(JSON.stringify({ ...layout(), robot_identity: '' }), 'x').robot_identity).toBe('x');
     expect(() => parseLayout(JSON.stringify({ ...layout(), token: 'secret' }))).toThrow(
       'Unsupported',
     );

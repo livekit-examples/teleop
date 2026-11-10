@@ -17,6 +17,7 @@ import { WorkspaceRuntime } from "@/lib/teleop/runtime";
 import { compatibleRobot, type Panel } from "@/lib/teleop/types";
 import { RuntimeContext } from "./context";
 import { MediaProvider } from "./media";
+import { ImmersiveVrProvider } from "./immersive-vr";
 import { WorkspaceHost, updatePanel } from "./workspace-host";
 import { AddVisualization, type Prefill } from "./add-visualization";
 import { demoRequest } from "@/lib/demo/types";
@@ -98,6 +99,7 @@ function ConnectedWorkspace({
   return (
     <RuntimeContext.Provider value={runtime}>
       <MediaProvider>
+        <ImmersiveVrProvider runtime={runtime}>
         <main className="workspace-app">
           <header className="workspace-topbar">
             <Link
@@ -347,6 +349,7 @@ function ConnectedWorkspace({
             />
           )}
         </main>
+        </ImmersiveVrProvider>
       </MediaProvider>
     </RuntimeContext.Provider>
   );

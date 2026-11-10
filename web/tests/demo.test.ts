@@ -34,7 +34,12 @@ const context = (): AdapterContext => ({
     presentations: ['joint_sliders'],
   },
   feedback: {
-    '/feedback': { name: ['joint_b', 'joint_a'], position: [0.1, 0.2], velocity: [], effort: [] },
+    '/feedback': {
+      name: ['joint_b', 'joint_a'],
+      position: [0.1, 0.2],
+      velocity: [],
+      effort: [],
+    },
   },
 });
 
@@ -43,14 +48,20 @@ describe('managed simulation trajectory profile', () => {
     const adapter = simulationAdapters(policy).get(policy.profile)!;
     const value = adapter.encode({ joints: { joint_a: 1.2 } }, context()) as {
       joint_names: string[];
-      points: { positions: number[]; time_from_start: { sec: number; nanosec: number } }[];
+      points: {
+        positions: number[];
+        time_from_start: { sec: number; nanosec: number };
+      }[];
       header?: unknown;
     };
     expect(value.header).toBeUndefined();
     expect(value.joint_names).toEqual(['joint_a', 'joint_b']);
     expect(value.points[0].positions).toEqual([1.2, 0.1]);
     expect(value.points[0].time_from_start.sec).toBeGreaterThanOrEqual(2);
-    expect(adapter.release(context())).toEqual({ joint_names: ['joint_a', 'joint_b'], points: [] });
+    expect(adapter.release(context())).toEqual({
+      joint_names: ['joint_a', 'joint_b'],
+      points: [],
+    });
   });
   it('rejects out-of-bound targets, missing positions and mismatched policy names', () => {
     const adapter = simulationAdapters(policy).get(policy.profile)!;
@@ -72,7 +83,9 @@ describe('managed simulation trajectory profile', () => {
 it('keeps omitted measured positions inside soft joint boundaries without accepting invalid explicit targets', () => {
   const adapter = simulationAdapters(policy).get(policy.profile)!;
   const ctx = context();
-  ctx.feedback = { '/feedback': { name: ['joint_a', 'joint_b'], position: [-1.00000001, 0.1] } };
+  ctx.feedback = {
+    '/feedback': { name: ['joint_a', 'joint_b'], position: [-1.00000001, 0.1] },
+  };
   expect(
     (adapter.encode({}, ctx) as { points: { positions: number[] }[] }).points[0].positions[0],
   ).toBe(-1);
@@ -120,13 +133,18 @@ function gripperContext(): AdapterContext {
     joint_names: ['grip'],
     presentations: ['gripper_controls'],
   };
-  ctx.feedback = { '/feedback': { name: ['grip', 'joint_a'], position: [0.02, 0.4] } };
+  ctx.feedback = {
+    '/feedback': { name: ['grip', 'joint_a'], position: [0.02, 0.4] },
+  };
   return ctx;
 }
 it('executes the explicit gripper capability with meters, separate names, finite motion and cancellation', () => {
   const adapters = discoveredSimulationAdapters(
     JSON.stringify({
-      simulation_control: { implementation: 'mujoco.position.v2', policy: positionPolicy() },
+      simulation_control: {
+        implementation: 'mujoco.position.v2',
+        policy: positionPolicy(),
+      },
     }),
   );
   const adapter = adapters.get('gripper.position.v1')!,
@@ -144,13 +162,14 @@ it('executes the explicit gripper capability with meters, separate names, finite
   expect(adapter.release(ctx)).toEqual({ joint_names: ['grip'], points: [] });
   expect(() => adapter.encode({ joints: { joint_a: 1 } }, ctx)).toThrow('Unknown joint');
   expect(() => adapter.encode({ joints: { grip: 0.05 } }, ctx)).toThrow('limits');
-  expect(() => adapter.jointLimits!({ ...ctx, interfaceId: 'right_arm' })).toThrow(
-    'does not match',
-  );
+  expect(() => adapter.jointLimits!({ ...ctx, interfaceId: 'right_arm' })).toThrow('does not match');
   expect(() =>
     adapter.validateFeedback(
       {},
-      { ...ctx, feedback: { '/feedback': { name: ['joint_a'], position: [0] } } },
+      {
+        ...ctx,
+        feedback: { '/feedback': { name: ['joint_a'], position: [0] } },
+      },
     ),
   ).toThrow();
 });
@@ -180,5 +199,78 @@ it('does not carry a prior target into another gripper session', () => {
   const value = adapter.encode({ joints: { grip: 0 } }, second) as {
     points: { time_from_start: { sec: number; nanosec: number } }[];
   };
-  expect(value.points[0].time_from_start).toEqual({ sec: 0, nanosec: 500000000 });
+  expect(value.points[0].time_from_start).toEqual({
+    sec: 0,
+    nanosec: 500000000,
+  });
+});
+
+describe('managed simulation Cartesian pose profile', () => {
+  const limits = { joint_a: { min: -1, max: 2, max_velocity: 0.5 } };
+  const v2 = (units: string): SimulationPolicy => ({
+    version: 2,
+    max_feedback_age_ms: 1000,
+    operations: {
+      arm: {
+        joint_position: {
+          profile: 'joints.trajectory.v1',
+          control_channel: 'primary',
+          joint_names: ['joint_a'],
+          units: 'rad',
+          joints: limits,
+        },
+        cartesian_pose: {
+          profile: 'arm.cartesian_pose.v1',
+          control_channel: 'primary',
+          joint_names: ['joint_a'],
+          units: units as 'rad',
+          joints: limits,
+        },
+      },
+    },
+  });
+  const pose = {
+    position: { x: 0.3, y: 0, z: 0.2 },
+    orientation: { x: 0, y: 0, z: 0, w: 1 },
+  };
+  const poseContext = (): AdapterContext => ({
+    equipment: {
+      label: 'Arm',
+      frame_id: 'arm_base_link',
+      joint_names: ['joint_a'],
+      operations: {},
+    },
+    operation: {
+      profile: 'arm.cartesian_pose.v1',
+      command: {
+        track_name: '/pose',
+        msg_type: 'geometry_msgs/msg/PoseStamped',
+        format: 'json',
+      },
+      feedback_tracks: ['/pose_feedback'],
+      presentations: ['vr'],
+    },
+    feedback: { '/pose_feedback': { header: {}, pose } },
+  });
+
+  it('installs a VR adapter beside the joint adapter when the robot advertises the profile', () => {
+    const adapters = simulationAdapters(v2('m · quaternion'));
+    expect([...adapters.keys()].sort()).toEqual(['arm.cartesian_pose.v1', 'joints.trajectory.v1']);
+    const adapter = adapters.get('arm.cartesian_pose.v1')!;
+    expect(adapter.presentations).toEqual(['vr']);
+    expect(adapter.encode({ pose }, poseContext())).toEqual({
+      header: { frame_id: 'arm_base_link' },
+      pose,
+    });
+    expect(adapter.release(poseContext())).toEqual({
+      header: { frame_id: 'arm_base_link' },
+      pose,
+    });
+    expect(() =>
+      adapter.encode({ pose: { ...pose, orientation: { x: 0, y: 0, z: 0, w: 2 } } }, poseContext()),
+    ).toThrow('normalized');
+  });
+  it('rejects wrong Cartesian units', () => {
+    expect(() => simulationAdapters(v2('rad'))).toThrow('Cartesian');
+  });
 });

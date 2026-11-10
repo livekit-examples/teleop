@@ -226,9 +226,12 @@ export function parseLayout(payload: string, robot?: string): Layout {
     throw new Error('Unsupported layout_schema_version. Expected 1 or 2.');
   if (root.layout_schema_version === 1 && root.control_channel_preferences !== undefined)
     throw new Error('Control channels require layout_schema_version 2.');
-  const identity = string(root.robot_identity, 'Robot identity');
-  if (robot !== undefined && identity !== robot)
-    throw new Error(`Layout belongs to ${identity}. Select that robot before importing it.`);
+  // Layouts are portable: an imported layout is rebound to the target robot.
+  const exported =
+    root.robot_identity === undefined || root.robot_identity === ''
+      ? ''
+      : string(root.robot_identity, 'Robot identity');
+  const identity = robot ?? exported;
   const entries = Object.entries(object(root.panels, 'Panels'));
   if (entries.length > 100) throw new Error('Maximum 100 panels per layout.');
   const panels = Object.fromEntries(entries.map(([id, p]) => [localId(id), validatePanel(p)]));

@@ -30,10 +30,10 @@ export type LegacySimulationPolicy = {
   interfaces: Record<string, Record<string, JointLimit>>;
 };
 export type PositionCapability = {
-  profile: 'joints.trajectory.v1' | 'gripper.position.v1';
+  profile: 'joints.trajectory.v1' | 'gripper.position.v1' | 'arm.cartesian_pose.v1';
   control_channel: string;
   joint_names: string[];
-  units: 'm' | 'rad';
+  units: 'm' | 'rad' | 'm · quaternion';
   joints: Record<string, JointLimit>;
   coordinate_label?: string;
   open_position?: number;
@@ -64,7 +64,31 @@ export type RacingPolicy = {
   neutral: 'brake_and_center';
   state_track: '/vehicle_state';
 };
-export type SimulationPolicy = LegacySimulationPolicy | PositionSimulationPolicy | RacingPolicy;
+export type VacuumPolicy = {
+  version: 1;
+  kind: 'vacuum.twist.v1';
+  interface_id: 'base';
+  operation_id: 'drive';
+  command_track: '/cmd_vel';
+  profile: 'base.twist.v1';
+  control_channel: 'primary';
+  min_speed: number;
+  max_speed: number;
+  max_yaw_rate: number;
+  precision_max_speed: number;
+  max_acceleration: number;
+  command_timeout_ms: number;
+  input_interval_ms: number;
+  input_deadband?: number;
+  input_exponent?: number;
+  neutral: 'brake';
+  state_track: '/run_state';
+};
+export type SimulationPolicy =
+  | LegacySimulationPolicy
+  | PositionSimulationPolicy
+  | RacingPolicy
+  | VacuumPolicy;
 export type DemoCredentials = {
   server_url: string;
   room_name: string;

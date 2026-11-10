@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const args = process.argv.slice(2).filter((arg) => arg !== '--');
 const launcher = fileURLToPath(new URL('../../scripts/demo-local.py', import.meta.url));
 const child = spawn('python3', [launcher, ...args], { stdio: 'inherit' });
-for (const signal of ['SIGINT', 'SIGTERM']) {
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.on(signal, () => child.kill(signal));
 }
 child.on('error', (error) => {

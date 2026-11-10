@@ -38,7 +38,11 @@ export type ProfileAdapter = {
   repeatIntervalMs?: number;
   telemetryTrack?: string;
   jointLimits?(context: AdapterContext): Record<string, { min: number; max: number }>;
-  gripperTargets?(context: AdapterContext): { open: number; closed: number; label: string };
+  gripperTargets?(context: AdapterContext): {
+    open: number;
+    closed: number;
+    label: string;
+  };
   encode(input: ControlInput, context: AdapterContext): unknown;
   release(context: AdapterContext): unknown;
   validateFeedback(value: unknown, context: AdapterContext): void;
@@ -78,6 +82,52 @@ export function controlChannels(equipment: ControlInterface): string[] {
   return [
     ...new Set(Object.values(equipment.operations).map((op) => op.control_channel ?? 'primary')),
   ];
+}
+
+const poseFeedback = (value: unknown) => {
+  const pose = (value as { pose?: ControlInput['pose'] })?.pose;
+  if (
+    !pose ||
+    ![
+      pose.position?.x,
+      pose.position?.y,
+      pose.position?.z,
+      pose.orientation?.x,
+      pose.orientation?.y,
+      pose.orientation?.z,
+      pose.orientation?.w,
+    ].every((n) => typeof n === 'number' && Number.isFinite(n))
+  )
+    throw new Error('Current end-effector PoseStamped feedback is required.');
+  return pose;
+};
+
+/** VR end-effector targets, in the arm interface frame. The robot solves its own kinematics. */
+export function cartesianPoseAdapter(units: string, maxFeedbackAgeMs: number): ProfileAdapter {
+  return {
+    profile: 'arm.cartesian_pose.v1',
+    msgType: 'geometry_msgs/msg/PoseStamped',
+    presentations: ['vr'],
+    units,
+    mandatoryFeedback: 'pose',
+    maxFeedbackAgeMs,
+    encode: (input, ctx) => {
+      const pose = poseFeedback({ pose: input.pose });
+      if ([pose.position.x, pose.position.y, pose.position.z].some((v) => Math.abs(v) > 2))
+        throw new Error('Cartesian position exceeds ±2 m.');
+      const q = pose.orientation;
+      const length = Math.hypot(q.x, q.y, q.z, q.w);
+      if (Math.abs(length - 1) > 0.01) throw new Error('Pose quaternion must be normalized.');
+      return { header: { frame_id: ctx.equipment.frame_id ?? '' }, pose };
+    },
+    release: (ctx) => ({
+      header: { frame_id: ctx.equipment.frame_id ?? '' },
+      pose: poseFeedback(Object.values(ctx.feedback)[0]),
+    }),
+    validateFeedback: (value) => {
+      poseFeedback(value);
+    },
+  };
 }
 
 /** Adapters here apply ONLY to FixtureTransport. Their limits are not hardware defaults. */
@@ -196,7 +246,11 @@ export function fixtureAdapters(): Map<string, ProfileAdapter> {
     maxFeedbackAgeMs: 1000,
     jointLimits: (ctx) =>
       Object.fromEntries((ctx.equipment.joint_names ?? []).map((n) => [n, { min: 0, max: 0.044 }])),
-    gripperTargets: () => ({ open: 0.044, closed: 0, label: 'Finger displacement' }),
+    gripperTargets: () => ({
+      open: 0.044,
+      closed: 0,
+      label: 'Finger displacement',
+    }),
     encode: (input, ctx) => {
       const name = ctx.equipment.joint_names?.[0];
       const value = name ? input.joints?.[name] : undefined;
@@ -212,47 +266,7 @@ export function fixtureAdapters(): Map<string, ProfileAdapter> {
       positions(ctx);
     },
   });
-  const poseFeedback = (value: unknown) => {
-    const pose = (value as { pose?: ControlInput['pose'] })?.pose;
-    if (
-      !pose ||
-      ![
-        pose.position?.x,
-        pose.position?.y,
-        pose.position?.z,
-        pose.orientation?.x,
-        pose.orientation?.y,
-        pose.orientation?.z,
-        pose.orientation?.w,
-      ].every((n) => typeof n === 'number' && Number.isFinite(n))
-    )
-      throw new Error('Current end-effector PoseStamped feedback is required.');
-    return pose;
-  };
-  adapters.push({
-    profile: 'arm.cartesian_pose.v1',
-    msgType: 'geometry_msgs/msg/PoseStamped',
-    presentations: ['vr'],
-    units: 'm · quaternion (fixture)',
-    mandatoryFeedback: 'pose',
-    maxFeedbackAgeMs: 1000,
-    encode: (input, ctx) => {
-      const pose = poseFeedback({ pose: input.pose });
-      if ([pose.position.x, pose.position.y, pose.position.z].some((v) => Math.abs(v) > 2))
-        throw new Error('Fixture Cartesian position exceeds ±2 m.');
-      const q = pose.orientation;
-      const length = Math.hypot(q.x, q.y, q.z, q.w);
-      if (Math.abs(length - 1) > 0.01) throw new Error('Pose quaternion must be normalized.');
-      return { header: { frame_id: ctx.equipment.frame_id ?? '' }, pose };
-    },
-    release: (ctx) => ({
-      header: { frame_id: ctx.equipment.frame_id ?? '' },
-      pose: poseFeedback(Object.values(ctx.feedback)[0]),
-    }),
-    validateFeedback: (value) => {
-      poseFeedback(value);
-    },
-  });
+  adapters.push(cartesianPoseAdapter('m · quaternion (fixture)', 1000));
   return new Map(adapters.map((adapter) => [adapter.profile, adapter]));
 }
 
@@ -274,12 +288,7 @@ export class ControlManager {
     private clock: Clock = browserClock,
   ) {}
 
-  configure(
-    config: RobotConfig | undefined,
-    robot: string,
-    connected: boolean,
-    generation: number,
-  ) {
+  configure(config: RobotConfig | undefined, robot: string, connected: boolean, generation: number) {
     if (generation !== this.generation) {
       this.requested = false;
       this.pending = false;
@@ -457,10 +466,7 @@ export class ControlManager {
       return 'Profile command schema or presentation is incompatible.';
     if (adapter.mandatoryFeedback && !op.feedback_tracks.length)
       return `This profile must declare required ${adapter.mandatoryFeedback} feedback.`;
-    if (
-      adapter.mandatoryFeedback === 'joints' &&
-      !(op.joint_names ?? equipment.joint_names)?.length
-    )
+    if (adapter.mandatoryFeedback === 'joints' && !(op.joint_names ?? equipment.joint_names)?.length)
       return 'Exact joint names are required.';
     for (const track of op.feedback_tracks) {
       const view = this.streams.view(this.feedbackId(id, track));

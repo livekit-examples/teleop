@@ -143,7 +143,9 @@ def main():
     def stop_requested(_signum, _frame):
         raise KeyboardInterrupt
 
+    # Closing the terminal sends SIGHUP. Without a handler the launcher dies and orphans its children.
     signal.signal(signal.SIGTERM, stop_requested)
+    signal.signal(signal.SIGHUP, stop_requested)
 
     def start(command, cwd, name, child_env=env):
         log = (directory / f'{name}.log').open('ab', buffering=0)

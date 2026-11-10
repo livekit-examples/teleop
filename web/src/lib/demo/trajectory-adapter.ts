@@ -1,8 +1,9 @@
-import type { AdapterContext, ProfileAdapter } from '@/lib/teleop/controls';
+import { cartesianPoseAdapter, type AdapterContext, type ProfileAdapter } from '../teleop/controls';
 import { selectJoints } from '../teleop/selectors';
 import type { JointLimit, PositionCapability, SimulationPolicy } from './types';
 import { object, parseJson } from '../teleop/validation';
 import { racingAdapters } from './racing-adapter';
+import { vacuumAdapters } from './vacuum-adapter';
 
 /** Explicit simulator opt-in. A robot label or profile never enables a live adapter. */
 export function discoveredSimulationAdapters(payload: string): Map<string, ProfileAdapter> {
@@ -11,6 +12,7 @@ export function discoveredSimulationAdapters(payload: string): Map<string, Profi
   const extension = object(root.simulation_control, 'simulation_control');
   const policy = object(extension.policy, 'Simulation policy');
   if (extension.implementation === 'rc.ackermann.v1') return racingAdapters(policy);
+  if (extension.implementation === 'vacuum.twist.v1') return vacuumAdapters(policy);
   if (extension.implementation === 'mujoco.position.v2') {
     if (policy.version !== 2) throw new Error('Unsupported simulation policy version.');
   } else if (extension.implementation === 'mujoco.joint_trajectory.v1') {
@@ -39,7 +41,8 @@ function validateLimits(value: unknown): Record<string, JointLimit> {
 
 /** Manual discovery and managed sessions use the same validated capabilities. */
 export function simulationAdapters(policy: SimulationPolicy): Map<string, ProfileAdapter> {
-  if ('kind' in policy) return racingAdapters(policy);
+  if ('kind' in policy)
+    return policy.kind === 'vacuum.twist.v1' ? vacuumAdapters(policy) : racingAdapters(policy);
   if (
     typeof policy.max_feedback_age_ms !== 'number' ||
     !Number.isFinite(policy.max_feedback_age_ms) ||
@@ -47,8 +50,11 @@ export function simulationAdapters(policy: SimulationPolicy): Map<string, Profil
   )
     throw new Error('Unsupported simulation control policy.');
   const legacy = !('version' in policy);
-  const capabilities: { interfaceId?: string; operationId?: string; value: PositionCapability }[] =
-    [];
+  const capabilities: {
+    interfaceId?: string;
+    operationId?: string;
+    value: PositionCapability;
+  }[] = [];
   if (legacy) {
     if (policy.profile !== 'joints.trajectory.v1')
       throw new Error('Unsupported simulation control policy.');
@@ -93,12 +99,14 @@ export function simulationAdapters(policy: SimulationPolicy): Map<string, Profil
             typeof c.coordinate_label !== 'string' ||
             !c.coordinate_label.trim() ||
             ![c.open_position, c.closed_position].every(
-              (v) =>
-                typeof v === 'number' && Number.isFinite(v) && v >= bound.min && v <= bound.max,
+              (v) => typeof v === 'number' && Number.isFinite(v) && v >= bound.min && v <= bound.max,
             ) ||
             c.open_position === c.closed_position
           )
             throw new Error('Invalid gripper targets or coordinate units.');
+        } else if (c.profile === 'arm.cartesian_pose.v1') {
+          if (c.units !== 'm · quaternion')
+            throw new Error('Unsupported Cartesian capability units.');
         } else if (c.profile !== 'joints.trajectory.v1' || c.units !== 'rad')
           throw new Error('Unsupported position capability profile/units.');
         capabilities.push({ interfaceId, operationId, value: c });
@@ -106,7 +114,13 @@ export function simulationAdapters(policy: SimulationPolicy): Map<string, Profil
   }
   if (!capabilities.length) throw new Error('Simulation interfaces are empty.');
   const result = new Map<string, ProfileAdapter>();
+  if (capabilities.some((c) => c.value.profile === 'arm.cartesian_pose.v1'))
+    result.set(
+      'arm.cartesian_pose.v1',
+      cartesianPoseAdapter('m · quaternion', policy.max_feedback_age_ms),
+    );
   for (const profile of new Set(capabilities.map((c) => c.value.profile))) {
+    if (profile === 'arm.cartesian_pose.v1') continue;
     const capability = (ctx: AdapterContext) => {
       const names = ctx.operation.joint_names ?? ctx.equipment.joint_names;
       const entries = capabilities.filter(
@@ -192,7 +206,10 @@ export function simulationAdapters(policy: SimulationPolicy): Map<string, Profil
           points: [
             {
               positions: values,
-              time_from_start: { sec: Math.floor(nanos / 1e9), nanosec: nanos % 1e9 },
+              time_from_start: {
+                sec: Math.floor(nanos / 1e9),
+                nanosec: nanos % 1e9,
+              },
             },
           ],
         };

@@ -985,7 +985,28 @@ body:has(.workspace-app) > header {
 .control-card-heading {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 10px;
+}
+.control-card-heading > :is(h3, h4) {
+  flex: 1;
+  min-width: 0;
+}
+.collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 6px;
+  width: 100%;
+  padding: 0 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: inherit !important;
+  font: inherit;
+  text-align: left;
+}
+.collapse-toggle:hover:not(:disabled) {
+  color: var(--lk-fg0) !important;
 }
 .control-card .profile-name {
   font-family: var(--font-lk-mono), ui-monospace, monospace;
@@ -1772,4 +1793,20 @@ body:has(.workspace-app) > header {
   margin: 0;
   padding: 0 10px;
   color: var(--lk-red, #ff6b6b);
+}
+
+/* ── Immersive VR ────────────────────────────────────────── */
+/* The canvas stays in the page so a headset session can start from a click. It never shows. */
+.vr-stage {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.workspace-app button.immersive-vr svg {
+  flex: none;
 }
