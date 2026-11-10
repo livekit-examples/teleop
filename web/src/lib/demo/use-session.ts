@@ -78,6 +78,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
           );
           return;
         }
+        const simulationId = run.simulation_id;
         const credentials = await demoRequest<DemoCredentials>(`sessions/${id}/credentials`, {
           method: 'POST',
           body: JSON.stringify({ mode }),
@@ -109,6 +110,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
           mode === 'preview',
         );
         current.selected = credentials.robot_identity;
+        current.simulationId = simulationId;
         current.start();
         await transport.connect(credentials.server_url, credentials.token);
         if (disposed) {

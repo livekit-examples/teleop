@@ -34,6 +34,8 @@ export class WorkspaceRuntime {
   readonly cameras = new CameraDeck();
   readonly controls: ControlManager;
   selected = '';
+  /** Hosted simulation scene id, when this runtime belongs to a managed session. */
+  simulationId = '';
   config?: RobotConfig;
   connection: 'disconnected' | 'connected' | 'reconnecting' = 'disconnected';
   discovery: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
