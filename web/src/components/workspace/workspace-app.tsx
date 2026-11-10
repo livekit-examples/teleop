@@ -15,9 +15,12 @@ import { FixtureTransport } from "@/lib/teleop/fixture-transport";
 import { LiveKitTransport } from "@/lib/teleop/livekit-transport";
 import { WorkspaceRuntime } from "@/lib/teleop/runtime";
 import { compatibleRobot, type Panel } from "@/lib/teleop/types";
+import f1tenthLayout from "@/lib/teleop/example-layouts/f1tenth.json";
+import armLayout from "@/lib/teleop/example-layouts/arm.json";
 import { RuntimeContext } from "./context";
 import { MediaProvider } from "./media";
 import { ImmersiveVrProvider } from "./immersive-vr";
+import { HandTrackingDriver } from "./hand-tracking";
 import { WorkspaceHost, updatePanel } from "./workspace-host";
 import { AddVisualization, type Prefill } from "./add-visualization";
 import { demoRequest } from "@/lib/demo/types";
@@ -61,7 +64,21 @@ function ConnectedWorkspace({
     runtime.transport instanceof FixtureTransport
       ? runtime.transport
       : undefined;
+  // Simulation robots load a saved layout. Any other robot gets the generic example panels.
+  const exampleLayout = /f1tenth/.test(runtime.selected)
+    ? f1tenthLayout
+    : /cluttered-table|workbench/.test(runtime.selected)
+      ? armLayout
+      : undefined;
   const examples = () => {
+    if (exampleLayout) {
+      runtime
+        .importLayout(JSON.stringify(exampleLayout))
+        .catch((problem) =>
+          setError(problem instanceof Error ? problem.message : String(problem)),
+        );
+      return;
+    }
     const examples: Panel[] = [
       {
         label: "Yaw rate",
@@ -100,6 +117,7 @@ function ConnectedWorkspace({
     <RuntimeContext.Provider value={runtime}>
       <MediaProvider>
         <ImmersiveVrProvider runtime={runtime}>
+        <HandTrackingDriver />
         <main className="workspace-app">
           <header className="workspace-topbar">
             <Link

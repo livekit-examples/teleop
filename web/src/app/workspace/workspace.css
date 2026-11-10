@@ -556,12 +556,32 @@ body:has(.workspace-app) > header {
 .status-invalid {
   color: var(--lk-fg-serious1);
 }
-.status-starting {
-  color: var(--lk-fg-moderate);
-}
+.status-starting,
+.status-warning,
 .status-excluded,
 .status-unsupported {
   color: var(--lk-fg-moderate);
+}
+.rate-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.rate-fields label {
+  min-width: 0;
+}
+.rate-fields .rate-healthy {
+  color: var(--lk-fg-success);
+}
+.rate-fields .rate-warn {
+  color: var(--lk-fg-moderate);
+}
+.rate-fields .rate-stale {
+  color: var(--lk-fg-serious1);
+}
+.rate-fields-title {
+  grid-column: 1 / -1;
+  font-size: 12px;
 }
 
 /* ── Visualization panels ────────────────────────────────── */
@@ -671,10 +691,6 @@ body:has(.workspace-app) > header {
   white-space: normal;
   pointer-events: none;
 }
-.view-info:hover .view-info-tip,
-.view-info:focus-visible .view-info-tip {
-  display: block;
-}
 .view-reason {
   color: var(--lk-fg-moderate);
   font-size: 12px;
@@ -695,6 +711,9 @@ body:has(.workspace-app) > header {
   font-family: var(--font-lk-mono), ui-monospace, monospace;
   font-size: 10px;
 }
+.numeric-plot .u-legend .u-series:first-child {
+  display: none;
+}
 .numeric-plot .u-legend {
   color: var(--lk-fg2);
 }
@@ -707,6 +726,64 @@ body:has(.workspace-app) > header {
   font-variant-numeric: tabular-nums;
   margin: auto;
   padding: 24px;
+}
+.gauge {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  transition: opacity 0.2s;
+}
+.gauge.is-dim {
+  opacity: 0.4;
+}
+.gauge svg {
+  width: 100%;
+  height: 100%;
+  max-width: 360px;
+  max-height: 100%;
+  overflow: visible;
+}
+.gauge path {
+  fill: none;
+  stroke-width: 14;
+  stroke-linecap: round;
+}
+.gauge-fill-colored path {
+  stroke-linecap: butt;
+}
+.gauge-track {
+  stroke: var(--lk-bg3);
+}
+.gauge-fill {
+  stroke: var(--lk-fg-accent1);
+  filter: drop-shadow(0 0 4px rgb(31 213 249 / 0.45));
+  transition: d 0.15s ease-out;
+}
+.gauge.is-overflow .gauge-fill {
+  stroke: var(--lk-fg-moderate);
+  filter: drop-shadow(0 0 4px rgb(255 183 82 / 0.45));
+}
+.gauge text {
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.gauge-value {
+  font-size: 28px;
+  fill: var(--lk-fg0);
+}
+.gauge-overflow {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  fill: var(--lk-fg-moderate);
+}
+.gauge-bound {
+  font-size: 11px;
+  fill: var(--lk-fg3);
 }
 .boolean-value {
   display: flex;
@@ -1269,6 +1346,24 @@ body:has(.workspace-app) > header {
   gap: 16px;
   padding: 20px 24px;
   overflow: auto;
+}
+.visualization-form .field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.visualization-form input[type='color'] {
+  width: 100%;
+  height: 32px;
+  padding: 2px;
+  cursor: pointer;
+}
+.gauge-color-preview {
+  height: 10px;
+  border-radius: 4px;
+}
+.visualization-form .field-error {
+  color: var(--lk-fg-serious1);
 }
 .modal-actions {
   padding: 16px 24px;

@@ -21,6 +21,7 @@
     "@bufbuild/protobuf": "^2.15.0",
     "@livekit/components-react": "^2.9.20",
     "@livekit/protocol": "^1.45.6",
+    "@mediapipe/tasks-vision": "^1.2.2",
     "@react-three/fiber": "^9.8.0",
     "@react-three/xr": "^6.6.30",
     "class-variance-authority": "^0.7.1",

@@ -24,6 +24,8 @@ export function useDataView(id: string, panel: Panel, active: boolean) {
       source: panel.source,
       select: panelSelector(panel),
       rate: panel.settings.expected_rate_hz,
+      warnRate: panel.settings.warn_rate_hz,
+      errorRate: panel.settings.error_rate_hz,
       windowSeconds: panel.settings.window_seconds,
     });
     // signature is the complete validated, serializable panel spec.
@@ -55,6 +57,8 @@ export function useSeriesViews(id: string, panel: Panel, active: boolean): Strea
         },
         select: seriesSelector(panel, index),
         rate: item.expected_rate_hz,
+        warnRate: item.warn_rate_hz,
+        errorRate: item.error_rate_hz,
         windowSeconds: panel.settings.window_seconds,
       }),
     );

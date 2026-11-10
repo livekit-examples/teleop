@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import uPlot from 'uplot';
 import type { NamedJoint } from '@/lib/teleop/selectors';
 import { compatibility, panelSeries } from '@/lib/teleop/selectors';
@@ -8,6 +8,7 @@ import { monitoringPolicy, type Sample } from '@/lib/teleop/streams';
 import type { Panel } from '@/lib/teleop/types';
 import { own } from '@/lib/teleop/types';
 import { useDataView, useRuntime, useSeriesViews } from './context';
+import { Gauge } from './gauge';
 import { AudioView, ExtraVideo } from './media';
 
 export const SERIES_COLORS = [
@@ -51,18 +52,11 @@ function NumericPlot({ samples, panel }: { samples: Sample[][]; panel: Panel }) 
   const chart = useRef<uPlot | null>(null);
   // The user's drag-zoom on time survives new samples until a double click resets it.
   const zoomed = useRef(false);
-  // Y range covers every value seen since this plot began, so the scale only widens.
-  const seen = useRef<{ min: number; max: number; upTo: number[] }>({
-    min: Infinity,
-    max: -Infinity,
-    upTo: [],
-  });
   const series = panelSeries(panel);
   const seriesKey = JSON.stringify(series.map((item) => item.label));
   useEffect(() => {
     const host = ref.current!;
     zoomed.current = false;
-    seen.current = { min: Infinity, max: -Infinity, upTo: [] };
     const size = () => ({
       width: Math.max(200, host.clientWidth),
       // The legend sits below the canvas, so leave room for it.
@@ -71,13 +65,26 @@ function NumericPlot({ samples, panel }: { samples: Sample[][]; panel: Panel }) 
     const plot = new uPlot(
       {
         ...size(),
-        scales: { x: { time: false }, y: { auto: false, range: [0, 1] } },
+        scales: {
+          x: { time: false },
+          // uPlot fits y to the data inside the visible x range, so a value that scrolled
+          // off screen no longer counts and a new extreme widens the axis at once.
+          y: {
+            auto: true,
+            range: (_u, min, max) => {
+              if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+              const pad = (max - min) * 0.05 || Math.max(Math.abs(min) * 0.05, 1);
+              return [min - pad, max + pad];
+            },
+          },
+        },
         axes: [
           { label: 'Receive time (s)', stroke: '#999999', grid: { stroke: '#202020' } },
           { stroke: '#999999', grid: { stroke: '#202020' } },
         ],
         series: [
-          {},
+          // The x entry stays out of the legend (see .numeric-plot CSS) so only y readings show.
+          { label: 'Time (s)' },
           ...series.map((item, index) => ({
             label: item.label,
             stroke: SERIES_COLORS[index % SERIES_COLORS.length],
@@ -114,28 +121,12 @@ function NumericPlot({ samples, panel }: { samples: Sample[][]; panel: Panel }) 
   useEffect(() => {
     const plot = chart.current;
     if (!plot) return;
-    const range = seen.current;
-    samples.forEach((list, index) => {
-      const from = range.upTo[index] ?? -Infinity;
-      for (const sample of list) {
-        if (sample.t <= from) continue;
-        if (typeof sample.value === 'number' && Number.isFinite(sample.value)) {
-          range.min = Math.min(range.min, sample.value);
-          range.max = Math.max(range.max, sample.value);
-        }
-      }
-      range.upTo[index] = list.at(-1)?.t ?? from;
-    });
     const data = mergeSeries(
       samples,
       series.map((item) => item.expected_rate_hz),
     );
     if (!data[0].length) return;
     plot.setData(data as uPlot.AlignedData, !zoomed.current);
-    if (range.min <= range.max) {
-      const pad = (range.max - range.min) * 0.05 || Math.max(Math.abs(range.min) * 0.05, 1);
-      plot.setScale('y', { min: range.min - pad, max: range.max + pad });
-    }
   });
   return <div ref={ref} className="numeric-plot" aria-label={`${panel.label} numeric plot`} />;
 }
@@ -302,6 +293,13 @@ export function VisualizationView({
             : '—'}
         </div>
       )}
+      {panel.visualization === 'gauge' && (
+        <Gauge
+          panel={panel}
+          value={display}
+          dim={['stale', 'invalid', 'unsupported', 'excluded', 'unavailable'].includes(head.status)}
+        />
+      )}
       {panel.visualization === 'boolean' && (
         <div className="boolean-value">
           <span
@@ -364,10 +362,51 @@ export function VisualizationView({
 
 /** Orange "i" icon: the reason shows only while the pointer or keyboard focus is on it. */
 function UnmonitoredInfo({ reason }: { reason?: string }) {
+  const icon = useRef<HTMLSpanElement>(null);
+  const tip = useRef<HTMLSpanElement>(null);
+  // Keep the tooltip inside the panel that holds the icon, so the panel edge never clips it.
+  const place = useCallback(() => {
+    const iconEl = icon.current;
+    const tipEl = tip.current;
+    if (!iconEl || !tipEl) return;
+    const bounds = (iconEl.closest('.workspace-view') ?? document.body).getBoundingClientRect();
+    const anchor = iconEl.getBoundingClientRect();
+    const pad = 4;
+    tipEl.style.maxWidth = `${Math.max(80, Math.min(240, bounds.width - pad * 2))}px`;
+    tipEl.style.display = 'block';
+    const width = tipEl.offsetWidth;
+    const height = tipEl.offsetHeight;
+    const center = anchor.left + anchor.width / 2;
+    const left = Math.min(
+      Math.max(center - width / 2, bounds.left + pad),
+      bounds.right - width - pad,
+    );
+    const below = anchor.bottom + 6;
+    const fitsBelow = below + height <= bounds.bottom - pad;
+    const top = fitsBelow ? below : Math.max(bounds.top + pad, anchor.top - 6 - height);
+    tipEl.style.left = `${left - anchor.left}px`;
+    tipEl.style.top = `${top - anchor.top}px`;
+    tipEl.style.transform = 'none';
+  }, []);
+  const hide = useCallback(() => {
+    if (tip.current) tip.current.style.display = '';
+  }, []);
   if (!reason) return null;
   return (
-    <span className="view-info" tabIndex={0} aria-label={reason}>
-      i<span className="view-info-tip" role="tooltip">{reason}</span>
+    <span
+      ref={icon}
+      className="view-info"
+      tabIndex={0}
+      aria-label={reason}
+      onMouseEnter={place}
+      onFocus={place}
+      onMouseLeave={hide}
+      onBlur={hide}
+    >
+      i
+      <span ref={tip} className="view-info-tip" role="tooltip">
+        {reason}
+      </span>
     </span>
   );
 }

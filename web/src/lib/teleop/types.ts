@@ -3,6 +3,7 @@ export type FieldPath = (string | number)[];
 export type Visualization =
   | 'plot'
   | 'value'
+  | 'gauge'
   | 'boolean'
   | 'state'
   | 'joints'
@@ -13,6 +14,7 @@ export type Status =
   | 'not_requested'
   | 'starting'
   | 'healthy'
+  | 'warning'
   | 'stale'
   | 'unmonitored'
   | 'unavailable'
@@ -99,11 +101,23 @@ export type PlotSeries = {
   field_path: FieldPath;
   expected_msg_type?: string;
   expected_rate_hz?: number;
+  /** Observed rate in Hz below which the view shows a warning. */
+  warn_rate_hz?: number;
+  /** Observed rate in Hz below which the view shows an error (stale). */
+  error_rate_hz?: number;
 };
 export type PanelSettings = {
   expected_rate_hz?: number;
+  warn_rate_hz?: number;
+  error_rate_hz?: number;
   window_seconds?: number;
   enum_labels?: Record<string, string>;
+  /** Gauge range. Both are always set on a validated gauge panel. */
+  min?: number;
+  max?: number;
+  /** Optional gauge colors (#rrggbb), set together. The fill blends from min to max. */
+  min_color?: string;
+  max_color?: string;
   image_layout?: 'mono' | 'stereo_sbs';
   eye?: 'left' | 'right';
   volume?: number;
@@ -151,6 +165,8 @@ export type Layout = {
     Record<string, { operation: string; presentation: string }>
   >;
   controller_hands?: Partial<Record<'left' | 'right', string>>;
+  /** Which interface each tracked hand drives with the hand tracking presentation. */
+  tracked_hands?: Partial<Record<'left' | 'right', string>>;
   workspace?: Placement;
 };
 export type Clock = { now(): number; delay(ms: number): Promise<void> };

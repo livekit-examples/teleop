@@ -113,7 +113,7 @@ export function cartesianPoseAdapter(units: string, maxFeedbackAgeMs: number): P
   return {
     profile: 'arm.cartesian_pose.v1',
     msgType: 'geometry_msgs/msg/PoseStamped',
-    presentations: ['vr'],
+    presentations: ['vr', 'hand_tracking'],
     units,
     mandatoryFeedback: 'pose',
     maxFeedbackAgeMs,

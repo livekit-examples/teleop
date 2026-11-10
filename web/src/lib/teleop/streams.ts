@@ -7,8 +7,13 @@ import {
   type Source,
   type Status,
   type Transport,
-} from './types';
+} from "./types";
 
+/** Default thresholds: warn at 80% and error at 50% of the expected rate. */
+export const rateDefaults = (expected: number) => ({
+  warn: Number((expected * 0.8).toPrecision(3)),
+  error: Number((expected * 0.5).toPrecision(3)),
+});
 export const monitoringPolicy = {
   grace: (rate: number) => Math.max(3000, (5 * 1000) / rate),
   stale: (rate: number) => Math.max(1000, (5 * 1000) / rate),
@@ -19,6 +24,8 @@ export type ConsumerSpec = {
   cacheKey?: string;
   source: Source;
   rate?: number;
+  warnRate?: number;
+  errorRate?: number;
   select: (value: unknown) => unknown;
   windowSeconds?: number;
 };
@@ -58,7 +65,7 @@ export type StreamView = {
 export type Incident = {
   at: number;
   input: string;
-  transition: 'stale' | 'recovered';
+  transition: "stale" | "recovered";
   duration?: number;
 };
 
@@ -107,22 +114,29 @@ export class StreamHub {
     this.enabled = enabled;
     this.excluded = excluded;
     this.catalog = new Map(
-      publications.filter((p) => p.kind === 'data').map((p) => [endpointKey(p.kind, p.name), p]),
+      publications
+        .filter((p) => p.kind === "data")
+        .map((p) => [endpointKey(p.kind, p.name), p]),
     );
     this.reconcile();
   }
 
   acquire(id: string, spec: ConsumerSpec): () => void {
-    if (this.consumers.has(id)) throw new Error(`Consumer ${id} is already registered.`);
+    if (this.consumers.has(id))
+      throw new Error(`Consumer ${id} is already registered.`);
     if (
       spec.rate !== undefined &&
-      (typeof spec.rate !== 'number' || !Number.isFinite(spec.rate) || spec.rate <= 0)
+      (typeof spec.rate !== "number" ||
+        !Number.isFinite(spec.rate) ||
+        spec.rate <= 0)
     )
-      throw new Error('Expected rate must be positive and finite.');
+      throw new Error("Expected rate must be positive and finite.");
     const signature = JSON.stringify([spec.robot, spec.source, spec.cacheKey]);
     const saved = this.retained.get(id);
     const cached =
-      saved?.signature === signature && saved.epoch === this.generation ? saved : undefined;
+      saved?.signature === signature && saved.epoch === this.generation
+        ? saved
+        : undefined;
     const consumer: Consumer = {
       ...spec,
       epoch: this.generation,
@@ -141,7 +155,8 @@ export class StreamHub {
           signature,
           epoch: consumer.epoch,
         });
-        if (this.retained.size > 100) this.retained.delete(this.retained.keys().next().value!);
+        if (this.retained.size > 100)
+          this.retained.delete(this.retained.keys().next().value!);
         this.consumers.delete(id);
         // Defer teardown one microtask: a panel edit releases and re-acquires every series in
         // the same commit, and aborting then instantly resubscribing a track times out.
@@ -152,10 +167,13 @@ export class StreamHub {
 
   private unsupported(c: Consumer, pub?: Publication) {
     if (!pub) return;
-    if (c.source.expected_msg_type && pub.msgType !== c.source.expected_msg_type)
-      return `Saved type ${c.source.expected_msg_type} is incompatible with ${pub.msgType ?? 'an untyped publication'}.`;
-    if (pub.encoding !== 'json')
-      return `Unsupported encoding: ${pub.encoding ?? 'no frame encoding metadata'}. Explicit JSON is required.`;
+    if (
+      c.source.expected_msg_type &&
+      pub.msgType !== c.source.expected_msg_type
+    )
+      return `Saved type ${c.source.expected_msg_type} is incompatible with ${pub.msgType ?? "an untyped publication"}.`;
+    if (pub.encoding !== "json")
+      return `Unsupported encoding: ${pub.encoding ?? "no frame encoding metadata"}. Explicit JSON is required.`;
   }
 
   private reconcile() {
@@ -163,16 +181,17 @@ export class StreamHub {
     if (this.enabled)
       for (const c of this.consumers.values()) {
         if (c.robot && c.robot !== this.robot) continue;
-        const key = endpointKey('data', c.source.track_name);
+        const key = endpointKey("data", c.source.track_name);
         const pub = this.catalog.get(key);
-        if (pub && !this.excluded(c.source) && !this.unsupported(c, pub)) wanted.set(key, pub);
+        if (pub && !this.excluded(c.source) && !this.unsupported(c, pub))
+          wanted.set(key, pub);
       }
     for (const [key, entry] of this.streams) {
       if (wanted.get(key)?.id !== entry.publication.id) {
         entry.abort.abort();
         this.streams.delete(key);
         for (const c of this.consumers.values())
-          if (endpointKey('data', c.source.track_name) === key) {
+          if (endpointKey("data", c.source.track_name) === key) {
             c.at = undefined;
             c.invalid = undefined;
           }
@@ -192,9 +211,12 @@ export class StreamHub {
   }
 
   private async read(key: string, stream: Stream, generation: number) {
-    const decoder = new TextDecoder('utf-8', { fatal: true });
+    const decoder = new TextDecoder("utf-8", { fatal: true });
     try {
-      for await (const bytes of this.transport.read(stream.publication, stream.abort.signal)) {
+      for await (const bytes of this.transport.read(
+        stream.publication,
+        stream.abort.signal,
+      )) {
         if (
           stream.abort.signal.aborted ||
           this.generation !== generation ||
@@ -215,7 +237,7 @@ export class StreamHub {
         }
         for (const c of this.consumers.values()) {
           if (
-            endpointKey('data', c.source.track_name) !== key ||
+            endpointKey("data", c.source.track_name) !== key ||
             (c.robot !== undefined && c.robot !== stream.publication.robot) ||
             this.excluded(c.source) ||
             this.unsupported(c, stream.publication)
@@ -229,7 +251,10 @@ export class StreamHub {
             c.invalid = undefined;
             c.samples.push({ t: now, value: selected });
             const cutoff = now - (c.windowSeconds ?? 30) * 1000;
-            while (c.samples.length > 5000 || (c.samples.length > 1 && c.samples[0].t < cutoff))
+            while (
+              c.samples.length > 5000 ||
+              (c.samples.length > 1 && c.samples[0].t < cutoff)
+            )
               c.samples.shift();
           } catch (error) {
             c.invalid = errorMessage(error);
@@ -237,7 +262,8 @@ export class StreamHub {
         }
       }
       if (!stream.abort.signal.aborted && this.streams.get(key) === stream)
-        stream.error = 'Data subscription ended. Check the publisher and subscription permissions.';
+        stream.error =
+          "Data subscription ended. Check the publisher and subscription permissions.";
     } catch (error) {
       if (!stream.abort.signal.aborted && this.streams.get(key) === stream)
         stream.error = `Data subscription failed: ${errorMessage(error)}`;
@@ -248,7 +274,7 @@ export class StreamHub {
     const c = this.consumers.get(id);
     if (!c)
       return {
-        status: 'not_requested',
+        status: "not_requested",
         samples: [],
         arrivals: 0,
         decoded: 0,
@@ -256,14 +282,16 @@ export class StreamHub {
         consumers: 0,
         displays: 0,
       };
-    const key = endpointKey('data', c.source.track_name);
+    const key = endpointKey("data", c.source.track_name);
     const pub = this.catalog.get(key);
     const stream = this.streams.get(key);
     const now = this.clock.now();
     const window = monitoringPolicy.window(c.rate);
     const times = stream?.arrivals.filter((t) => t > now - window) ?? [];
     const observedRate =
-      times.length < 2 ? 0 : ((times.length - 1) * 1000) / Math.max(1, now - times[0]);
+      times.length < 2
+        ? 0
+        : ((times.length - 1) * 1000) / Math.max(1, now - times[0]);
     const base = {
       value: c.value,
       at: c.at,
@@ -272,40 +300,73 @@ export class StreamHub {
       decoded: stream?.decoded ?? 0,
       observedRate,
       consumers: [...this.consumers.values()].filter(
-        (other) => endpointKey('data', other.source.track_name) === key,
+        (other) => endpointKey("data", other.source.track_name) === key,
       ).length,
       displays: c.displays,
       displayAt: c.displayAt,
     };
-    const result = (status: Status, reason?: string): StreamView => ({ ...base, status, reason });
+    const result = (status: Status, reason?: string): StreamView => ({
+      ...base,
+      status,
+      reason,
+    });
     if (c.robot && c.robot !== this.robot)
       return {
-        ...result('unavailable', 'Bound to another robot; awaiting its selected session.'),
+        ...result(
+          "unavailable",
+          "Bound to another robot; awaiting its selected session.",
+        ),
         value: undefined,
         samples: [],
         at: undefined,
       };
     if (this.excluded(c.source))
-      return result('excluded', 'Blocked by the selected robot’s current data exclusions.');
+      return result(
+        "excluded",
+        "Blocked by the selected robot’s current data exclusions.",
+      );
     if (!this.enabled)
-      return result('unavailable', 'Waiting for a connected robot with valid discovery.');
+      return result(
+        "unavailable",
+        "Waiting for a connected robot with valid discovery.",
+      );
     const unsupported = this.unsupported(c, pub);
-    if (unsupported) return result('unsupported', unsupported);
-    if (stream?.error || c.invalid) return result('invalid', stream?.error ?? c.invalid);
+    if (unsupported) return result("unsupported", unsupported);
+    if (stream?.error || c.invalid)
+      return result("invalid", stream?.error ?? c.invalid);
     if (c.rate === undefined)
       return pub
-        ? result('unmonitored', 'No expected rate configured; missing samples are not monitored.')
-        : result('unavailable', 'This exact publication is absent.');
+        ? result(
+            "unmonitored",
+            "No expected rate configured; missing samples are not monitored.",
+          )
+        : result("unavailable", "This exact publication is absent.");
     if (now - c.started < monitoringPolicy.grace(c.rate))
-      return result(c.at === undefined ? 'starting' : 'healthy');
+      return result(c.at === undefined ? "starting" : "healthy");
     if (c.at === undefined || now - c.at > monitoringPolicy.stale(c.rate))
       return result(
-        'stale',
+        "stale",
         pub
-          ? 'No usable selected sample before the deadline.'
-          : 'The expected publication is absent.',
+          ? "No usable selected sample before the deadline."
+          : "The expected publication is absent.",
       );
-    return result('healthy');
+    // A rate needs enough arrivals in the window to mean anything after a gap or at start.
+    if (c.rate !== undefined && times.length >= 5) {
+      const defaults = rateDefaults(c.rate);
+      const error = c.errorRate ?? defaults.error;
+      const warn = c.warnRate ?? defaults.warn;
+      if (observedRate < error)
+        return result(
+          "stale",
+          `Arrival rate ${observedRate.toFixed(1)} Hz is below the error rate ${error} Hz.`,
+        );
+      if (observedRate < warn)
+        return result(
+          "warning",
+          `Arrival rate ${observedRate.toFixed(1)} Hz is below the warn rate ${warn} Hz.`,
+        );
+    }
+    return result("healthy");
   }
 
   tick() {
@@ -313,21 +374,26 @@ export class StreamHub {
     for (const [id, c] of this.consumers) {
       const { status } = this.view(id);
       const now = this.clock.now();
-      if (status === 'stale' && c.previous !== 'stale') {
+      if (status === "stale" && c.previous !== "stale") {
         c.outage = c.at === undefined ? c.started : c.at;
-        this.incidents.push({ at: now, input: c.source.track_name, transition: 'stale' });
-      } else if (status === 'healthy' && c.outage !== undefined) {
         this.incidents.push({
           at: now,
           input: c.source.track_name,
-          transition: 'recovered',
+          transition: "stale",
+        });
+      } else if (status === "healthy" && c.outage !== undefined) {
+        this.incidents.push({
+          at: now,
+          input: c.source.track_name,
+          transition: "recovered",
           duration: now - c.outage,
         });
         c.outage = undefined;
       }
       c.previous = status;
     }
-    if (this.incidents.length > 100) this.incidents.splice(0, this.incidents.length - 100);
+    if (this.incidents.length > 100)
+      this.incidents.splice(0, this.incidents.length - 100);
   }
   display(id: string, sampleAt: number) {
     const c = this.consumers.get(id);

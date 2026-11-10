@@ -34,7 +34,7 @@ Return to `/try` to preview an existing session without requesting control.
 Request control and arm the joint input before moving a joint.
 
 The trial page links to the direct workspace. The dashboard links back to `/try`.
-Only the four supported Trossen scenes appear with launch controls.
+Only the supported scenes appear with launch controls: the four Trossen scenes, `f1tenth`, `vacuum`, and `cluttered-table`.
 Unavailable entries show a reason.
 
 Preview consumes the same fixed session duration as control.

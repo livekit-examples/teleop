@@ -117,6 +117,7 @@
             "/left_arm/end_effector_pose"
           ],
           "presentations": [
+            "hand_tracking",
             "vr"
           ]
         }
@@ -189,6 +190,7 @@
             "/right_arm/end_effector_pose"
           ],
           "presentations": [
+            "hand_tracking",
             "vr"
           ]
         }

@@ -48,12 +48,14 @@ export class CameraDeck {
     if (i < 0 || !this.main) return;
     [this.main, this.tiles[i]] = [this.tiles[i], this.main];
   }
-  remove(id: string) {
+  /** A quiet removal is for a camera the operator turned off, so it posts no notice. */
+  remove(id: string, quiet = false) {
     const camera = this.cameras.get(id);
     this.cameras.delete(id);
     this.tiles = this.tiles.filter((key) => key !== id);
     if (this.main === id) {
       this.main = this.tiles.shift();
+      if (quiet) return;
       this.notice = `${camera?.name ?? 'Main camera'} became unavailable.${this.main ? ` Showing ${this.cameras.get(this.main)?.name}.` : ''}`;
     }
   }

@@ -41,6 +41,12 @@ export class WorkspaceRuntime {
   xrActive = false;
   /** What each controller is doing, for the VR Controls panel. */
   xrHands: Partial<Record<'left' | 'right', string>> = {};
+  /** What each tracked hand is doing, for the hand tracking section of the Controls panel. */
+  handStatus: Partial<Record<'left' | 'right', string>> = {};
+  /** The canvas that shows the webcam and the tracked hands. Set while hand tracking runs. */
+  handCanvas?: HTMLCanvasElement;
+  /** Why hand tracking is not running, such as a blocked camera. */
+  handError = '';
   layoutStore?: LayoutStore;
   layoutRevision = 0;
   readonly notices: string[] = [];

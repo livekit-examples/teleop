@@ -1,6 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { RateFields, type RateDraft, ratesFrom, ratesToFields } from './rate-fields';
+import {
+  GAUGE_DEFAULT_MAX,
+  GAUGE_DEFAULT_MAX_COLOR,
+  GAUGE_DEFAULT_MIN,
+  GAUGE_DEFAULT_MIN_COLOR,
+  gaugeColor,
+} from '@/lib/teleop/gauge';
 import { validatePanel, visualizationNames } from '@/lib/teleop/layout';
 import { inspectFields } from '@/lib/teleop/selectors';
 import type { FieldPath, MediaKind, Panel, Visualization } from '@/lib/teleop/types';
@@ -73,8 +81,19 @@ export function AddVisualization({
     ),
   );
   const [label, setLabel] = useState(initial?.label ?? prefill?.track ?? '');
-  const [rate, setRate] = useState(String(initial?.settings.expected_rate_hz ?? ''));
+  const [rates, setRates] = useState<RateDraft>(() => ratesFrom(initial?.settings));
   const [window, setWindow] = useState(String(initial?.settings.window_seconds ?? 30));
+  const [min, setMin] = useState(String(initial?.settings.min ?? GAUGE_DEFAULT_MIN));
+  const [max, setMax] = useState(String(initial?.settings.max ?? GAUGE_DEFAULT_MAX));
+  const [colorBy, setColorBy] = useState(!!initial?.settings.min_color);
+  const [minColor, setMinColor] = useState(initial?.settings.min_color ?? GAUGE_DEFAULT_MIN_COLOR);
+  const [maxColor, setMaxColor] = useState(initial?.settings.max_color ?? GAUGE_DEFAULT_MAX_COLOR);
+  // Empty inputs read as NaN so validation names the missing bound instead of using 0.
+  const bound = (value: string) => (value.trim() === '' ? NaN : Number(value));
+  const rangeError =
+    visualization === 'gauge' && bound(min) >= bound(max)
+      ? 'Minimum must be less than maximum.'
+      : '';
   const [enumLabels, setEnumLabels] = useState(
     JSON.stringify(
       initial?.settings.enum_labels ??
@@ -155,7 +174,7 @@ export function AddVisualization({
   const fieldType =
     visualization === 'boolean'
       ? 'boolean'
-      : ['plot', 'value'].includes(visualization)
+      : ['plot', 'value', 'gauge'].includes(visualization)
         ? 'number'
         : visualization === 'state'
           ? 'scalar'
@@ -179,11 +198,15 @@ export function AddVisualization({
           : kind === 'video'
             ? { image_layout: image, eye }
             : {
-                ...(rate ? { expected_rate_hz: Number(rate) } : {}),
+                ...ratesToFields(rates),
                 ...(['plot', 'state'].includes(visualization)
                   ? { window_seconds: Number(window) }
                   : {}),
                 ...(visualization === 'state' ? { enum_labels: JSON.parse(enumLabels) } : {}),
+                ...(visualization === 'gauge' ? { min: bound(min), max: bound(max) } : {}),
+                ...(visualization === 'gauge' && colorBy
+                  ? { min_color: minColor, max_color: maxColor }
+                  : {}),
               };
       const panel = validatePanel({
         visualization,
@@ -194,7 +217,7 @@ export function AddVisualization({
           track_name: track,
           field_path: kind === 'data' ? JSON.parse(path) : [],
           ...(publication.msgType ? { expected_msg_type: publication.msgType } : {}),
-          ...(jointNames.trim() && ['joints', 'plot', 'value'].includes(visualization)
+          ...(jointNames.trim() && ['joints', 'plot', 'value', 'gauge'].includes(visualization)
             ? {
                 joint_names: jointNames
                   .split('\n')
@@ -213,7 +236,7 @@ export function AddVisualization({
                       track_name: track,
                       field_path: JSON.parse(path),
                       ...(publication.msgType ? { expected_msg_type: publication.msgType } : {}),
-                      ...(rate ? { expected_rate_hz: Number(rate) } : {}),
+                      ...ratesToFields(rates),
                     }
                   : item,
               ),
@@ -367,7 +390,7 @@ export function AddVisualization({
                   placeholder={'["angular_velocity", "z"]'}
                 />
               </label>
-              {['plot', 'value', 'joints'].includes(visualization) && (
+              {['plot', 'value', 'gauge', 'joints'].includes(visualization) && (
                 <label>
                   Exact joint names (optional; one per line)
                   <textarea
@@ -382,17 +405,82 @@ export function AddVisualization({
                   />
                 </label>
               )}
-              <label>
-                Expected sample rate, Hz (optional)
-                <input
-                  type="number"
-                  min="0.001"
-                  step="any"
-                  value={rate}
-                  onChange={(event) => setRate(event.target.value)}
-                  placeholder="Unmonitored"
-                />
-              </label>
+              {visualization === 'gauge' && (
+                <>
+                  <div className="field-row">
+                    <label>
+                      Minimum
+                      <input
+                        type="number"
+                        step="any"
+                        value={min}
+                        onChange={(event) => setMin(event.target.value)}
+                        aria-invalid={!!rangeError}
+                      />
+                    </label>
+                    <label>
+                      Maximum
+                      <input
+                        type="number"
+                        step="any"
+                        value={max}
+                        onChange={(event) => setMax(event.target.value)}
+                        aria-invalid={!!rangeError}
+                      />
+                    </label>
+                  </div>
+                  {rangeError ? (
+                    <p className="field-help field-error" role="alert">
+                      {rangeError}
+                    </p>
+                  ) : (
+                    <p className="field-help">
+                      Values outside this range pin to the end of the arc and are flagged.
+                    </p>
+                  )}
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={colorBy}
+                      onChange={(event) => setColorBy(event.target.checked)}
+                    />
+                    Color by value
+                  </label>
+                  {colorBy && (
+                    <>
+                      <div className="field-row">
+                        <label>
+                          Minimum color
+                          <input
+                            type="color"
+                            value={minColor}
+                            onChange={(event) => setMinColor(event.target.value)}
+                          />
+                        </label>
+                        <label>
+                          Maximum color
+                          <input
+                            type="color"
+                            value={maxColor}
+                            onChange={(event) => setMaxColor(event.target.value)}
+                          />
+                        </label>
+                      </div>
+                      <div
+                        className="gauge-color-preview"
+                        aria-hidden="true"
+                        style={{
+                          background: `linear-gradient(to right, ${Array.from({ length: 9 }, (_, i) => gaugeColor(i / 8, minColor, maxColor)).join(', ')})`,
+                        }}
+                      />
+                      <p className="field-help">
+                        The fill blends from the minimum color to the value’s color.
+                      </p>
+                    </>
+                  )}
+                </>
+              )}
+              <RateFields value={rates} onChange={setRates} />
               {['plot', 'state'].includes(visualization) && (
                 <label>
                   History window, seconds

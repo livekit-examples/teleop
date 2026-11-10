@@ -15,6 +15,7 @@ import {
   themeDark,
   type DockviewApi,
   type DockviewReadyEvent,
+  type IDockviewPanelHeaderProps,
   type IDockviewPanelProps,
 } from 'dockview-react';
 import { AudioLines, Database, Plus, Video, type LucideIcon } from 'lucide-react';
@@ -306,6 +307,12 @@ function DockPanel(props: IDockviewPanelProps) {
   );
 }
 const components = { workspace: DockPanel };
+// Dockview forces a full re-layout whenever an option prop changes identity, and that undoes a
+// sash drag in progress. These are module-level so every render passes the same references.
+const tabComponent = (props: IDockviewPanelHeaderProps) => (
+  <DockviewDefaultTab {...props} hideClose />
+);
+const tabContextMenuItems = () => ['maximize' as const, 'float' as const];
 const titles: Record<string, string> = {
   '@cameras': 'Live cameras',
   '@controls': 'Controls',
@@ -423,8 +430,8 @@ export function WorkspaceHost({ onEdit }: { onEdit(id: string, prefill?: Prefill
         className="workspace-dock"
         theme={themeDark}
         components={components}
-        defaultTabComponent={(props) => <DockviewDefaultTab {...props} hideClose />}
-        getTabContextMenuItems={() => ['maximize', 'float']}
+        defaultTabComponent={tabComponent}
+        getTabContextMenuItems={tabContextMenuItems}
         floatingGroupBounds="boundedWithinViewport"
         onReady={ready}
       />

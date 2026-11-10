@@ -272,7 +272,7 @@ A profile defines how user input becomes a command. It sets the units for the co
 | `base.ackermann_drive.v1` | Speed and steering angle. | `joystick`, `keyboard`, `gamepad` |
 | `joints.velocity_jog.v1` | Named JointJog velocities. | `joint_sliders` (velocity mode), `gamepad` |
 | `joints.trajectory.v1` | Named JointTrajectory waypoints. | `joint_sliders` (position mode) |
-| `arm.cartesian_pose.v1` | PoseStamped targets for the Cartesian controller of the robot. | `vr` |
+| `arm.cartesian_pose.v1` | PoseStamped targets for the Cartesian controller of the robot. | `vr`, `hand_tracking` |
 | `gripper.position.v1` | One gripper joint, in meters, as a position-only JointTrajectory. | `gripper_controls` |
 
 These profiles are proposals. An adapter implements a profile in the app. Before a profile can run, its adapter must define these behaviors:
@@ -288,9 +288,11 @@ The app disables a profile if its adapter is incomplete. A payload of zero does 
 
 A presentation is the control that the user operates. The app shows every presentation that you list. If the browser cannot support one, the app shows it as unavailable with a reason.
 
-The values are `joystick`, `keyboard`, `gamepad`, `joint_sliders`, `vr`, and `gripper_controls`. The profile sets the mode and the units.
+The values are `joystick`, `keyboard`, `gamepad`, `joint_sliders`, `vr`, `hand_tracking`, and `gripper_controls`. The profile sets the mode and the units.
 
 The `vr` presentation does not add Cartesian control to an interface that only controls joints. An endpoint receives commands or supplies data. The robot must provide an endpoint that accepts Cartesian commands.
+
+The `hand_tracking` presentation uses the webcam of the operator and the same Cartesian profile as `vr`. The browser finds the hands, and the robot solves its own IK. To move an arm, the operator curls the middle, ring, and pinky fingers into the palm. The arm follows the motion of the hand since that grip. Opening the hand holds the arm. Thumb and index tips set the gripper, if the arm has a `gripper.position.v1` operation on the `gripper` channel. The pose feedback track must report the end effector in the same frame as the command. The app assumes that the end effector z axis points along the gripper fingers. If that is false for a robot, the operator selects the Robot base motion frame.
 
 ## Gripper operation
 

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Publication } from '@/lib/teleop/types';
 import { useRuntime } from './context';
+import { HAND_CAMERA_ID } from '@/lib/teleop/hands/bindings';
 
 type Host = { video: HTMLVideoElement; dispose(): void };
 const MediaContext = createContext<Map<string, Host>>(new Map());
@@ -121,7 +122,21 @@ export function MediaProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** The hand tracking video is a canvas that the operator's browser draws, not a robot track. */
+function LocalCanvas({ canvas }: { canvas?: HTMLCanvasElement }) {
+  const container = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!canvas || !container.current) return;
+    container.current.append(canvas);
+    return () => {
+      canvas.remove();
+    };
+  }, [canvas]);
+  return <div ref={container} className="workspace-video" />;
+}
+
 function AutomaticVideo({ id }: { id: string }) {
+  const runtime = useRuntime();
   const hosts = useContext(MediaContext);
   const container = useRef<HTMLDivElement>(null);
   const host = hosts.get(id);
@@ -134,6 +149,7 @@ function AutomaticVideo({ id }: { id: string }) {
       parent?.append(video);
     };
   }, [host]);
+  if (id === HAND_CAMERA_ID) return <LocalCanvas canvas={runtime.handCanvas} />;
   return <div ref={container} className="workspace-video" />;
 }
 

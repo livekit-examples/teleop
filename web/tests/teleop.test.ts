@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { CameraDeck } from '../src/lib/teleop/cameras';
 import { ControlManager, fixtureAdapters } from '../src/lib/teleop/controls';
 import { FixtureTransport, fixtureConfig } from '../src/lib/teleop/fixture-transport';
+import { gaugeColor, gaugeFraction, gaugeOverflow } from '../src/lib/teleop/gauge';
 import { emptyLayout, LayoutStore, parseLayout, validatePanel } from '../src/lib/teleop/layout';
 import { prunePlacement, readPlacement, writePlacement } from '../src/lib/teleop/placement';
 import { WorkspaceRuntime } from '../src/lib/teleop/runtime';
@@ -951,4 +952,139 @@ it('round trips channel preferences in version 2 and imports version 1 without m
   expect(transport.commands).toHaveLength(0);
   expect(transport.calls.filter((c) => c.method === 'portal.set_active_operator')).toHaveLength(0);
   await runtime.dispose();
+});
+
+describe('gauge visualization', () => {
+  const gauge: Panel = {
+    label: 'Battery',
+    visualization: 'gauge',
+    visible: true,
+    source: { ...source('/battery'), field_path: ['percent'] },
+    settings: { min: 0, max: 100 },
+  };
+  it('accepts a numeric gauge with a range', () => {
+    expect(validatePanel(gauge)).toEqual(gauge);
+    expect(validatePanel({ ...gauge, settings: { min: -1.5, max: 2.5, expected_rate_hz: 5 } }))
+      .toMatchObject({ settings: { min: -1.5, max: 2.5, expected_rate_hz: 5 } });
+  });
+  it('fills in the default range when min/max are missing', () => {
+    expect(validatePanel({ ...gauge, settings: {} }).settings).toEqual({ min: 0, max: 100 });
+  });
+  it('rejects an empty, inverted or non-finite range', () => {
+    expect(() => validatePanel({ ...gauge, settings: { min: 5, max: 5 } })).toThrow('less than');
+    expect(() => validatePanel({ ...gauge, settings: { min: 10, max: 1 } })).toThrow('less than');
+    expect(() => validatePanel({ ...gauge, settings: { min: Number.NaN, max: 1 } })).toThrow(
+      'finite',
+    );
+    expect(() => validatePanel({ ...gauge, settings: { min: '0', max: 1 } })).toThrow('finite');
+    expect(() => validatePanel({ ...gauge, settings: { max: -1 } })).toThrow('less than');
+  });
+  it('only allows min/max on gauges, and gauges only on data', () => {
+    expect(() => validatePanel({ ...panel, settings: { min: 0, max: 1 } })).toThrow('Unsupported');
+    expect(() =>
+      validatePanel({ ...gauge, source: { kind: 'video', track_name: '/cam', field_path: [] } }),
+    ).toThrow('requires a data source');
+  });
+  it('can read one named joint', () => {
+    const joint = { ...gauge, source: { ...gauge.source, joint_names: ['elbow'] } };
+    expect(validatePanel(joint)).toEqual(joint);
+    expect(
+      panelSelector(joint)({ percent: { name: ['elbow'], position: [0.7] } }),
+    ).toBe(0.7);
+  });
+  it('requires a finite number from the selected field', () => {
+    expect(panelSelector(gauge)({ percent: 42 })).toBe(42);
+    expect(() => panelSelector(gauge)({ percent: 'full' })).toThrow('finite number');
+  });
+  it('round-trips through a saved layout', () => {
+    const store = new LayoutStore('fixture-rover', {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+    });
+    const saved = emptyLayout('fixture-rover');
+    store.update({ ...saved, panels: { battery: gauge }, panel_order: ['battery'] });
+    expect(parseLayout(store.export()).panels.battery).toEqual(gauge);
+  });
+});
+
+describe('gaugeFraction', () => {
+  it('maps the range to 0–1 and clamps outside it', () => {
+    expect(gaugeFraction(50, 0, 100)).toBe(0.5);
+    expect(gaugeFraction(0, 0, 100)).toBe(0);
+    expect(gaugeFraction(100, 0, 100)).toBe(1);
+    expect(gaugeFraction(-5, -10, 10)).toBe(0.25);
+    expect(gaugeFraction(150, 0, 100)).toBe(1);
+    expect(gaugeFraction(-1, 0, 100)).toBe(0);
+  });
+  it('returns 0 for non-finite values or an empty range', () => {
+    expect(gaugeFraction(Number.NaN, 0, 100)).toBe(0);
+    expect(gaugeFraction(5, 10, 10)).toBe(0);
+  });
+  it('flags values outside the range', () => {
+    expect(gaugeOverflow(101, 0, 100)).toBe('over');
+    expect(gaugeOverflow(-1, 0, 100)).toBe('under');
+    expect(gaugeOverflow(100, 0, 100)).toBeUndefined();
+  });
+});
+
+describe('gauge colors', () => {
+  const gauge: Panel = {
+    label: 'Battery',
+    visualization: 'gauge',
+    visible: true,
+    source: { ...source('/battery'), field_path: ['percent'] },
+    settings: { min: 0, max: 100, min_color: '#ff0000', max_color: '#00ff00' },
+  };
+  it('accepts a min/max color pair and normalizes case', () => {
+    expect(validatePanel(gauge)).toEqual(gauge);
+    expect(
+      validatePanel({ ...gauge, settings: { ...gauge.settings, min_color: '#FF0000' } }).settings
+        .min_color,
+    ).toBe('#ff0000');
+  });
+  it('rejects one color without the other, or a bad color', () => {
+    expect(() =>
+      validatePanel({ ...gauge, settings: { min: 0, max: 1, min_color: '#ff0000' } }),
+    ).toThrow('both');
+    expect(() =>
+      validatePanel({ ...gauge, settings: { ...gauge.settings, max_color: 'green' } }),
+    ).toThrow('#rrggbb');
+    expect(() =>
+      validatePanel({ ...gauge, settings: { ...gauge.settings, max_color: '#0f0' } }),
+    ).toThrow('#rrggbb');
+  });
+  it('only allows colors on gauges', () => {
+    expect(() =>
+      validatePanel({ ...panel, settings: { min_color: '#ff0000', max_color: '#00ff00' } }),
+    ).toThrow('Unsupported');
+  });
+  it('returns the exact end colors at 0 and 1, clamping beyond them', () => {
+    expect(gaugeColor(0, '#FF7566', '#23de6b')).toBe('#ff7566');
+    expect(gaugeColor(1, '#ff7566', '#23de6b')).toBe('#23de6b');
+    expect(gaugeColor(-2, '#ff7566', '#23de6b')).toBe('#ff7566');
+    expect(gaugeColor(5, '#ff7566', '#23de6b')).toBe('#23de6b');
+  });
+  it('blends red to green through warm yellow hues, not brown', () => {
+    const [r, g, b] = [1, 3, 5].map((i) =>
+      parseInt(gaugeColor(0.5, '#ff0000', '#00ff00').slice(i, i + 2), 16),
+    );
+    expect(r).toBeGreaterThan(150);
+    expect(g).toBeGreaterThan(100);
+    expect(b).toBeLessThan(40);
+  });
+  it('keeps the hue of a colored end when the other end is gray', () => {
+    const mid = gaugeColor(0.5, '#666666', '#1fd5f9');
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(mid.slice(i, i + 2), 16));
+    expect(b).toBeGreaterThan(r);
+    expect(g).toBeGreaterThan(r);
+  });
+  it('always returns a valid #rrggbb color', () => {
+    for (const [a, b] of [
+      ['#000000', '#ffffff'],
+      ['#2f6bff', '#ffd60a'],
+      ['#1fd5f9', '#dc85ff'],
+    ])
+      for (let t = 0; t <= 1; t += 0.1) expect(gaugeColor(t, a, b)).toMatch(/^#[0-9a-f]{6}$/);
+  });
 });

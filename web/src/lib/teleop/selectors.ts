@@ -51,7 +51,7 @@ export function panelSelector(panel: Panel): (value: unknown) => unknown {
       if (number === undefined) throw new Error(`Joint ${joint.name} has no position.`);
       return number;
     }
-    if (panel.visualization === 'plot' || panel.visualization === 'value') {
+    if (['plot', 'value', 'gauge'].includes(panel.visualization)) {
       if (typeof selected !== 'number' || !Number.isFinite(selected))
         throw new Error('Selected field is not a finite number.');
     } else if (panel.visualization === 'boolean' && typeof selected !== 'boolean')
@@ -78,6 +78,8 @@ export function panelSeries(panel: Panel): PlotSeries[] {
       ...(panel.settings.expected_rate_hz
         ? { expected_rate_hz: panel.settings.expected_rate_hz }
         : {}),
+      ...(panel.settings.warn_rate_hz ? { warn_rate_hz: panel.settings.warn_rate_hz } : {}),
+      ...(panel.settings.error_rate_hz ? { error_rate_hz: panel.settings.error_rate_hz } : {}),
     },
   ];
 }

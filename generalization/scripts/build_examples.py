@@ -20,7 +20,7 @@ PRESENTATIONS = {
     "base.ackermann_drive.v1": {"joystick", "keyboard", "gamepad"},
     "joints.velocity_jog.v1": {"joint_sliders", "gamepad"},
     "joints.trajectory.v1": {"joint_sliders"},
-    "arm.cartesian_pose.v1": {"vr"},
+    "arm.cartesian_pose.v1": {"vr", "hand_tracking"},
     "gripper.position.v1": {"gripper_controls"},
 }
 

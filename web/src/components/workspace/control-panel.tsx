@@ -12,6 +12,7 @@ import { own } from "@/lib/teleop/types";
 import { CollapsibleSection } from "./collapsible-section";
 import { useRuntime } from "./context";
 import { XrControls } from "./xr-controls";
+import { HandControls } from "./hand-tracking";
 import { ImmersiveVrButton, useImmersiveVr } from "./immersive-vr";
 import { chooseControl } from "@/lib/teleop/control-select";
 import { RacingTelemetry } from "./racing-telemetry";
@@ -97,7 +98,9 @@ function InputPresentation({ id }: { id: string }) {
   useEffect(() => {
     if (
       !session.armed ||
-      ["vr", "joint_sliders", "gripper_controls"].includes(session.presentation)
+      ["vr", "hand_tracking", "joint_sliders", "gripper_controls"].includes(
+        session.presentation,
+      )
     )
       return;
     const presentation = session.presentation;
@@ -266,6 +269,13 @@ function InputPresentation({ id }: { id: string }) {
       </div>
     );
   }
+  if (session.presentation === "hand_tracking")
+    return (
+      <p className="muted">
+        Curl middle, ring and pinky into your palm to move the arm. Opening the
+        hand holds the end effector. The webcam view is under Hand tracking.
+      </p>
+    );
   if (session.presentation === "vr")
     return (
       <p className="muted">
@@ -498,6 +508,12 @@ function capabilityReason(
   if (presentation === "gamepad" && !gamepad) return "Gamepad disconnected";
   if (presentation === "vr" && !xr) return "Immersive VR unavailable";
   if (
+    presentation === "hand_tracking" &&
+    typeof navigator !== "undefined" &&
+    !navigator.mediaDevices?.getUserMedia
+  )
+    return "Camera unavailable";
+  if (
     ![
       "joystick",
       "keyboard",
@@ -505,6 +521,7 @@ function capabilityReason(
       "joint_sliders",
       "gripper_controls",
       "vr",
+      "hand_tracking",
     ].includes(presentation)
   )
     return "Presentation is not implemented";
@@ -622,6 +639,11 @@ export function ControlPanel({ active }: { active: boolean }) {
           op.presentations.includes("vr"),
         ),
       ) && <XrControls supported={xr} />}
+      {Object.values(interfaces).some((equipment) =>
+        Object.values(equipment.operations).some((op) =>
+          op.presentations.includes("hand_tracking"),
+        ),
+      ) && <HandControls />}
       {!runtime.transport.fixture && (
         <p className="muted">
           Live adapters require verified robot-specific limits, units,
