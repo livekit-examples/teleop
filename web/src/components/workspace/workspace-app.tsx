@@ -67,7 +67,7 @@ function ConnectedWorkspace({
   // Simulation robots load a saved layout. Any other robot gets the generic example panels.
   const exampleLayout = /f1tenth/.test(runtime.selected)
     ? f1tenthLayout
-    : /cluttered-table|workbench/.test(runtime.selected)
+    : /cluttered-table|workbench|wxai/.test(runtime.selected)
       ? armLayout
       : undefined;
   const examples = () => {
