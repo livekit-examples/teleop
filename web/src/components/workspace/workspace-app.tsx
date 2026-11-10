@@ -213,24 +213,6 @@ function ConnectedWorkspace({
                   ? `Operator: ${runtime.controls.owner}`
                   : "Viewing · no active operator"}
               </span>
-              <button
-                disabled={
-                  runtime.discovery !== "ready" || runtime.controls.pending
-                }
-                onClick={() =>
-                  void (
-                    runtime.controls.ownsControl
-                      ? runtime.controls.release()
-                      : runtime.controls.request()
-                  ).then(runtime.notify)
-                }
-              >
-                {runtime.controls.pending
-                  ? "Requesting…"
-                  : runtime.controls.ownsControl
-                    ? "Release control"
-                    : "Request control"}
-              </button>
             </div>
           </div>
           {connection?.error && (

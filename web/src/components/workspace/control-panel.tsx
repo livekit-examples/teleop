@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { controlKey, controlChannels, type ControlInput } from '@/lib/teleop/controls';
 import { selectJoints } from '@/lib/teleop/selectors';
 import type { WorkspaceRuntime } from '@/lib/teleop/runtime';
@@ -22,7 +22,27 @@ function InputPresentation({ id }: { id: string }) {
   const axes = useRef([0, 0, 0]);
   const held = useRef(new Set<string>());
   const fresh = useRef(false);
+  // Axes use the whole pad. The knob follows the pointer but stays inside the rim.
+  const steer = (event: PointerEvent<HTMLElement>) => {
+    const pad = event.currentTarget;
+    const rect = pad.getBoundingClientRect();
+    const x = Math.max(-1, Math.min(1, (event.clientX - rect.left - rect.width / 2) / (rect.width / 2)));
+    const y = Math.max(-1, Math.min(1, (event.clientY - rect.top - rect.height / 2) / (rect.height / 2)));
+    axes.current = [-y, -x, 0];
+    const reach = Math.hypot(x, y) || 1;
+    const scale = Math.min(1, 1 / reach);
+    pad.style.setProperty('--knob-x', `${x * scale}`);
+    pad.style.setProperty('--knob-y', `${y * scale}`);
+  };
+  const release = (pad: HTMLElement) => {
+    axes.current = [0, 0, 0];
+    delete pad.dataset.active;
+    pad.style.setProperty('--knob-x', '0');
+    pad.style.setProperty('--knob-y', '0');
+  };
   const [waiting, setWaiting] = useState(true);
+  // Keys held now, for the on-screen key display.
+  const [pressed, setPressed] = useState<string[]>([]);
   const [joint, setJoint] = useState(equipment.joint_names?.[0] ?? '');
   const [positions, setPositions] = useState<Record<string, number>>(() => {
     if (operation.profile !== 'joints.trajectory.v1')
@@ -58,10 +78,10 @@ function InputPresentation({ id }: { id: string }) {
     const keys = held.current;
     const keyboardSteering = new KeyboardSteering();
     let lastSample = performance.now();
+    // Arrow keys do nothing on a button, and the Disarm button keeps focus after arming.
     const editable = (target: EventTarget | null) =>
       target instanceof HTMLElement &&
-      (target.isContentEditable ||
-        ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName));
+      (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
     const down = (event: KeyboardEvent) => {
       if (
         presentation !== 'keyboard' ||
@@ -72,12 +92,15 @@ function InputPresentation({ id }: { id: string }) {
         return;
       event.preventDefault();
       keys.add(event.key);
+      setPressed([...keys]);
     };
     const up = (event: KeyboardEvent) => {
       keys.delete(event.key);
+      setPressed([...keys]);
     };
     const release = () => {
       keys.clear();
+      setPressed([]);
       axes.current = [0, 0, 0];
       fresh.current = false;
       keyboardSteering.reset();
@@ -107,8 +130,15 @@ function InputPresentation({ id }: { id: string }) {
         }
         const clean = (value: number) =>
           Math.abs(value) < 0.12 ? 0 : Math.max(-1, Math.min(1, value));
+        // Base driving uses the triggers for forward and back, like a car. Other operations,
+        // and pads without the standard layout, keep the left stick.
+        const triggers = operation.profile.startsWith('base.') && pad.mapping === 'standard';
+        const trigger = (index: number) => {
+          const value = pad.buttons[index]?.value ?? 0;
+          return value < 0.05 ? 0 : Math.min(1, value);
+        };
         values = [
-          clean(-(pad.axes[1] ?? 0)),
+          triggers ? trigger(7) - trigger(6) : clean(-(pad.axes[1] ?? 0)),
           clean(-(pad.axes[0] ?? 0)),
           driving ? 0 : clean(pad.axes[2] ?? 0),
         ];
@@ -137,6 +167,7 @@ function InputPresentation({ id }: { id: string }) {
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', release);
       keys.clear();
+      setPressed([]);
       axes.current = [0, 0, 0];
       fresh.current = false;
       keyboardSteering.reset();
@@ -232,48 +263,24 @@ function InputPresentation({ id }: { id: string }) {
           onPointerDown={(event) => {
             if (!session.armed) return;
             event.currentTarget.setPointerCapture(event.pointerId);
-            const rect = event.currentTarget.getBoundingClientRect();
-            axes.current = [
-              Math.max(
-                -1,
-                Math.min(1, -(event.clientY - rect.top - rect.height / 2) / (rect.height / 2)),
-              ),
-              Math.max(
-                -1,
-                Math.min(1, -(event.clientX - rect.left - rect.width / 2) / (rect.width / 2)),
-              ),
-              0,
-            ];
+            event.currentTarget.dataset.active = 'true';
+            steer(event);
           }}
           onPointerMove={(event) => {
             if (!session.armed || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
-            const rect = event.currentTarget.getBoundingClientRect();
-            axes.current = [
-              Math.max(
-                -1,
-                Math.min(1, -(event.clientY - rect.top - rect.height / 2) / (rect.height / 2)),
-              ),
-              Math.max(
-                -1,
-                Math.min(1, -(event.clientX - rect.left - rect.width / 2) / (rect.width / 2)),
-              ),
-              0,
-            ];
+            steer(event);
           }}
-          onPointerUp={() => {
-            axes.current = [0, 0, 0];
+          onPointerUp={(event) => {
+            release(event.currentTarget);
             manager.send(id, { axes: [0, 0, 0] }, activation);
           }}
-          onLostPointerCapture={() => {
-            axes.current = [0, 0, 0];
-          }}
-          onPointerCancel={() => {
-            axes.current = [0, 0, 0];
-          }}
+          onLostPointerCapture={(event) => release(event.currentTarget)}
+          onPointerCancel={(event) => release(event.currentTarget)}
         >
-          <span>
-            ↑<br />← &nbsp; ● &nbsp; →<br />↓
+          <span className="workspace-joystick-hint" aria-hidden="true">
+            ↑<br />← &nbsp; &nbsp; →<br />↓
           </span>
+          <span className="workspace-joystick-knob" aria-hidden="true" />
         </div>
       )}
       {session.presentation === 'joystick' && operation.profile === 'base.holonomic_twist.v1' && (
@@ -296,13 +303,47 @@ function InputPresentation({ id }: { id: string }) {
           />
         </label>
       )}
+      {session.presentation === 'keyboard' && (
+        <div
+          className="key-pad"
+          role="group"
+          aria-label="Keyboard controls"
+          data-armed={session.armed}
+        >
+          {(
+            [
+              ['ArrowUp', '↑', 'key-up', 'Up arrow'],
+              ['ArrowLeft', '←', 'key-left', 'Left arrow'],
+              ['ArrowDown', '↓', 'key-down', 'Down arrow'],
+              ['ArrowRight', '→', 'key-right', 'Right arrow'],
+              ...(driving
+                ? []
+                : [
+                    ['q', 'Q', 'key-q', 'Q key'],
+                    ['e', 'E', 'key-e', 'E key'],
+                  ]),
+            ] as const
+          ).map(([key, glyph, area, name]) => (
+            <kbd
+              key={key}
+              className={`key-cap ${area}`}
+              data-pressed={pressed.includes(key)}
+              aria-label={name}
+            >
+              {glyph}
+            </kbd>
+          ))}
+        </div>
+      )}
       <p className="muted">
         {session.presentation === 'keyboard'
           ? driving
             ? 'Up/down: target speed; release to brake. Left/right: hold to steer progressively, release to center.'
             : 'Arrow keys: forward / turn. Q / E: strafe for holonomic drive.'
           : session.presentation === 'gamepad'
-            ? 'Use the connected gamepad sticks.'
+            ? operation.profile.startsWith('base.')
+              ? 'Right trigger: forward. Left trigger: back. Left stick: turn.'
+              : 'Use the connected gamepad sticks.'
             : 'Drag from the center. Release to stop.'}
       </p>
       {session.armed && waiting && (
@@ -660,7 +701,24 @@ function ControlChannel({
       {(reason || capability) && <p className="view-reason">{reason ?? capability}</p>}
       <div className="control-actions">
         <button
-          className={session.armed ? 'danger' : 'primary'}
+          className={runtime.controls.ownsControl ? 'control-release' : 'control-acquire'}
+          disabled={!active || runtime.discovery !== 'ready' || runtime.controls.pending}
+          onClick={() => {
+            const action = runtime.controls.ownsControl
+              ? runtime.controls.release()
+              : runtime.controls.request();
+            runtime.notify();
+            void action.then(runtime.notify);
+          }}
+        >
+          {runtime.controls.pending
+            ? 'Acquiring…'
+            : runtime.controls.ownsControl
+              ? 'Release control'
+              : 'Acquire control'}
+        </button>
+        <button
+          className={session.armed ? 'danger' : 'control-arm'}
           disabled={
             !active ||
             session.switching ||
@@ -680,7 +738,7 @@ function ControlChannel({
                 : 'Disarm'
               : channel === 'gripper'
                 ? 'Enable gripper'
-                : 'Arm input'}
+                : 'Arm'}
         </button>
         {session.error && (
           <button

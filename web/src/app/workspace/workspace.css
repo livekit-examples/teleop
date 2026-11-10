@@ -996,8 +996,40 @@ body:has(.workspace-app) > header {
 }
 .control-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 12px 0;
+}
+.workspace-app button.control-acquire {
+  background: var(--lk-bg-accent1);
+  border-color: var(--lk-separator-accent);
+  color: var(--lk-fg-accent1);
+}
+.workspace-app button.control-acquire:hover:not(:disabled) {
+  background: var(--lk-bg-accent2);
+  border-color: var(--lk-fg-accent2);
+  color: var(--lk-fg-accent-hover);
+}
+.workspace-app button.control-release {
+  background: var(--lk-bg2);
+  border-color: var(--lk-separator2);
+  color: var(--lk-fg3);
+}
+.workspace-app button.control-release:hover:not(:disabled) {
+  background: var(--lk-bg3);
+  color: var(--lk-fg1);
+}
+.workspace-app button.control-arm {
+  background: var(--lk-fg-success);
+  border-color: transparent;
+  color: var(--lk-bg1);
+  filter: drop-shadow(0 0 8px rgb(35 222 107 / 0.25));
+}
+.workspace-app button.control-arm:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--lk-fg-success);
+  color: var(--lk-fg-success);
+  filter: drop-shadow(0 0 16px rgb(35 222 107 / 0.25));
 }
 .joint-controls label {
   margin-top: 10px;
@@ -1032,6 +1064,80 @@ body:has(.workspace-app) > header {
   touch-action: none;
   user-select: none;
   cursor: crosshair;
+  position: relative;
+  --knob-x: 0;
+  --knob-y: 0;
+}
+.workspace-joystick-hint {
+  grid-area: 1 / 1;
+  opacity: 0.35;
+}
+.workspace-joystick-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  border-radius: 50%;
+  border: 1px solid var(--lk-fg-accent2);
+  /* A rounded ball with a highlight, like the top of a joystick. */
+  background: radial-gradient(circle at 35% 30%, #5fe6ff, var(--lk-fg-accent2) 60%, #04566a);
+  box-shadow:
+    0 3px 8px rgb(0 0 0 / 0.55),
+    inset 0 -3px 6px rgb(0 0 0 / 0.3);
+  /* 56px pad radius minus the 19px knob radius */
+  transform: translate(calc(var(--knob-x) * 37px), calc(var(--knob-y) * 37px));
+  transition: transform 160ms ease-out;
+  pointer-events: none;
+}
+.workspace-joystick[data-active='true'] .workspace-joystick-knob {
+  transition: none;
+  filter: brightness(1.2);
+}
+
+/* On-screen keys for keyboard control. A held key lights up. */
+.key-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 40px) 16px repeat(2, 40px);
+  grid-template-areas:
+    '. up . . q e'
+    'left down right . . .';
+  gap: 6px;
+  width: max-content;
+  opacity: 0.55;
+}
+.key-pad[data-armed='true'] {
+  opacity: 1;
+}
+.key-up { grid-area: up; }
+.key-left { grid-area: left; }
+.key-down { grid-area: down; }
+.key-right { grid-area: right; }
+.key-q { grid-area: q; }
+.key-e { grid-area: e; }
+.key-cap {
+  display: grid;
+  place-items: center;
+  height: 40px;
+  border: 1px solid var(--lk-separator2);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  background: var(--lk-bg2);
+  color: var(--lk-fg2);
+  font-family: var(--font-lk-mono), ui-monospace, monospace;
+  font-size: 16px;
+  transition:
+    background 80ms,
+    color 80ms,
+    transform 80ms;
+}
+.key-cap[data-pressed='true'] {
+  border-color: var(--lk-fg-accent1);
+  background: var(--lk-fg-accent2);
+  color: #fff;
+  box-shadow: 0 0 10px rgb(31 213 249 / 0.55);
+  transform: translateY(2px);
 }
 
 /* ── Modal ───────────────────────────────────────────────── */
@@ -1566,7 +1672,7 @@ body:has(.workspace-app) > header {
   gap: 6px;
 }
 .series-legend i,
-.series-card legend i {
+.series-card-header i {
   display: inline-block;
   width: 10px;
   height: 3px;
@@ -1594,7 +1700,7 @@ body:has(.workspace-app) > header {
 }
 .series-pane-handle {
   flex: 1;
-  justify-content: flex-start;
+  justify-content: flex-start !important;
   text-align: left;
   font-weight: 600;
   cursor: inherit;
@@ -1622,17 +1728,39 @@ body:has(.workspace-app) > header {
 .series-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 8px;
   border: 1px solid var(--lk-separator1);
   border-radius: 6px;
 }
-.series-card legend {
+.series-card-header {
   display: flex;
   align-items: center;
+  justify-content: flex-start !important;
   gap: 6px;
-  padding: 0 4px;
+  width: 100%;
+  text-align: left;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+.series-card-header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.series-card-header small {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lk-fg4);
+}
+.series-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+.series-card .json-preview {
+  max-height: 160px;
 }
 .series-pane label {
   display: flex;

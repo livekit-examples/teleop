@@ -64,8 +64,8 @@ for (const simulation of [
     const raw = page.locator('.raw-message');
     await expect(raw).toContainText('position');
     await page.getByRole('tab', { name: 'Controls', exact: true }).click();
-    await page.getByRole('button', { name: 'Request control', exact: true }).click();
-    const arm = page.getByRole('button', { name: 'Arm input', exact: true }).first();
+    await page.getByRole('button', { name: 'Acquire control', exact: true }).first().click();
+    const arm = page.getByRole('button', { name: 'Arm', exact: true }).first();
     await expect(arm).toBeEnabled();
     await arm.click();
     const slider = page.locator('.joint-controls input[type="range"]').first();

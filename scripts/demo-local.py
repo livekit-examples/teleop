@@ -44,6 +44,32 @@ def free_port():
         return sock.getsockname()[1]
 
 
+def signal_group(child, number):
+    try:
+        os.killpg(child.pid, number)
+    except ProcessLookupError:
+        pass
+
+
+def stop_groups(group, timeout):
+    """Ask each process group to exit, wait together, then force out what remains.
+
+    The final SIGKILL also removes processes that outlived the group leader,
+    such as a Next.js server that keeps its port after pnpm exits.
+    """
+    for child in group:
+        signal_group(child, signal.SIGTERM)
+    deadline = time.monotonic() + timeout
+    for child in group:
+        try:
+            child.wait(timeout=max(0, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            pass
+    for child in group:
+        signal_group(child, signal.SIGKILL)
+        child.wait()
+
+
 def profile(args, environ, env_file=None):
     """Validate only the selected mode. Never read or rewrite a direct-room profile."""
     name = '--port' if args.port is not None else 'SIM_WEB_PORT'
@@ -182,17 +208,17 @@ def main():
     except RuntimeError as error:
         raise SystemExit(str(error))
     finally:
-        # Stop the website first so it cannot launch more sessions during cleanup.
-        for child in reversed(children):
-            if child.poll() is None:
-                try:
-                    os.killpg(child.pid, signal.SIGTERM)
-                    child.wait(timeout=12)
-                except ProcessLookupError:
-                    pass
-                except subprocess.TimeoutExpired:
-                    os.killpg(child.pid, signal.SIGKILL)
-                    child.wait()
+        try:
+            # Stop the website first so it cannot launch more sessions during cleanup.
+            web = [child for child in children[-1:] if web_started]
+            others = [child for child in children if child not in web]
+            for group, timeout in ((web, 5), (others, 12)):
+                stop_groups(group, timeout)
+        except KeyboardInterrupt:
+            print('Forcing stop.', flush=True)
+            for child in children:
+                signal_group(child, signal.SIGKILL)
+                child.wait()
         if args.modal and web_started:
             try:
                 api(f'/launchers/{launcher}/sessions', 'DELETE')

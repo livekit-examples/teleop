@@ -42,8 +42,8 @@ test('community car launches, streams onboard video, drives and brakes through t
     await page
       .getByRole('combobox', { name: 'Race car presentation', exact: true })
       .selectOption('keyboard');
-    await page.getByRole('button', { name: 'Request control', exact: true }).click();
-    const arm = page.getByRole('button', { name: 'Arm input', exact: true });
+    await page.getByRole('button', { name: 'Acquire control', exact: true }).first().click();
+    const arm = page.getByRole('button', { name: 'Arm', exact: true });
     await expect(arm).toBeEnabled();
     await arm.click();
     await expect(page.getByRole('button', { name: 'Disarm', exact: true })).toBeVisible();
@@ -75,7 +75,7 @@ test('community car launches, streams onboard video, drives and brakes through t
     await page.reload();
     await expect(page.locator('.connection-badge')).toContainText('ready', { timeout: 15_000 });
     await page.getByRole('tab', { name: 'Controls', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Request control', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Acquire control', exact: true }).first()).toBeVisible();
     await expect(page.locator('.control-channel')).toContainText('Disarmed');
     expect(errors).toEqual([]);
   } catch (error) {

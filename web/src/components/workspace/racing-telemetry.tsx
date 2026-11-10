@@ -44,7 +44,7 @@ export function RacingTelemetry({ equipmentId, active }: { equipmentId: string; 
       </p>
       {stale && <p>Waiting for fresh driving telemetry.</p>}
       {!stale && state.command_timed_out === true && (
-        <p>Input timed out. Request control again, then arm the input.</p>
+        <p>Input timed out. Acquire control again, then arm the input.</p>
       )}
       {!stale && state.off_track === true && <p>Off track · reduced grip</p>}
       {!stale && state.collision === true && <p>Barrier contact</p>}

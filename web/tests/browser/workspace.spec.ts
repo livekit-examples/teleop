@@ -169,18 +169,18 @@ test('control modes remain visible, switching stops old input and reconnect neve
 }) => {
   await fixture(page);
   await page.getByRole('tab', { name: 'Controls', exact: true }).click();
-  await page.getByRole('button', { name: 'Request control', exact: true }).click();
+  await page.getByRole('button', { name: 'Acquire control', exact: true }).first().click();
   const base = page.locator('#control-base');
-  await expect(base.getByRole('button', { name: 'Arm input', exact: true })).toBeEnabled();
-  await base.getByRole('button', { name: 'Arm input', exact: true }).click();
+  await expect(base.getByRole('button', { name: 'Arm', exact: true })).toBeEnabled();
+  await base.getByRole('button', { name: 'Arm', exact: true }).click();
   await expect(base.getByRole('button', { name: 'Disarm', exact: true })).toBeVisible();
   await base.getByLabel('Rover base presentation').selectOption('keyboard');
-  await expect(base.getByRole('button', { name: 'Arm input', exact: true })).toBeVisible();
+  await expect(base.getByRole('button', { name: 'Arm', exact: true })).toBeVisible();
   await page.locator('#control-left_arm').getByLabel('Left arm operation').selectOption('future');
   await expect(page.locator('#control-left_arm')).toContainText('Unsupported profile');
   await page.getByRole('button', { name: 'Reconnect', exact: true }).click();
   await expect(page.locator('.connection-badge')).toContainText('ready');
-  await expect(page.getByRole('button', { name: 'Request control', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Acquire control', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Disarm', exact: true })).toHaveCount(0);
 });
 
@@ -200,13 +200,13 @@ test('gripper stays in its arm card, runs beside arm input and never moves on en
 }, testInfo) => {
   await fixture(page);
   await page.getByRole('tab', { name: 'Controls', exact: true }).click();
-  await page.getByRole('button', { name: 'Request control', exact: true }).click();
+  await page.getByRole('button', { name: 'Acquire control', exact: true }).first().click();
   const left = page.locator('#control-left_arm');
   const primary = left.locator('[data-control-channel="primary"]');
   const gripper = left.locator('[data-control-channel="gripper"]');
   await expect(gripper.getByRole('heading', { name: 'Gripper', exact: true })).toBeVisible();
   await expect(gripper.getByRole('button', { name: 'Enable gripper', exact: true })).toBeEnabled();
-  await primary.getByRole('button', { name: 'Arm input', exact: true }).click();
+  await primary.getByRole('button', { name: 'Arm', exact: true }).click();
   await gripper.getByRole('button', { name: 'Enable gripper', exact: true }).click();
   await expect(page.locator('.fixture-toolbar')).toContainText('0 command frames');
   await gripper.getByRole('button', { name: 'Open', exact: true }).click();

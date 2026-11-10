@@ -1,5 +1,6 @@
 'use client';
 
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { MAX_SERIES, validatePanel } from '@/lib/teleop/layout';
 import { inspectFields, panelSeries } from '@/lib/teleop/selectors';
@@ -9,7 +10,11 @@ import { SERIES_COLORS } from './visualizations';
 
 type Draft = { label: string; track: string; path: string; rate: string };
 
-/** Same field discovery as the Add visualization dialog, for one series card. */
+/**
+ * Field discovery for one series card, like the Add visualization dialog but without a click:
+ * once a topic is selected, a temporary subscription fills the JSON view and the field list.
+ * The subscription ends when the card collapses, the topic changes, or the pane closes.
+ */
 function FieldPicker({
   track,
   path,
@@ -21,48 +26,31 @@ function FieldPicker({
 }) {
   const runtime = useRuntime();
   const id = `series-preview:${useId()}`;
-  const [preview, setPreview] = useState(false);
   const publication = runtime.catalog().find((pub) => pub.kind === 'data' && pub.name === track);
   const usable = !!publication?.available && publication.encoding === 'json';
+  // A published schema lists the fields already, so only schemaless topics need samples.
+  const sampling = usable && !publication?.schema;
   useEffect(() => {
-    if (!preview || !usable) return;
+    if (!sampling) return;
     return runtime.streams.acquire(id, {
       robot: runtime.selected,
       source: { kind: 'data', track_name: track, field_path: [] },
       select: (value) => value,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runtime, id, preview, usable, track]);
+  }, [runtime, id, sampling, track]);
   const view = runtime.streams.view(id);
   const fields = useMemo(
     () =>
-      publication?.schema?.fields ?? (preview && view.value !== undefined ? inspectFields(view.value) : []),
-    [publication?.schema, preview, view.value],
+      publication?.schema?.fields ??
+      (sampling && view.value !== undefined ? inspectFields(view.value) : []),
+    [publication?.schema, sampling, view.value],
   );
   const numeric = fields.filter((field) => field.type === 'number');
+  if (!track) return null;
   return (
     <>
-      {!publication?.schema && (
-        <div className="preview-action">
-          <button disabled={!usable} onClick={() => setPreview((value) => !value)}>
-            {preview ? 'Close JSON preview' : 'Preview JSON to find fields'}
-          </button>
-          <p className="field-help">
-            Preview receives temporary samples. Closing it releases its subscription.
-          </p>
-        </div>
-      )}
-      {preview && (
-        <div className="json-preview">
-          <span className={`status status-${view.status}`}>{view.status}</span>
-          <pre>
-            {view.value === undefined
-              ? (view.reason ?? 'Waiting for JSON…')
-              : JSON.stringify(view.value, null, 2)}
-          </pre>
-        </div>
-      )}
-      {!!fields.length && (
+      {!!numeric.length && (
         <label>
           Compatible field
           <select value={path} onChange={(event) => onPath(event.target.value)}>
@@ -74,6 +62,21 @@ function FieldPicker({
             ))}
           </select>
         </label>
+      )}
+      {sampling && (
+        <div className="json-preview">
+          <span className={`status status-${view.status}`}>{view.status}</span>
+          <pre>
+            {view.value === undefined
+              ? (view.reason ?? 'Waiting for JSON…')
+              : JSON.stringify(view.value, null, 2)}
+          </pre>
+        </div>
+      )}
+      {!usable && (
+        <p className="field-help">
+          {publication ? 'This topic is not available as JSON.' : 'This topic is not discovered yet.'}
+        </p>
       )}
     </>
   );
@@ -98,6 +101,8 @@ export function SeriesPane({
       rate: item.expected_rate_hz === undefined ? '' : String(item.expected_rate_hz),
     })),
   );
+  // A lone series starts open. With several, each starts collapsed.
+  const [open, setOpen] = useState<boolean[]>(() => drafts.map(() => drafts.length === 1));
   const [window, setWindow] = useState(String(panel.settings.window_seconds ?? 30));
   const [error, setError] = useState('');
   const pane = useRef<HTMLElement>(null);
@@ -210,75 +215,90 @@ export function SeriesPane({
       </div>
       <div className="series-pane-body">
         {drafts.map((draft, index) => (
-          <fieldset className="series-card" key={index}>
-            <legend>
-              <i
-                style={{
-                  background: SERIES_COLORS[index % SERIES_COLORS.length],
-                }}
-              />
-              {draft.label || draft.track || `Series ${index + 1}`}
-            </legend>
-            <label>
-              Data label
-              <input
-                value={draft.label}
-                onChange={(event) => change(index, { label: event.target.value })}
-                placeholder={draft.track || 'Data label'}
-              />
-            </label>
-            <label>
-              Topic
-              <select
-                value={draft.track}
-                onChange={(event) => change(index, { track: event.target.value })}
-              >
-                <option value="">Select a discovered topic</option>
-                {draft.track && !publications.some((pub) => pub.name === draft.track) && (
-                  <option value={draft.track}>{draft.track} (unavailable)</option>
-                )}
-                {publications.map((pub) => (
-                  <option key={pub.name} value={pub.name}>
-                    {pub.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <FieldPicker
-              key={draft.track}
-              track={draft.track}
-              path={draft.path}
-              onPath={(path) => change(index, { path })}
-            />
-            <label>
-              Literal field path (JSON array)
-              <input
-                value={draft.path}
-                onChange={(event) => change(index, { path: event.target.value })}
-                spellCheck={false}
-              />
-            </label>
-            <label>
-              Expected sample rate, Hz (optional)
-              <input
-                inputMode="decimal"
-                value={draft.rate}
-                onChange={(event) => change(index, { rate: event.target.value })}
-              />
-            </label>
+          <div
+            className="series-card"
+            role="group"
+            aria-label={draft.label || draft.track || `Series ${index + 1}`}
+            key={index}
+          >
             <button
-              disabled={drafts.length === 1}
-              onClick={() => setDrafts((all) => all.filter((_, i) => i !== index))}
+              className="series-card-header"
+              aria-expanded={open[index]}
+              onClick={() => setOpen((all) => all.map((v, i) => (i === index ? !v : v)))}
             >
-              Remove series
+              {open[index] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <i style={{ background: SERIES_COLORS[index % SERIES_COLORS.length] }} />
+              <span>{draft.label || draft.track || `Series ${index + 1}`}</span>
+              {draft.track && draft.label && <small>{draft.track}</small>}
             </button>
-          </fieldset>
+            {open[index] && (
+              <div className="series-card-body">
+                <label>
+                  Topic
+                  <select
+                    value={draft.track}
+                    onChange={(event) => change(index, { track: event.target.value, path: '[]' })}
+                  >
+                    <option value="">Select a discovered topic</option>
+                    {draft.track && !publications.some((pub) => pub.name === draft.track) && (
+                      <option value={draft.track}>{draft.track} (unavailable)</option>
+                    )}
+                    {publications.map((pub) => (
+                      <option key={pub.name} value={pub.name}>
+                        {pub.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Literal field path (JSON array)
+                  <input
+                    value={draft.path}
+                    onChange={(event) => change(index, { path: event.target.value })}
+                    spellCheck={false}
+                  />
+                </label>
+                <FieldPicker
+                  key={draft.track}
+                  track={draft.track}
+                  path={draft.path}
+                  onPath={(path) => change(index, { path })}
+                />
+                <label>
+                  Data label
+                  <input
+                    value={draft.label}
+                    onChange={(event) => change(index, { label: event.target.value })}
+                    placeholder={draft.track || 'Data label'}
+                  />
+                </label>
+                <label>
+                  Expected sample rate, Hz (optional)
+                  <input
+                    inputMode="decimal"
+                    value={draft.rate}
+                    onChange={(event) => change(index, { rate: event.target.value })}
+                  />
+                </label>
+                <button
+                  disabled={drafts.length === 1}
+                  onClick={() => {
+                    setDrafts((all) => all.filter((_, i) => i !== index));
+                    setOpen((all) => all.filter((_, i) => i !== index));
+                  }}
+                >
+                  Remove series
+                </button>
+              </div>
+            )}
+          </div>
         ))}
         <button
           disabled={drafts.length >= MAX_SERIES}
-          onClick={() =>
-            setDrafts((all) => [...all, { label: '', track: '', path: '[]', rate: '' }])
-          }
+          onClick={() => {
+            setDrafts((all) => [...all, { label: '', track: '', path: '[]', rate: '' }]);
+            setOpen((all) => [...all, true]);
+          }}
         >
           Add series
         </button>
