@@ -115,6 +115,7 @@ function ConnectedWorkspace({
                 <small>Teleop</small>
               </Link>
               <Link href="/try">Try a simulation</Link>
+              <Link href="/fleet">Fleet</Link>
               <label className="robot-selector">
                 <span>Robot</span>
                 <select
@@ -403,6 +404,9 @@ function ManualWorkspace() {
     }
     const previous = current.current;
     const next = new WorkspaceRuntime(transport, storage);
+    // The Fleet Portal links here with ?robot=<identity>: select it once the room connects.
+    const preferred = new URLSearchParams(window.location.search).get('robot');
+    if (preferred && !transport.fixture) next.selected = preferred;
     current.current = next;
     void previous?.dispose();
     next.start();
@@ -412,7 +416,9 @@ function ManualWorkspace() {
   const connect = useCallback(async () => {
     setConnecting(true);
     setError('');
-    const transport = new LiveKitTransport();
+    // ?watch=1 (from the Fleet Portal) joins as an observer that can't take control.
+    const watch = new URLSearchParams(window.location.search).get('watch') === '1';
+    const transport = new LiveKitTransport(watch ? 'observer' : 'operator');
     const next = create(transport);
     try {
       const response = await fetch('/api/credentials', { cache: 'no-store' });
