@@ -11,14 +11,12 @@ test('community car launches, streams onboard video, drives and brakes through t
   test.setTimeout(90_000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  let id: string | null = null;
   try {
     await page.goto('/try');
     const card = page.locator('[data-simulation-id="f1tenth"]');
     await expect(card).toBeEnabled();
-    await card.click();
+    await card.getByRole('button', { name: /Watch/ }).click();
     await expect(page).toHaveURL(/\/workspace\?session=[a-f0-9]{32}/, { timeout: 60_000 });
-    id = new URL(page.url()).searchParams.get('session');
     await expect(page.locator('.connection-badge')).toContainText('ready', { timeout: 15_000 });
     await expect
       .poll(() =>
@@ -39,6 +37,8 @@ test('community car launches, streams onboard video, drives and brakes through t
     const steering = async () =>
       JSON.parse(await page.locator('.raw-message').innerText()).data as number;
     await page.getByRole('tab', { name: 'Controls', exact: true }).click();
+    await page.getByRole('button', { name: 'Join control queue', exact: true }).click();
+    await expect(page.getByText('Your turn', { exact: false })).toBeVisible();
     await page
       .getByRole('combobox', { name: 'Race car presentation', exact: true })
       .selectOption('keyboard');
@@ -75,7 +75,9 @@ test('community car launches, streams onboard video, drives and brakes through t
     await page.reload();
     await expect(page.locator('.connection-badge')).toContainText('ready', { timeout: 15_000 });
     await page.getByRole('tab', { name: 'Controls', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Acquire control', exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Acquire control', exact: true }).first(),
+    ).toBeVisible();
     await expect(page.locator('.control-channel')).toContainText('Disarmed');
     expect(errors).toEqual([]);
   } catch (error) {
@@ -90,9 +92,7 @@ test('community car launches, streams onboard video, drives and brakes through t
   } finally {
     await page.keyboard.up('ArrowUp');
     await page.keyboard.up('ArrowLeft');
-    if (id)
-      await page.request.delete(`/api/demo/sessions/${id}`, {
-        headers: { origin: new URL(page.url()).origin },
-      });
+    const release = page.getByRole('button', { name: 'Release control', exact: true });
+    if (await release.isVisible()) await release.click();
   }
 });

@@ -221,11 +221,8 @@ def main():
             for child in children:
                 signal_group(child, signal.SIGKILL)
                 child.wait()
-        if args.modal and web_started:
-            try:
-                api(f'/launchers/{launcher}/sessions', 'DELETE')
-            except OSError:
-                print('Remote cleanup request failed. Worker deadlines and scheduled cleanup still apply.', flush=True)
+        # Remote instances are shared with other visitors. Closing a development
+        # website must never stop them; engagement deadlines handle abandonment.
         for log in logs:
             log.close()
 

@@ -62,6 +62,7 @@ export class WorkspaceRuntime {
   private busy = false;
   private awaitingRobot = false;
   private disposed = false;
+  private adapterRevision = 0;
   private readonly discoverAdapters: boolean;
 
   constructor(
@@ -69,7 +70,7 @@ export class WorkspaceRuntime {
     private storage?: LayoutStorage,
     readonly clock: Clock = browserClock,
     adapters?: Map<string, ProfileAdapter>,
-    readonly viewOnly = false,
+    public viewOnly = false,
   ) {
     this.discoverAdapters = !viewOnly && !adapters && !transport.fixture;
     this.streams = new StreamHub(transport, clock);
@@ -440,5 +441,15 @@ export class WorkspaceRuntime {
     this.stopMedia();
     await this.transport.disconnect();
     this.listeners.clear();
+  }
+
+  async setControlAdapters(adapters?: Map<string, ProfileAdapter>) {
+    const revision = ++this.adapterRevision;
+    await this.controls.stopAll();
+    if (revision !== this.adapterRevision || this.disposed) return;
+    this.controls.requested = false;
+    this.controls.replaceAdapters(adapters);
+    this.viewOnly = !adapters;
+    this.notify();
   }
 }

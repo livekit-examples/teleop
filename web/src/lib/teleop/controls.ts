@@ -294,7 +294,23 @@ export class ControlManager {
     private clock: Clock = browserClock,
   ) {}
 
-  configure(config: RobotConfig | undefined, robot: string, connected: boolean, generation: number) {
+  replaceAdapters(adapters?: Map<string, ProfileAdapter>) {
+    this.adapters.clear();
+    if (adapters) for (const [profile, adapter] of adapters) this.adapters.set(profile, adapter);
+    for (const [id, session] of this.sessions) {
+      session.feedback.forEach((release) => release());
+      session.feedback = [];
+      session.error = '';
+      this.bindFeedback(id);
+    }
+  }
+
+  configure(
+    config: RobotConfig | undefined,
+    robot: string,
+    connected: boolean,
+    generation: number,
+  ) {
     if (generation !== this.generation) {
       this.requested = false;
       this.pending = false;
@@ -472,7 +488,10 @@ export class ControlManager {
       return 'Profile command schema or presentation is incompatible.';
     if (adapter.mandatoryFeedback && !op.feedback_tracks.length)
       return `This profile must declare required ${adapter.mandatoryFeedback} feedback.`;
-    if (adapter.mandatoryFeedback === 'joints' && !(op.joint_names ?? equipment.joint_names)?.length)
+    if (
+      adapter.mandatoryFeedback === 'joints' &&
+      !(op.joint_names ?? equipment.joint_names)?.length
+    )
       return 'Exact joint names are required.';
     for (const track of op.feedback_tracks) {
       const view = this.streams.view(this.feedbackId(id, track));

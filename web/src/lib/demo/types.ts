@@ -6,6 +6,9 @@ export type DemoSimulation = {
   duration_seconds?: number;
   fps?: number;
   reason?: string;
+  instance?: DemoRun | null;
+  idle_seconds?: number;
+  turn_seconds?: number;
 };
 export type DemoRun = {
   id: string;
@@ -22,6 +25,41 @@ export type DemoRun = {
   ready_at?: number;
   expires_at?: number;
   reason?: string;
+  generation?: string;
+  robot_identity?: string;
+  idle_deadline?: number;
+  idle_seconds?: number;
+  turn_seconds?: number;
+  policy?: SimulationPolicy;
+  discovery?: Record<string, unknown>;
+  viewer_count?: number;
+};
+
+export type SharedRoomCredentials = {
+  identity: string;
+  token: string;
+  server_url: string;
+  room_name: string;
+  proof: string;
+};
+export type SharedCredentials = DemoRun & {
+  proof: string;
+  identity: string;
+  engaged_until: number;
+};
+export type ControlQueueState = {
+  instance_id: string;
+  robot_identity: string;
+  controller: { identity: string; until: number } | null;
+  queue: string[];
+  turn_seconds: number;
+  server_time: number;
+  queue_position: number | null;
+  estimated_wait_seconds: number | null;
+  engaged_until: number | null;
+  queued_at: number | null;
+  viewer_count: number;
+  proof?: string;
 };
 export type JointLimit = { min: number; max: number; max_velocity: number };
 export type LegacySimulationPolicy = {

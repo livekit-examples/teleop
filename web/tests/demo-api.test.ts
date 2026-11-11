@@ -37,7 +37,9 @@ it('uses the incoming host for same-origin protection and forwards the stable vi
   upstream.mockResolvedValue(
     new Response(JSON.stringify({ id: 'b'.repeat(32), state: 'starting' }), { status: 202 }),
   );
-  const response = await route('POST', ['sessions'], { origin: 'http://127.0.0.1:3001' });
+  const response = await route('POST', ['simulations', 'vacuum', 'watch'], {
+    origin: 'http://127.0.0.1:3001',
+  });
   expect(response.status).toBe(202);
   expect(upstream.mock.calls[0][1].headers).toMatchObject({
     Authorization: 'Bearer test-server-secret',
@@ -46,16 +48,38 @@ it('uses the incoming host for same-origin protection and forwards the stable vi
   expect(response.headers.get('cache-control')).toBe('no-store');
 });
 it('rejects foreign origins and missing visitor identity before contacting the service', async () => {
-  expect((await route('POST', ['sessions'], { origin: 'http://evil.test' })).status).toBe(403);
+  expect(
+    (await route('POST', ['simulations', 'vacuum', 'watch'], { origin: 'http://evil.test' }))
+      .status,
+  ).toBe(403);
   visitor = undefined;
-  expect((await route('POST', ['sessions'], { origin: 'http://127.0.0.1:3001' })).status).toBe(401);
+  expect(
+    (await route('POST', ['simulations', 'vacuum', 'watch'], { origin: 'http://127.0.0.1:3001' }))
+      .status,
+  ).toBe(401);
   expect(upstream).not.toHaveBeenCalled();
 });
 it('cannot proxy worker callbacks, launcher cleanup, or arbitrary room credentials', async () => {
   expect((await route('POST', ['workers', 'a'.repeat(32), 'events'])).status).toBe(404);
   expect((await route('DELETE', ['launchers', 'a'.repeat(32), 'sessions'])).status).toBe(404);
   expect((await route('POST', ['rooms', 'direct', 'credentials'])).status).toBe(404);
+  expect((await route('DELETE', ['instances', 'a'.repeat(32)])).status).toBe(404);
   expect(upstream).not.toHaveBeenCalled();
+});
+it('forwards a queue target and proof without exposing the supervisor key', async () => {
+  const { GET } = await import('../src/app/api/demo/[...path]/route');
+  upstream.mockResolvedValue(new Response(JSON.stringify({ queue: [] })));
+  const response = await GET(
+    new Request('http://localhost/api/demo/queue?instance=' + 'a'.repeat(32), {
+      headers: { 'X-Sim-Proof': 'signed-proof' },
+    }),
+    { params: Promise.resolve({ path: ['queue'] }) },
+  );
+  expect(upstream.mock.calls[0][0]).toBe(
+    'https://service.modal.run/queue?instance=' + 'a'.repeat(32),
+  );
+  expect(upstream.mock.calls[0][1].headers['X-Sim-Proof']).toBe('signed-proof');
+  expect(await response.text()).not.toContain('test-server-secret');
 });
 it('establishes an HTTP-only visitor cookie when reading the catalog', async () => {
   visitor = undefined;

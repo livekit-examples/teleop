@@ -22,11 +22,17 @@ export class LiveKitTransport implements Transport {
   readonly room = new Room({ adaptiveStream: false, dynacast: false });
   private listeners = new Set<(event: TransportEvent) => void>();
   private errors = new Map<string, string>();
-  constructor(readonly role: 'operator' | 'observer' = 'operator') {
+  serverTimeOffset = 0;
+  readonly managedDiscovery = new Map<string, string>();
+  constructor(
+    readonly role: 'operator' | 'observer' = 'operator',
+    readonly managed = false,
+  ) {
     for (const event of [
       RoomEvent.ParticipantConnected,
       RoomEvent.ParticipantDisconnected,
       RoomEvent.ParticipantAttributesChanged,
+      RoomEvent.ParticipantPermissionsChanged,
       RoomEvent.ParticipantNameChanged,
       RoomEvent.DataTrackPublished,
       RoomEvent.DataTrackUnpublished,
@@ -59,10 +65,11 @@ export class LiveKitTransport implements Transport {
   }
   async connect(url: string, token: string) {
     await this.room.connect(url, token, { autoSubscribe: false });
-    await this.room.localParticipant.setAttributes({
-      'lk.portal.role': this.role,
-      'lk.portal.version': '3',
-    });
+    if (!this.managed)
+      await this.room.localParticipant.setAttributes({
+        'lk.portal.role': this.role,
+        'lk.portal.version': '3',
+      });
     this.emit('connected');
   }
   private emit(event: TransportEvent) {
@@ -124,7 +131,8 @@ export class LiveKitTransport implements Transport {
     const track = this.room.remoteParticipants
       .get(publication.robot)
       ?.dataTracks.get(publication.name);
-    if (!track || track.info.sid !== publication.id) throw new Error('Data publication is no longer available.');
+    if (!track || track.info.sid !== publication.id)
+      throw new Error('Data publication is no longer available.');
     const reader = track.subscribe({ signal, bufferSize: 32 }).getReader();
     try {
       while (!signal.aborted) {
@@ -169,6 +177,7 @@ export class LiveKitTransport implements Transport {
     };
   }
   restrictCommands(robot: string) {
+    if (this.managed && !this.canControl(robot)) return;
     this.room.localParticipant.setTrackSubscriptionPermissions(
       false,
       robot ? [{ participantIdentity: robot, allowAll: true }] : [],
@@ -176,6 +185,9 @@ export class LiveKitTransport implements Transport {
   }
   async publish(operation: Operation): Promise<CommandWriter> {
     if (this.role === 'observer') throw new Error('Preview cannot publish commands.');
+    if (this.managed && !this.canControl())
+      throw new Error('Join the control queue before sending commands.');
+    const robot = this.room.localParticipant.attributes['vla_demo.control_robot'];
     const track = await this.room.localParticipant.publishDataTrack({
       name: operation.command.track_name,
       schema: { name: operation.command.msg_type, encoding: 'jsonSchema' },
@@ -183,6 +195,7 @@ export class LiveKitTransport implements Transport {
     });
     return {
       push: (value) => {
+        if (this.managed && !this.canControl(robot)) throw new Error('Your control turn ended.');
         track.tryPush({ payload: new TextEncoder().encode(JSON.stringify(value)) });
       },
       flush: () => track.flush(),
@@ -190,9 +203,27 @@ export class LiveKitTransport implements Transport {
     };
   }
   async rpc(identity: string, method: string, payload: string, timeout: number): Promise<string> {
+    // Spectators do not need permission to send data/RPC just to read discovery.
+    if (this.managed && method === 'get_robot_config') {
+      const document = this.managedDiscovery.get(identity);
+      if (!document) throw new Error('Simulation discovery is not ready.');
+      return document;
+    }
+    if (this.managed && method !== 'get_robot_config' && !this.canControl(identity))
+      throw new Error('Join this simulation queue before requesting control.');
     if (this.role === 'observer' && method !== 'get_robot_config')
       throw new Error('Preview cannot request control.');
     return this.performRpc(identity, method, payload, timeout);
+  }
+  canControl(robot = this.room.localParticipant.attributes['vla_demo.control_robot']) {
+    const me = this.room.localParticipant;
+    return (
+      !!robot &&
+      me.attributes['vla_demo.control_robot'] === robot &&
+      me.permissions?.canPublish === true &&
+      me.permissions?.canPublishData === true &&
+      Number(me.attributes['vla_demo.control_until']) > Date.now() + this.serverTimeOffset
+    );
   }
   async disconnect() {
     await this.room.disconnect();

@@ -10,9 +10,12 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
   const route = path.join('/');
   const allowed =
     (route === 'simulations' && request.method === 'GET') ||
-    (route === 'sessions' && ['GET', 'POST'].includes(request.method)) ||
-    (/^sessions\/[a-f0-9]{32}$/.test(route) && ['GET', 'DELETE'].includes(request.method)) ||
-    (/^sessions\/[a-f0-9]{32}\/credentials$/.test(route) && request.method === 'POST');
+    (/^simulations\/[a-z0-9-]+\/watch$/.test(route) && request.method === 'POST') ||
+    (/^instances\/[a-f0-9]{32}$/.test(route) && request.method === 'GET') ||
+    (/^instances\/[a-f0-9]{32}\/credentials$/.test(route) && request.method === 'POST') ||
+    (route === 'credentials' && request.method === 'POST') ||
+    (route === 'queue' && ['GET', 'POST'].includes(request.method)) ||
+    (route === 'engagement' && request.method === 'POST');
   if (!allowed) return NextResponse.json({ error: 'Unknown simulation route.' }, { status: 404 });
   const key = process.env.SIM_SUPERVISOR_KEY;
   const base = process.env.SIM_SUPERVISOR_URL;
@@ -51,7 +54,8 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
     const body = request.method === 'POST' ? await request.text() : undefined;
     if (body && body.length > 8192)
       return NextResponse.json({ error: 'Request too large.' }, { status: 413 });
-    const upstream = await fetch(`${base.replace(/\/$/, '')}/${route}`, {
+    const query = route === 'queue' ? new URL(request.url).search : '';
+    const upstream = await fetch(`${base.replace(/\/$/, '')}/${route}${query}`, {
       method: request.method,
       body,
       cache: 'no-store',
@@ -59,13 +63,13 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
       headers: {
         Authorization: `Bearer ${key}`,
         'X-Demo-Owner': owner,
-        ...(process.env.SIM_LAUNCHER_ID ? { 'X-Demo-Launcher': process.env.SIM_LAUNCHER_ID } : {}),
+        'X-Sim-Proof': request.headers.get('X-Sim-Proof') ?? '',
         'Content-Type': 'application/json',
       },
     });
     if (upstream.ok) {
       const data = await upstream.json();
-      if (route === 'sessions' && request.method === 'POST')
+      if (route.endsWith('/watch') && request.method === 'POST')
         console.info(`session=${data.id} state=${data.state}`);
       response = NextResponse.json(
         route === 'simulations' ? { enabled: true, simulations: data } : data,
