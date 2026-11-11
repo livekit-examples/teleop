@@ -76,7 +76,37 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
         { status: upstream.status },
       );
     } else {
-      response = NextResponse.json({ error: await upstream.text() }, { status: upstream.status });
+      const sharedRoute =
+        route === 'simulations' ||
+        route === 'credentials' ||
+        route === 'queue' ||
+        route === 'engagement' ||
+        route.endsWith('/watch');
+      if (upstream.status === 404 && sharedRoute) {
+        console.error(
+          'Shared simulation API route missing. Deploy the shared Modal API and check SIM_SUPERVISOR_URL.',
+          { route, status: upstream.status },
+        );
+        response = NextResponse.json(
+          {
+            error:
+              'Shared simulations are not available on this deployment yet. Please try again later.',
+            code: 'simulation_api_mismatch',
+          },
+          { status: 503 },
+        );
+      } else {
+        const text = await upstream.text();
+        let message = text;
+        try {
+          const data = JSON.parse(text);
+          if (typeof data.error === 'string') message = data.error;
+          else if (typeof data.detail === 'string') message = data.detail;
+        } catch {
+          /* The Modal service can return plain-text errors. */
+        }
+        response = NextResponse.json({ error: message }, { status: upstream.status });
+      }
     }
   } catch {
     response = NextResponse.json(

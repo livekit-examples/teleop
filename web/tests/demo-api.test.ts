@@ -88,3 +88,31 @@ it('establishes an HTTP-only visitor cookie when reading the catalog', async () 
   expect(response.headers.get('set-cookie')).toContain('HttpOnly');
   expect(await response.json()).toEqual({ enabled: true, simulations: [] });
 });
+
+it('identifies an older Modal API when its shared launch route is missing', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    upstream.mockResolvedValue(new Response('{"detail":"Not Found"}', { status: 404 }));
+    const response = await route('POST', ['simulations', 'vacuum', 'watch'], {
+      origin: 'http://127.0.0.1:3001',
+    });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      code: 'simulation_api_mismatch',
+      error: expect.stringContaining('not available on this deployment'),
+    });
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('SIM_SUPERVISOR_URL'), {
+      route: 'simulations/vacuum/watch',
+      status: 404,
+    });
+  } finally {
+    log.mockRestore();
+  }
+});
+
+it('keeps a missing instance distinct from an incompatible service and reads JSON errors', async () => {
+  upstream.mockResolvedValue(new Response('{"detail":"Instance not found."}', { status: 404 }));
+  const response = await route('GET', ['instances', 'a'.repeat(32)]);
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: 'Instance not found.' });
+});

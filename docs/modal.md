@@ -58,7 +58,13 @@ The worker Function uses an L4, two CPUs, and 4096 MiB. Its container limit is s
 
 The coordinator serializes queue changes and reserves simulation types in Modal Dict. LiveKit participant attributes store queue order and turn deadlines. No queue database stores a second copy.
 
-Use [the deployment runbook](try-teleop-deployment.md) to configure secrets and deploy. The runbook also covers draining, recovery, and rollback. Direct robot sessions retain their separate LIVEKIT_* configuration.
+Deploy the Modal API before publishing the matching website. A Vercel deployment updates only the website. Direct robot sessions retain their separate LIVEKIT_* configuration.
+
+A feature preview can use the existing Modal API after its shared-service code is deployed. A separate app, secret, room, and state dictionary are optional for isolated testing. If you choose isolation, set SIM_SUPERVISOR_URL and SIM_SUPERVISOR_KEY for that Git branch in Vercel Preview.
+
+Set TELEOP_PUBLIC_DEPLOYMENT=1 for a public website. Its homepage opens /try. A workspace URL with a session parameter opens the selected shared simulation.
+
+A submodule is a repository inside another repository. The backend lives in the robo-sims submodule. Commit its shared-service changes and update the parent repository reference before publishing a reproducible release.
 
 For a local website against an existing development Modal API, run:
 
@@ -69,6 +75,14 @@ python3 scripts/demo-local.py --modal
 ~~~
 
 Closing this website does not stop shared remote workers. Their activity deadlines handle abandoned viewers. The scheduled recovery task handles failed workers.
+
+## Deployment errors
+
+If Watch returns {"detail":"Not Found"}, make sure that SIM_SUPERVISOR_URL points to the shared Modal API. The older API can return the catalog while rejecting the new Watch route. Deploying the website does not update that API.
+
+After changing branch variables, publish a new Vercel preview. Existing deployment URLs keep their original code and variables. Test the new URL or the branch alias.
+
+The shared catalog includes turn_seconds and idle_seconds. Its simulation entries can also include an instance. A catalog with only a private duration_seconds value identifies the older service.
 
 ## Configuration
 
