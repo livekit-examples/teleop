@@ -120,9 +120,9 @@ function useOperatorLocation(enabled: boolean): OperatorPin | undefined {
 
 export function FleetPortal() {
   const fleet = useFleet();
-  const [view, setView] = useState<'list' | 'globe'>('list');
+  const [view, setView] = useState<'list' | 'globe'>('globe');
   const [selected, setSelected] = useState<string | undefined>(undefined);
-  const [globeOpened, setGlobeOpened] = useState(false);
+  const [globeOpened, setGlobeOpened] = useState(true);
   const operator = useOperatorLocation(globeOpened);
   const [, tick] = useState(0);
   useEffect(() => {
@@ -131,16 +131,14 @@ export function FleetPortal() {
   }, []);
   useEffect(() => {
     const fromUrl = new URLSearchParams(window.location.search).get('view');
-    if (fromUrl === 'globe') {
-      setView('globe');
-      setGlobeOpened(true);
-    }
+    // The globe is the default view; ?view=list opens the table.
+    if (fromUrl === 'list') setView('list');
   }, []);
   const openView = (next: 'list' | 'globe') => {
     setView(next);
     if (next === 'globe') setGlobeOpened(true);
     const url = new URL(window.location.href);
-    if (next === 'globe') url.searchParams.set('view', 'globe');
+    if (next === 'list') url.searchParams.set('view', 'list');
     else url.searchParams.delete('view');
     window.history.replaceState(null, '', url);
   };
@@ -212,21 +210,21 @@ export function FleetPortal() {
         <div className="fleet-views" role="group" aria-label="View">
           <button
             type="button"
-            aria-pressed={view === 'list'}
-            onClick={() => openView('list')}
-            title="List"
-          >
-            <List size={15} strokeWidth={2} aria-hidden="true" />
-            <span>List</span>
-          </button>
-          <button
-            type="button"
             aria-pressed={view === 'globe'}
             onClick={() => openView('globe')}
             title="Globe"
           >
             <Globe size={15} strokeWidth={2} aria-hidden="true" />
             <span>Globe</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === 'list'}
+            onClick={() => openView('list')}
+            title="List"
+          >
+            <List size={15} strokeWidth={2} aria-hidden="true" />
+            <span>List</span>
           </button>
         </div>
       </header>

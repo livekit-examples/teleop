@@ -26,12 +26,7 @@
             "track_name": "/cmd_vel",
             "msg_type": "geometry_msgs/msg/Twist",
             "format": "json"
-          },
-          "presentations": [
-            "gamepad",
-            "joystick",
-            "keyboard"
-          ]
+          }
         }
       }
     }

@@ -1,5 +1,7 @@
 "use client";
 
+import { operationPresentations } from "@/lib/teleop/control-profiles";
+
 import { useFrame } from "@react-three/fiber";
 import { useXR } from "@react-three/xr";
 import { useEffect, useMemo, useRef } from "react";
@@ -27,7 +29,7 @@ export function VrTeleopDriver({ status }: { status(message: string): void }) {
     const previous: { key: string; operation: string; presentation: string }[] = [];
     for (const [equipmentId, equipment] of Object.entries(runtime.config?.control_interfaces ?? {})) {
       for (const [operation, op] of Object.entries(equipment.operations)) {
-        if (!op.presentations.includes("vr")) continue;
+        if (!operationPresentations(op).includes("vr")) continue;
         const key = controlKey(equipmentId, op.control_channel ?? "primary");
         const session = runtime.controls.session(key);
         if (!session || session.presentation === "vr" || previous.some((entry) => entry.key === key)) continue;
@@ -75,7 +77,7 @@ export function VrTeleopDriver({ status }: { status(message: string): void }) {
       if (!bound.includes(equipmentId)) continue;
       const vrChannels = new Set(
         Object.values(equipment.operations)
-          .filter((op) => op.presentations.includes("vr"))
+          .filter((op) => operationPresentations(op).includes("vr"))
           .map((op) => op.control_channel ?? "primary"),
       );
       for (const channel of controlChannels(equipment)) {

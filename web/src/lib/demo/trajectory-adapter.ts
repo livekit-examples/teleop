@@ -1,3 +1,4 @@
+import { controlProfiles } from '../teleop/control-profiles';
 import { cartesianPoseAdapter, type AdapterContext, type ProfileAdapter } from '../teleop/controls';
 import { selectJoints } from '../teleop/selectors';
 import type { JointLimit, PositionCapability, SimulationPolicy } from './types';
@@ -99,7 +100,8 @@ export function simulationAdapters(policy: SimulationPolicy): Map<string, Profil
             typeof c.coordinate_label !== 'string' ||
             !c.coordinate_label.trim() ||
             ![c.open_position, c.closed_position].every(
-              (v) => typeof v === 'number' && Number.isFinite(v) && v >= bound.min && v <= bound.max,
+              (v) =>
+                typeof v === 'number' && Number.isFinite(v) && v >= bound.min && v <= bound.max,
             ) ||
             c.open_position === c.closed_position
           )
@@ -149,8 +151,7 @@ export function simulationAdapters(policy: SimulationPolicy): Map<string, Profil
     const gripper = profile === 'gripper.position.v1';
     const adapter: ProfileAdapter = {
       profile,
-      msgType: 'trajectory_msgs/msg/JointTrajectory',
-      presentations: [gripper ? 'gripper_controls' : 'joint_sliders'],
+      msgType: controlProfiles[profile].msgType,
       units: gripper ? 'm · finger displacement' : 'rad · simulation limits',
       mandatoryFeedback: 'joints',
       maxFeedbackAgeMs: policy.max_feedback_age_ms,

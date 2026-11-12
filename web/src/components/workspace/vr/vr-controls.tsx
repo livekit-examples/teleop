@@ -1,5 +1,7 @@
 "use client";
 
+import { operationPresentations } from "@/lib/teleop/control-profiles";
+
 import { useRef, useState } from "react";
 import { controlChannels, controlKey } from "@/lib/teleop/controls";
 import { chooseControl } from "@/lib/teleop/control-select";
@@ -85,7 +87,7 @@ function drawControls(p: Painter, runtime: WorkspaceRuntime, width: number) {
         continue;
       }
       const reason = manager.reason(id, false);
-      const presentations = [...new Set([...(operation?.presentations ?? []), session.presentation])];
+      const presentations = [...new Set([...operationPresentations(operation), session.presentation])];
       const height = 24 + 58 + 44 + (reason ? 44 : 0) + (presentations.length > 1 ? 76 : 0) + 82 + (session.error ? 76 : 0) + 10;
       card(height);
       let row = top + 24;

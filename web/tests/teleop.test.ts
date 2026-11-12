@@ -1,3 +1,4 @@
+import { operationPresentations, presentationReason } from '../src/lib/teleop/control-profiles';
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { CameraDeck } from '../src/lib/teleop/cameras';
@@ -133,6 +134,58 @@ describe('discovery and exact identities', () => {
     );
     const b = parseDiscovery(readFileSync(new URL('04-rover-arm.json', directory), 'utf8'));
     expect(a.control_interfaces.base).toEqual(b.control_interfaces.base);
+  });
+});
+
+describe('app-owned control presentations', () => {
+  it('derives controls without UI metadata and ignores legacy robot restrictions', () => {
+    const raw = structuredClone(fixtureConfig);
+    const drive = raw.control_interfaces.base.operations.drive;
+    Object.assign(drive, { presentations: ['vr'] });
+    const parsed = parseDiscovery(JSON.stringify(raw));
+    const operation = parsed.control_interfaces.base.operations.drive;
+    expect(operation).not.toHaveProperty('presentations');
+    expect(operationPresentations(operation)).toEqual(['joystick', 'keyboard', 'gamepad']);
+    const { manager } = controlsSetup();
+    manager.configure(parsed, 'fixture-rover', true, 1);
+    return manager.select('base', 'drive', 'keyboard').then(() => {
+      expect(manager.reason('base', false)).toBeUndefined();
+    });
+  });
+
+  it('uses command semantics to distinguish an arm from a gripper with the same schema', () => {
+    const ops = fixtureConfig.control_interfaces.left_arm.operations;
+    expect(ops.position.command.msg_type).toBe(ops.gripper_position.command.msg_type);
+    expect(operationPresentations(ops.position)).toEqual(['joint_sliders']);
+    expect(operationPresentations(ops.gripper_position)).toEqual(['gripper_controls']);
+  });
+
+  it.each(['unknown-profile', 'wrong-schema', 'wrong-presentation'])(
+    'does not publish commands for %s',
+    async (mutation) => {
+      const config = structuredClone(fixtureConfig);
+      const op = config.control_interfaces.base.operations.drive;
+      if (mutation === 'unknown-profile') op.profile = 'vendor.unknown.v1';
+      if (mutation === 'wrong-schema') op.command.msg_type = 'geometry_msgs/msg/PoseStamped';
+      const { manager, transport } = controlsSetup();
+      manager.configure(config, 'fixture-rover', true, 1);
+      await manager.select('base', 'drive', mutation === 'wrong-presentation' ? 'vr' : 'keyboard');
+      expect(manager.reason('base', false)).toBeTruthy();
+      await manager.request();
+      await manager.arm('base');
+      expect(manager.session('base')?.armed).toBe(false);
+      expect(transport.commands).toEqual([]);
+      if (mutation !== 'wrong-presentation') expect(operationPresentations(op)).toEqual([]);
+    },
+  );
+
+  it('retains unavailable input choices with capability reasons', () => {
+    const caps = { gamepad: false, xr: false, camera: false };
+    expect(presentationReason('keyboard', caps)).toBe('');
+    expect(presentationReason('gamepad', caps)).toContain('disconnected');
+    expect(presentationReason('vr', caps)).toContain('unavailable');
+    expect(presentationReason('hand_tracking', caps)).toContain('unavailable');
+    expect(presentationReason('future', caps)).toContain('not implemented');
   });
 });
 
@@ -395,7 +448,9 @@ describe('client-owned layout persistence', () => {
     expect(parseLayout(JSON.stringify(layout()), 'different').robot_identity).toBe('different');
     const { robot_identity: _omit, ...missing } = layout();
     expect(parseLayout(JSON.stringify(missing), 'different').robot_identity).toBe('different');
-    expect(parseLayout(JSON.stringify({ ...layout(), robot_identity: '' }), 'x').robot_identity).toBe('x');
+    expect(
+      parseLayout(JSON.stringify({ ...layout(), robot_identity: '' }), 'x').robot_identity,
+    ).toBe('x');
     expect(() => parseLayout(JSON.stringify({ ...layout(), token: 'secret' }))).toThrow(
       'Unsupported',
     );
@@ -964,8 +1019,9 @@ describe('gauge visualization', () => {
   };
   it('accepts a numeric gauge with a range', () => {
     expect(validatePanel(gauge)).toEqual(gauge);
-    expect(validatePanel({ ...gauge, settings: { min: -1.5, max: 2.5, expected_rate_hz: 5 } }))
-      .toMatchObject({ settings: { min: -1.5, max: 2.5, expected_rate_hz: 5 } });
+    expect(
+      validatePanel({ ...gauge, settings: { min: -1.5, max: 2.5, expected_rate_hz: 5 } }),
+    ).toMatchObject({ settings: { min: -1.5, max: 2.5, expected_rate_hz: 5 } });
   });
   it('fills in the default range when min/max are missing', () => {
     expect(validatePanel({ ...gauge, settings: {} }).settings).toEqual({ min: 0, max: 100 });
@@ -988,9 +1044,7 @@ describe('gauge visualization', () => {
   it('can read one named joint', () => {
     const joint = { ...gauge, source: { ...gauge.source, joint_names: ['elbow'] } };
     expect(validatePanel(joint)).toEqual(joint);
-    expect(
-      panelSelector(joint)({ percent: { name: ['elbow'], position: [0.7] } }),
-    ).toBe(0.7);
+    expect(panelSelector(joint)({ percent: { name: ['elbow'], position: [0.7] } })).toBe(0.7);
   });
   it('requires a finite number from the selected field', () => {
     expect(panelSelector(gauge)({ percent: 42 })).toBe(42);

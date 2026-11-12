@@ -1,3 +1,4 @@
+import { controlProfiles, operationPresentations } from './control-profiles';
 import { selectJoints } from './selectors';
 import { StreamHub } from './streams';
 import {
@@ -31,7 +32,6 @@ export type AdapterContext = {
 export type ProfileAdapter = {
   profile: string;
   msgType: string;
-  presentations: string[];
   units: string;
   mandatoryFeedback?: 'joints' | 'pose';
   maxFeedbackAgeMs: number;
@@ -61,15 +61,7 @@ export type ControlSession = {
   ending?: Promise<boolean>;
   feedback: (() => void)[];
 };
-export const knownProfiles = [
-  'base.twist.v1',
-  'base.holonomic_twist.v1',
-  'base.ackermann_drive.v1',
-  'joints.velocity_jog.v1',
-  'joints.trajectory.v1',
-  'arm.cartesian_pose.v1',
-  'gripper.position.v1',
-];
+export const knownProfiles = Object.keys(controlProfiles);
 
 /** Non-primary session IDs are serialized tuples; primary IDs remain backward compatible. */
 /** Profiles that stay armed while idle, until the operator disarms them. */
@@ -112,8 +104,7 @@ const poseFeedback = (value: unknown) => {
 export function cartesianPoseAdapter(units: string, maxFeedbackAgeMs: number): ProfileAdapter {
   return {
     profile: 'arm.cartesian_pose.v1',
-    msgType: 'geometry_msgs/msg/PoseStamped',
-    presentations: ['vr', 'hand_tracking'],
+    msgType: controlProfiles['arm.cartesian_pose.v1'].msgType,
     units,
     mandatoryFeedback: 'pose',
     maxFeedbackAgeMs,
@@ -158,7 +149,6 @@ export function fixtureAdapters(): Map<string, ProfileAdapter> {
   ): ProfileAdapter => ({
     profile,
     msgType,
-    presentations: ['joystick', 'keyboard', 'gamepad'],
     units: profile.includes('ackermann') ? 'm/s · steering rad (fixture)' : 'm/s · rad/s (fixture)',
     maxFeedbackAgeMs: 1000,
     encode,
@@ -166,15 +156,21 @@ export function fixtureAdapters(): Map<string, ProfileAdapter> {
     validateFeedback: () => {},
   });
   const adapters: ProfileAdapter[] = [
-    base('base.twist.v1', 'geometry_msgs/msg/Twist', (input) => twist(input)),
-    base('base.holonomic_twist.v1', 'geometry_msgs/msg/Twist', (input) => twist(input, true)),
-    base('base.ackermann_drive.v1', 'ackermann_msgs/msg/AckermannDrive', (input) => ({
-      speed: axis(input.axes?.[0]) * 0.5,
-      steering_angle: axis(input.axes?.[1]) * 0.4,
-      steering_angle_velocity: 0,
-      acceleration: 0,
-      jerk: 0,
-    })),
+    base('base.twist.v1', controlProfiles['base.twist.v1'].msgType, (input) => twist(input)),
+    base('base.holonomic_twist.v1', controlProfiles['base.holonomic_twist.v1'].msgType, (input) =>
+      twist(input, true),
+    ),
+    base(
+      'base.ackermann_drive.v1',
+      controlProfiles['base.ackermann_drive.v1'].msgType,
+      (input) => ({
+        speed: axis(input.axes?.[0]) * 0.5,
+        steering_angle: axis(input.axes?.[1]) * 0.4,
+        steering_angle_velocity: 0,
+        acceleration: 0,
+        jerk: 0,
+      }),
+    ),
   ];
   const jointValues = (input: ControlInput, context: AdapterContext, velocity: boolean) => {
     const names = context.equipment.joint_names ?? [];
@@ -190,8 +186,7 @@ export function fixtureAdapters(): Map<string, ProfileAdapter> {
   };
   adapters.push({
     profile: 'joints.velocity_jog.v1',
-    msgType: 'control_msgs/msg/JointJog',
-    presentations: ['joint_sliders', 'gamepad'],
+    msgType: controlProfiles['joints.velocity_jog.v1'].msgType,
     units: 'rad/s (fixture limit ±1)',
     maxFeedbackAgeMs: 1000,
     encode: (input, ctx) => ({
@@ -231,8 +226,7 @@ export function fixtureAdapters(): Map<string, ProfileAdapter> {
   });
   adapters.push({
     profile: 'joints.trajectory.v1',
-    msgType: 'trajectory_msgs/msg/JointTrajectory',
-    presentations: ['joint_sliders'],
+    msgType: controlProfiles['joints.trajectory.v1'].msgType,
     units: 'rad (fixture limit ±3.14)',
     mandatoryFeedback: 'joints',
     maxFeedbackAgeMs: 1000,
@@ -244,8 +238,7 @@ export function fixtureAdapters(): Map<string, ProfileAdapter> {
   });
   adapters.push({
     profile: 'gripper.position.v1',
-    msgType: 'trajectory_msgs/msg/JointTrajectory',
-    presentations: ['gripper_controls'],
+    msgType: controlProfiles['gripper.position.v1'].msgType,
     units: 'm · finger displacement (fixture)',
     repeatIntervalMs: 200,
     mandatoryFeedback: 'joints',
@@ -477,14 +470,15 @@ export class ControlManager {
     if (!this.connected || !this.config) return 'Connect and complete robot discovery.';
     if (!this.visible) return 'Control panel is hidden; show it before enabling an input.';
     if (!s || !equipment || !op) return 'Saved operation is absent from this robot.';
-    if (!op.presentations.includes(s.presentation))
-      return 'Saved presentation is not advertised for this operation.';
     const adapter = this.adapters.get(op.profile);
     if (!adapter)
       return knownProfiles.includes(op.profile)
         ? 'Live adapter disabled: verified device units, limits, release behavior and gateway authorization are not configured.'
         : `Unsupported profile: ${op.profile}.`;
-    if (!adapter.presentations.includes(s.presentation) || adapter.msgType !== op.command.msg_type)
+    if (
+      !operationPresentations(op).includes(s.presentation) ||
+      adapter.msgType !== op.command.msg_type
+    )
       return 'Profile command schema or presentation is incompatible.';
     if (adapter.mandatoryFeedback && !op.feedback_tracks.length)
       return `This profile must declare required ${adapter.mandatoryFeedback} feedback.`;

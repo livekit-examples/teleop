@@ -46,7 +46,6 @@ export type Operation = {
   command: { track_name: string; msg_type: string; format: 'json' };
   /** All listed tracks are required; discovery defaults an omitted list to []. */
   feedback_tracks: string[];
-  presentations: string[];
 };
 export type ControlInterface = {
   label: string;

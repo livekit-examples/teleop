@@ -1,3 +1,4 @@
+import { controlProfiles } from '../teleop/control-profiles';
 import type { AdapterContext, ProfileAdapter } from '../teleop/controls';
 import type { VacuumPolicy } from './types';
 import { object } from '../teleop/validation';
@@ -82,8 +83,7 @@ export function vacuumAdapters(raw: unknown): Map<string, ProfileAdapter> {
   const initialized = new WeakSet<object>();
   const adapter: ProfileAdapter = {
     profile: policy.profile,
-    msgType: 'geometry_msgs/msg/Twist',
-    presentations: ['joystick', 'keyboard', 'gamepad'],
+    msgType: controlProfiles[policy.profile].msgType,
     units: `m/s · rad/s · forward limit ${policy.max_speed} m/s`,
     maxFeedbackAgeMs: 1000,
     repeatIntervalMs: policy.input_interval_ms,
@@ -93,7 +93,12 @@ export function vacuumAdapters(raw: unknown): Map<string, ProfileAdapter> {
       match(ctx);
       // Axes: forward, turn, and an optional precision switch (0 or 1). No sideways axis.
       const precision = input.axes?.[2] ?? 0;
-      if (input.joints || input.pose || (input.axes?.length ?? 0) > 3 || (precision !== 0 && precision !== 1))
+      if (
+        input.joints ||
+        input.pose ||
+        (input.axes?.length ?? 0) > 3 ||
+        (precision !== 0 && precision !== 1)
+      )
         throw new Error('Vacuum driving accepts forward, turn and precision inputs only.');
       const forward = shape(axis(input.axes?.[0]));
       const turn = shape(axis(input.axes?.[1]));

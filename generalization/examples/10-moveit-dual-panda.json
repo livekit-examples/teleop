@@ -32,9 +32,6 @@
           },
           "feedback_tracks": [
             "/joint_states"
-          ],
-          "presentations": [
-            "joint_sliders"
           ]
         }
       }
@@ -61,9 +58,6 @@
           },
           "feedback_tracks": [
             "/joint_states"
-          ],
-          "presentations": [
-            "joint_sliders"
           ]
         }
       }

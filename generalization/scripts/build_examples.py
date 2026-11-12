@@ -14,14 +14,14 @@ from pathlib import Path
 OUT = Path(__file__).resolve().parents[1] / "examples"
 IDENTIFIER = re.compile(r"[a-z][a-z0-9_]*")
 EXCLUSIONS = ("exclude_data_tracks", "exclude_video_tracks", "exclude_audio_tracks")
-PRESENTATIONS = {
-    "base.twist.v1": {"joystick", "keyboard", "gamepad"},
-    "base.holonomic_twist.v1": {"joystick", "keyboard", "gamepad"},
-    "base.ackermann_drive.v1": {"joystick", "keyboard", "gamepad"},
-    "joints.velocity_jog.v1": {"joint_sliders", "gamepad"},
-    "joints.trajectory.v1": {"joint_sliders"},
-    "arm.cartesian_pose.v1": {"vr", "hand_tracking"},
-    "gripper.position.v1": {"gripper_controls"},
+PROFILES = {
+    'base.twist.v1',
+    'base.holonomic_twist.v1',
+    'base.ackermann_drive.v1',
+    'joints.velocity_jog.v1',
+    'joints.trajectory.v1',
+    'arm.cartesian_pose.v1',
+    'gripper.position.v1',
 }
 
 
@@ -32,7 +32,6 @@ def operation(profile, command_track, msg_type, feedback_tracks=()):
     }
     if feedback_tracks:
         value["feedback_tracks"] = list(feedback_tracks)
-    value["presentations"] = sorted(PRESENTATIONS[profile])
     return value
 
 
@@ -250,11 +249,8 @@ def validate_document(value):
             raise ValueError(f"Control interface has no operations: {interface_id}")
         for operation_id, op in interface["operations"].items():
             profile = op["profile"]
-            if profile not in PRESENTATIONS:
+            if profile not in PROFILES:
                 raise ValueError(f"Unknown example profile: {profile}")
-            modes = op["presentations"]
-            if not modes or len(set(modes)) != len(modes) or not set(modes) <= PRESENTATIONS[profile]:
-                raise ValueError(f"Incompatible presentation: {interface_id}.{operation_id}")
             channel = op.get("control_channel", "primary")
             if not isinstance(channel, str) or not IDENTIFIER.fullmatch(channel):
                 raise ValueError("Invalid control channel")
@@ -311,7 +307,7 @@ def main():
             json.dumps(value, indent=2, allow_nan=False) + "\n", encoding="utf-8"
         )
     print(f"Wrote {len(examples)} discovery examples to {OUT}")
-    print("Verified IDs, exclusions, rates, references, presentations, and reusable interfaces.")
+    print("Verified IDs, exclusions, rates, references, and reusable interfaces.")
 
 
 if __name__ == "__main__":

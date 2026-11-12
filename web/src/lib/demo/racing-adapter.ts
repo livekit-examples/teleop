@@ -1,3 +1,4 @@
+import { controlProfiles } from '../teleop/control-profiles';
 import type { AdapterContext, ProfileAdapter } from '../teleop/controls';
 import type { RacingPolicy } from './types';
 import { object } from '../teleop/validation';
@@ -77,8 +78,7 @@ export function racingAdapters(raw: unknown): Map<string, ProfileAdapter> {
   const initialized = new WeakSet<object>();
   const adapter: ProfileAdapter = {
     profile: policy.profile,
-    msgType: 'ackermann_msgs/msg/AckermannDrive',
-    presentations: ['joystick', 'keyboard', 'gamepad'],
+    msgType: controlProfiles[policy.profile].msgType,
     units: `m/s · steering rad · forward cap ${policy.max_speed} m/s`,
     maxFeedbackAgeMs: 1000,
     repeatIntervalMs: policy.input_interval_ms,

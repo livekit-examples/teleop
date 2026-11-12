@@ -1,3 +1,4 @@
+import { operationPresentations } from './control-profiles';
 import type { WorkspaceRuntime } from './runtime';
 
 export type Hand = 'left' | 'right';
@@ -6,7 +7,9 @@ export type Hand = 'left' | 'right';
 export function vrInterfaces(runtime: WorkspaceRuntime): [string, string][] {
   return Object.entries(runtime.config?.control_interfaces ?? {})
     .filter(([, equipment]) =>
-      Object.values(equipment.operations).some((operation) => operation.presentations.includes('vr')),
+      Object.values(equipment.operations).some((operation) =>
+        operationPresentations(operation).includes('vr'),
+      ),
     )
     .map(([id, equipment]) => [id, equipment.label]);
 }

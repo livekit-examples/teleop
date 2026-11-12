@@ -1,3 +1,4 @@
+import { operationPresentations } from '../control-profiles';
 import { controlChannels, controlKey } from '../controls';
 import type { WorkspaceRuntime } from '../runtime';
 
@@ -10,7 +11,9 @@ export const HAND_CAMERA_ID = 'local:hand_tracking';
 export function handInterfaces(runtime: WorkspaceRuntime): [string, string][] {
   return Object.entries(runtime.config?.control_interfaces ?? {})
     .filter(([, equipment]) =>
-      Object.values(equipment.operations).some((op) => op.presentations.includes('hand_tracking')),
+      Object.values(equipment.operations).some((op) =>
+        operationPresentations(op).includes('hand_tracking'),
+      ),
     )
     .map(([id, equipment]) => [id, equipment.label]);
 }

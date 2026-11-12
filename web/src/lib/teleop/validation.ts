@@ -104,8 +104,6 @@ export function parseDiscovery(payload: string): RobotConfig {
           const command = object(op.command, `${opId}.command`);
           if (command.format !== 'json') throw new Error(`${opId}.command.format must be json.`);
           const feedback = strings(op.feedback_tracks ?? [], `${opId}.feedback_tracks`);
-          const presentations = strings(op.presentations, `${opId}.presentations`);
-          if (!presentations.length) throw new Error(`${opId} needs at least one presentation.`);
           const operation: Operation = {
             profile: string(op.profile, `${opId}.profile`),
             command: {
@@ -114,7 +112,6 @@ export function parseDiscovery(payload: string): RobotConfig {
               format: 'json',
             },
             feedback_tracks: feedback,
-            presentations,
           };
           if (op.control_channel !== undefined)
             operation.control_channel = localId(string(op.control_channel, 'control_channel'));

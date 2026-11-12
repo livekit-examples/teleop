@@ -221,7 +221,6 @@ An operation is one way to command an interface. Each key is a local ID, such as
 | --- | --- | --- |
 | `profile` | Yes | The rules for commands. See [profiles](#profiles). |
 | `command` | Yes | Where and how the app sends commands. See [command](#command). |
-| `presentations` | Yes | A list of control modes that the app must show. See [presentations](#presentations). |
 | `feedback_tracks` | No | A list of exact data track names that this operation requires. The default is `[]`. Every listed track must be present, compatible, and outside the exclusion lists. |
 | `joint_names` | No | The joints for this operation. This list replaces the list on the interface. A gripper operation must name exactly one joint. |
 | `control_channel` | No | The name of an independent command channel on the interface. A channel separates commands for independently controlled equipment. The default is `primary`. |
@@ -256,8 +255,7 @@ The `command` object tells the app where to send commands. It also names the sch
     "msg_type": "trajectory_msgs/msg/JointTrajectory",
     "format": "json"
   },
-  "feedback_tracks": ["/joint_states"],
-  "presentations": ["joint_sliders"]
+  "feedback_tracks": ["/joint_states"]
 }
 ```
 
@@ -286,13 +284,23 @@ The app disables a profile if its adapter is incomplete. A payload of zero does 
 
 ### Presentations
 
-A presentation is the control that the user operates. The app shows every presentation that you list. If the browser cannot support one, the app shows it as unavailable with a reason.
+A presentation is the control that the user operates. The app derives the available presentations from its supported profile and command message type. Robot discovery does not contain a `presentations` field. Older documents may contain this field; the app ignores it. If the browser cannot support a presentation, the app shows it as unavailable with a reason.
 
-The values are `joystick`, `keyboard`, `gamepad`, `joint_sliders`, `vr`, `hand_tracking`, and `gripper_controls`. The profile sets the mode and the units.
+The app supports `joystick`, `keyboard`, `gamepad`, `joint_sliders`, `vr`, `hand_tracking`, and `gripper_controls`. The profile sets the mode and the units. Message type alone is not enough: arm joints and grippers both use JointTrajectory but need different controls. Unknown profiles and incompatible message types have no available presentations.
+
+The first presentation in the app catalog is the default: joystick for driving, joint sliders for joints, hand tracking for Cartesian poses, and gripper controls for grippers. The operator can choose another presentation. The app saves this choice in the layout, independently of robot discovery.
 
 The `vr` presentation does not add Cartesian control to an interface that only controls joints. An endpoint receives commands or supplies data. The robot must provide an endpoint that accepts Cartesian commands.
 
 The `hand_tracking` presentation uses the webcam of the operator and the same Cartesian profile as `vr`. The browser finds the hands, and the robot solves its own IK. To move an arm, the operator curls the middle, ring, and pinky fingers into the palm. The arm follows the motion of the hand since that grip. Opening the hand holds the arm. Thumb and index tips set the gripper, if the arm has a `gripper.position.v1` operation on the `gripper` channel. The pose feedback track must report the end effector in the same frame as the command. The app assumes that the end effector z axis points along the gripper fingers. If that is false for a robot, the operator selects the Robot base motion frame.
+
+### Adding command and input support
+
+[`web/src/lib/teleop/control-profiles.ts`](../web/src/lib/teleop/control-profiles.ts) is the shared catalog of profile message types, presentations, defaults, and browser capability checks. Desktop controls, VR controls, hand bindings, and command validation all use this catalog.
+
+- To support a new command, add its profile and message type to the catalog and implement or register a `ProfileAdapter` with the encoder, limits, feedback checks, and release behavior. Reuse existing presentations when their input semantics fit. A catalog entry alone does not enable commands on hardware.
+- To support a new presentation, register its capability check in the same file, implement its input control in the workspace, and add its name to the compatible profiles. The catalog checks presentation names in TypeScript. Robot configs do not need changes.
+- To add an existing presentation to another compatible profile, update that profile's catalog entry. The selectors and hand/VR bindings use the new entry automatically.
 
 ## Gripper operation
 

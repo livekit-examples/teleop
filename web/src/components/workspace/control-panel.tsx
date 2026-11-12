@@ -1,5 +1,7 @@
 "use client";
 
+import { operationPresentations, presentationReason } from "@/lib/teleop/control-profiles";
+
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import {
   controlKey,
@@ -505,27 +507,11 @@ function capabilityReason(
   gamepad: boolean,
   xr: boolean,
 ) {
-  if (presentation === "gamepad" && !gamepad) return "Gamepad disconnected";
-  if (presentation === "vr" && !xr) return "Immersive VR unavailable";
-  if (
-    presentation === "hand_tracking" &&
-    typeof navigator !== "undefined" &&
-    !navigator.mediaDevices?.getUserMedia
-  )
-    return "Camera unavailable";
-  if (
-    ![
-      "joystick",
-      "keyboard",
-      "gamepad",
-      "joint_sliders",
-      "gripper_controls",
-      "vr",
-      "hand_tracking",
-    ].includes(presentation)
-  )
-    return "Presentation is not implemented";
-  return "";
+  return presentationReason(presentation, {
+    gamepad,
+    xr,
+    camera: typeof navigator === "undefined" || !!navigator.mediaDevices?.getUserMedia,
+  });
 }
 
 export function ControlPanel({ active }: { active: boolean }) {
@@ -636,12 +622,12 @@ export function ControlPanel({ active }: { active: boolean }) {
       })}
       {Object.values(interfaces).some((equipment) =>
         Object.values(equipment.operations).some((op) =>
-          op.presentations.includes("vr"),
+          operationPresentations(op).includes("vr"),
         ),
       ) && <XrControls supported={xr} />}
       {Object.values(interfaces).some((equipment) =>
         Object.values(equipment.operations).some((op) =>
-          op.presentations.includes("hand_tracking"),
+          operationPresentations(op).includes("hand_tracking"),
         ),
       ) && <HandControls />}
       {!runtime.transport.fixture && (
@@ -700,7 +686,7 @@ function ControlChannel({
     ]),
   ];
   const presentations = [
-    ...new Set([...(op?.presentations ?? []), session.presentation]),
+    ...new Set([...operationPresentations(op), session.presentation]),
   ];
   return (
     <section
@@ -738,9 +724,9 @@ function ControlChannel({
               void choose(
                 id,
                 event.target.value,
-                next?.presentations.includes(session.presentation)
+                operationPresentations(next).includes(session.presentation)
                   ? session.presentation
-                  : (next?.presentations[0] ?? session.presentation),
+                  : (operationPresentations(next)[0] ?? session.presentation),
               );
             }}
           >

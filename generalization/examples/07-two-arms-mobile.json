@@ -20,12 +20,7 @@
             "track_name": "/cmd_vel",
             "msg_type": "geometry_msgs/msg/Twist",
             "format": "json"
-          },
-          "presentations": [
-            "gamepad",
-            "joystick",
-            "keyboard"
-          ]
+          }
         }
       }
     },
@@ -47,11 +42,7 @@
             "track_name": "/left_arm/joint_jog",
             "msg_type": "control_msgs/msg/JointJog",
             "format": "json"
-          },
-          "presentations": [
-            "gamepad",
-            "joint_sliders"
-          ]
+          }
         },
         "joint_position": {
           "profile": "joints.trajectory.v1",
@@ -62,9 +53,6 @@
           },
           "feedback_tracks": [
             "/left_arm/joint_states"
-          ],
-          "presentations": [
-            "joint_sliders"
           ]
         },
         "gripper_position": {
@@ -76,9 +64,6 @@
           },
           "feedback_tracks": [
             "/left_arm/joint_states"
-          ],
-          "presentations": [
-            "gripper_controls"
           ],
           "control_channel": "gripper",
           "joint_names": [
@@ -94,10 +79,6 @@
           },
           "feedback_tracks": [
             "/left_arm/end_effector_pose"
-          ],
-          "presentations": [
-            "hand_tracking",
-            "vr"
           ]
         }
       }
@@ -120,11 +101,7 @@
             "track_name": "/right_arm/joint_jog",
             "msg_type": "control_msgs/msg/JointJog",
             "format": "json"
-          },
-          "presentations": [
-            "gamepad",
-            "joint_sliders"
-          ]
+          }
         },
         "joint_position": {
           "profile": "joints.trajectory.v1",
@@ -135,9 +112,6 @@
           },
           "feedback_tracks": [
             "/right_arm/joint_states"
-          ],
-          "presentations": [
-            "joint_sliders"
           ]
         },
         "gripper_position": {
@@ -149,9 +123,6 @@
           },
           "feedback_tracks": [
             "/right_arm/joint_states"
-          ],
-          "presentations": [
-            "gripper_controls"
           ],
           "control_channel": "gripper",
           "joint_names": [
@@ -167,10 +138,6 @@
           },
           "feedback_tracks": [
             "/right_arm/end_effector_pose"
-          ],
-          "presentations": [
-            "hand_tracking",
-            "vr"
           ]
         }
       }

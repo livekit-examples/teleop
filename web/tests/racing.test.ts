@@ -39,7 +39,7 @@ const context = (): AdapterContext => ({
       msg_type: 'ackermann_msgs/msg/AckermannDrive',
       format: 'json',
     },
-    presentations: ['gamepad', 'keyboard', 'joystick'],
+
     feedback_tracks: [],
   },
   feedback: {},

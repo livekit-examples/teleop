@@ -34,7 +34,7 @@ const context = (): AdapterContext => ({
   operation: {
     profile: policy.profile,
     command: { track_name: '/cmd_vel', msg_type: 'geometry_msgs/msg/Twist', format: 'json' },
-    presentations: ['gamepad', 'keyboard', 'joystick'],
+
     feedback_tracks: [],
   },
   feedback: {},

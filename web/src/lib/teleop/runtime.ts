@@ -1,3 +1,4 @@
+import { operationPresentations } from './control-profiles';
 import { discoveredSimulationAdapters } from '../demo/trajectory-adapter';
 import { CameraDeck } from './cameras';
 import {
@@ -258,7 +259,7 @@ export class WorkspaceRuntime {
               controlKey(id, channel),
               operation,
               saved?.presentation ??
-                own(equipment.operations, operation)?.presentations[0] ??
+                operationPresentations(own(equipment.operations, operation))[0] ??
                 'unsupported',
             );
         }

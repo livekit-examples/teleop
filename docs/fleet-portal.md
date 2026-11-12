@@ -6,7 +6,7 @@ the current operator (this browser) and a link to each robot.
 
 - Live: `http://localhost:3000/fleet` (uses the same `/api/credentials` as the workspace and joins as `lk.portal.role=observer`).
 - Sample data: `http://localhost:3000/fleet?fixture=1` (no server needed).
-- Open straight into the globe: add `view=globe`.
+- The globe is the default view. Open straight into the table with `view=list`.
 
 The page is disabled when `TELEOP_PUBLIC_DEPLOYMENT=1`.
 

@@ -1,3 +1,4 @@
+import { operationPresentations } from '../src/lib/teleop/control-profiles';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -24,7 +25,7 @@ describe.skipIf(!existsSync(file))('cluttered table discovery', () => {
           (op) => (op.control_channel ?? 'primary') === channel,
         )!;
       expect(first('primary').profile).toBe('arm.cartesian_pose.v1');
-      expect(first('primary').presentations[0]).toBe('hand_tracking');
+      expect(operationPresentations(first('primary'))[0]).toBe('hand_tracking');
       expect(first('gripper').profile).toBe('gripper.position.v1');
       expect(controlChannels(equipment).sort()).toEqual(['gripper', 'primary']);
     }

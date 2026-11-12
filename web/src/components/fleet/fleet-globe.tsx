@@ -410,7 +410,8 @@ export function FleetGlobe({
         spot = { lat: Math.asin(mid.y) / DEG, lng: Math.atan2(mid.x, mid.z) / DEG };
       }
     }
-    if (!spot && operator && !focusedOperator.current) {
+    // Wait for the robots too, so the first view frames the whole fleet.
+    if (!spot && operator && !focusedOperator.current && placed.length > 0) {
       // First view: center between the operator and the fleet so the links read as arcs.
       focusedOperator.current = true;
       const sum = toVector(operator.lat, operator.lng).multiplyScalar(2);
@@ -424,7 +425,7 @@ export function FleetGlobe({
     s.view.targetX = THREE.MathUtils.clamp(spot.lat * DEG, -1.1, 1.1);
     s.lastInteraction = performance.now();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, operator?.lat, operator?.lng]);
+  }, [selected, operator?.lat, operator?.lng, placed.length]);
 
   // A robot in the operator's own city would hide under the operator pin: nudge it aside.
   const nearOperator = (lat: number, lng: number) =>

@@ -1,3 +1,4 @@
+import { operationPresentations } from '../src/lib/teleop/control-profiles';
 import { describe, expect, it } from 'vitest';
 import {
   discoveredSimulationAdapters,
@@ -31,7 +32,6 @@ const context = (): AdapterContext => ({
       format: 'json',
     },
     feedback_tracks: ['/feedback'],
-    presentations: ['joint_sliders'],
   },
   feedback: {
     '/feedback': {
@@ -131,7 +131,6 @@ function gripperContext(): AdapterContext {
     profile: 'gripper.position.v1',
     control_channel: 'gripper',
     joint_names: ['grip'],
-    presentations: ['gripper_controls'],
   };
   ctx.feedback = {
     '/feedback': { name: ['grip', 'joint_a'], position: [0.02, 0.4] },
@@ -162,7 +161,9 @@ it('executes the explicit gripper capability with meters, separate names, finite
   expect(adapter.release(ctx)).toEqual({ joint_names: ['grip'], points: [] });
   expect(() => adapter.encode({ joints: { joint_a: 1 } }, ctx)).toThrow('Unknown joint');
   expect(() => adapter.encode({ joints: { grip: 0.05 } }, ctx)).toThrow('limits');
-  expect(() => adapter.jointLimits!({ ...ctx, interfaceId: 'right_arm' })).toThrow('does not match');
+  expect(() => adapter.jointLimits!({ ...ctx, interfaceId: 'right_arm' })).toThrow(
+    'does not match',
+  );
   expect(() =>
     adapter.validateFeedback(
       {},
@@ -248,7 +249,6 @@ describe('managed simulation Cartesian pose profile', () => {
         format: 'json',
       },
       feedback_tracks: ['/pose_feedback'],
-      presentations: ['vr'],
     },
     feedback: { '/pose_feedback': { header: {}, pose } },
   });
@@ -257,7 +257,7 @@ describe('managed simulation Cartesian pose profile', () => {
     const adapters = simulationAdapters(v2('m · quaternion'));
     expect([...adapters.keys()].sort()).toEqual(['arm.cartesian_pose.v1', 'joints.trajectory.v1']);
     const adapter = adapters.get('arm.cartesian_pose.v1')!;
-    expect(adapter.presentations).toEqual(['vr', 'hand_tracking']);
+    expect(operationPresentations(poseContext().operation)).toEqual(['hand_tracking', 'vr']);
     expect(adapter.encode({ pose }, poseContext())).toEqual({
       header: { frame_id: 'arm_base_link' },
       pose,
