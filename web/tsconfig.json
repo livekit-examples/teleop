@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,7 +23,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
   "include": [
@@ -28,7 +34,20 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next-demo/types/**/*.ts",
+    ".next-demo/dev/types/**/*.ts",
+    ".next-demo-build/types/**/*.ts",
+    ".next-demo-build/dev/types/**/*.ts",
+    ".next-demo-local-native/types/**/*.ts",
+    ".next-demo-local-native/dev/types/**/*.ts",
+    ".next-demo-modal/types/**/*.ts",
+    ".next-demo-modal/dev/types/**/*.ts",
+    ".next-demo-remote-native/types/**/*.ts",
+    ".next-demo-remote-native/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "vendor/client-sdk-js"]
+  "exclude": [
+    "node_modules",
+    "vendor/client-sdk-js"
+  ]
 }

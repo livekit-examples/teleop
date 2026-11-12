@@ -1,0 +1,173 @@
+{
+  "layout_schema_version": 1,
+  "label": "My workspace",
+  "robot_identity": "simulation-cluttered-table-galileo",
+  "panels": {
+    "panel_cf4bee9407f046ce9fa53d540f78504c": {
+      "visualization": "gauge",
+      "label": "/left_arm/battery_state",
+      "visible": true,
+      "source": {
+        "kind": "data",
+        "track_name": "/left_arm/battery_state",
+        "field_path": [
+          "voltage"
+        ],
+        "expected_msg_type": "sensor_msgs/msg/BatteryState"
+      },
+      "settings": {
+        "expected_rate_hz": 0.5,
+        "min": 0,
+        "max": 24,
+        "min_color": "#ff7566",
+        "max_color": "#23de6b"
+      }
+    },
+    "panel_fb1f4c856a894da1b7e8bf94a89a85e9": {
+      "visualization": "gauge",
+      "label": "/right_arm/battery_state",
+      "visible": true,
+      "source": {
+        "kind": "data",
+        "track_name": "/right_arm/battery_state",
+        "field_path": [
+          "voltage"
+        ],
+        "expected_msg_type": "sensor_msgs/msg/BatteryState"
+      },
+      "settings": {
+        "expected_rate_hz": 0.5,
+        "min": 0,
+        "max": 24,
+        "min_color": "#ff7566",
+        "max_color": "#23de6b"
+      }
+    },
+    "panel_5f94be4f64fe4db6bb0a8a7a62b28809": {
+      "visualization": "plot",
+      "label": "/right_arm/end_effector_pose",
+      "visible": true,
+      "source": {
+        "kind": "data",
+        "track_name": "/right_arm/end_effector_pose",
+        "field_path": [
+          "pose",
+          "position",
+          "x"
+        ],
+        "expected_msg_type": "geometry_msgs/msg/PoseStamped"
+      },
+      "series": [
+        {
+          "label": "Right Arm X",
+          "track_name": "/right_arm/end_effector_pose",
+          "field_path": [
+            "pose",
+            "position",
+            "x"
+          ],
+          "expected_msg_type": "geometry_msgs/msg/PoseStamped",
+          "expected_rate_hz": 20
+        },
+        {
+          "label": "Left Arm X",
+          "track_name": "/left_arm/end_effector_pose",
+          "field_path": [
+            "pose",
+            "position",
+            "x"
+          ],
+          "expected_msg_type": "geometry_msgs/msg/PoseStamped",
+          "expected_rate_hz": 20
+        }
+      ],
+      "settings": {
+        "expected_rate_hz": 20,
+        "window_seconds": 30
+      }
+    }
+  },
+  "panel_order": [
+    "panel_cf4bee9407f046ce9fa53d540f78504c",
+    "panel_fb1f4c856a894da1b7e8bf94a89a85e9",
+    "panel_5f94be4f64fe4db6bb0a8a7a62b28809"
+  ],
+  "control_preferences": {
+    "right_arm": {
+      "operation": "cartesian_pose",
+      "presentation": "hand_tracking"
+    }
+  },
+  "tracked_hands": {
+    "right": "right_arm"
+  },
+  "workspace": {
+    "version": 1,
+    "orientation": "HORIZONTAL",
+    "root": {
+      "type": "split",
+      "weight": 744,
+      "children": [
+        {
+          "type": "split",
+          "weight": 1544,
+          "children": [
+            {
+              "type": "group",
+              "id": "group_0",
+              "weight": 462,
+              "panels": [
+                "@cameras"
+              ],
+              "active": "@cameras"
+            },
+            {
+              "type": "split",
+              "weight": 282,
+              "children": [
+                {
+                  "type": "group",
+                  "id": "group_1",
+                  "weight": 257,
+                  "panels": [
+                    "panel_cf4bee9407f046ce9fa53d540f78504c"
+                  ],
+                  "active": "panel_cf4bee9407f046ce9fa53d540f78504c"
+                },
+                {
+                  "type": "group",
+                  "id": "group_2",
+                  "weight": 257,
+                  "panels": [
+                    "panel_fb1f4c856a894da1b7e8bf94a89a85e9"
+                  ],
+                  "active": "panel_fb1f4c856a894da1b7e8bf94a89a85e9"
+                },
+                {
+                  "type": "group",
+                  "id": "group_3",
+                  "weight": 1030,
+                  "panels": [
+                    "panel_5f94be4f64fe4db6bb0a8a7a62b28809"
+                  ],
+                  "active": "panel_5f94be4f64fe4db6bb0a8a7a62b28809"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "id": "group_4",
+          "weight": 360,
+          "panels": [
+            "@controls",
+            "@catalog"
+          ],
+          "active": "@controls"
+        }
+      ]
+    },
+    "floating": []
+  }
+}

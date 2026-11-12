@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "label": "Rivet-style base, lift, and two arms",
+  "exclude_data_tracks": [],
+  "exclude_video_tracks": [],
+  "exclude_audio_tracks": [],
+  "default_video_rate_hz": 30,
+  "control": {
+    "scope": "robot",
+    "ownership": "portal_active_operator"
+  },
+  "control_interfaces": {
+    "base": {
+      "label": "Rover",
+      "frame_id": "base_link",
+      "operations": {
+        "drive": {
+          "profile": "base.twist.v1",
+          "command": {
+            "track_name": "/cmd_vel",
+            "msg_type": "geometry_msgs/msg/Twist",
+            "format": "json"
+          },
+          "presentations": [
+            "gamepad",
+            "joystick",
+            "keyboard"
+          ]
+        }
+      }
+    },
+    "lift": {
+      "label": "Lift",
+      "frame_id": "lift_base_link",
+      "joint_names": [
+        "lift_joint"
+      ],
+      "operations": {
+        "joint_velocity": {
+          "profile": "joints.velocity_jog.v1",
+          "command": {
+            "track_name": "/lift/joint_jog",
+            "msg_type": "control_msgs/msg/JointJog",
+            "format": "json"
+          },
+          "presentations": [
+            "gamepad",
+            "joint_sliders"
+          ]
+        }
+      }
+    },
+    "left_arm": {
+      "label": "Left arm",
+      "frame_id": "left_arm_base_link",
+      "joint_names": [
+        "left_arm_joint_1",
+        "left_arm_joint_2",
+        "left_arm_joint_3",
+        "left_arm_joint_4",
+        "left_arm_joint_5",
+        "left_arm_joint_6"
+      ],
+      "operations": {
+        "joint_velocity": {
+          "profile": "joints.velocity_jog.v1",
+          "command": {
+            "track_name": "/left_arm/joint_jog",
+            "msg_type": "control_msgs/msg/JointJog",
+            "format": "json"
+          },
+          "presentations": [
+            "gamepad",
+            "joint_sliders"
+          ]
+        },
+        "joint_position": {
+          "profile": "joints.trajectory.v1",
+          "command": {
+            "track_name": "/left_arm/joint_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/left_arm/joint_states"
+          ],
+          "presentations": [
+            "joint_sliders"
+          ]
+        },
+        "gripper_position": {
+          "profile": "gripper.position.v1",
+          "command": {
+            "track_name": "/left_arm/gripper_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/left_arm/joint_states"
+          ],
+          "presentations": [
+            "gripper_controls"
+          ],
+          "control_channel": "gripper",
+          "joint_names": [
+            "left_arm_gripper_joint"
+          ]
+        },
+        "cartesian_pose": {
+          "profile": "arm.cartesian_pose.v1",
+          "command": {
+            "track_name": "/left_arm/pose_target",
+            "msg_type": "geometry_msgs/msg/PoseStamped",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/left_arm/end_effector_pose"
+          ],
+          "presentations": [
+            "hand_tracking",
+            "vr"
+          ]
+        }
+      }
+    },
+    "right_arm": {
+      "label": "Right arm",
+      "frame_id": "right_arm_base_link",
+      "joint_names": [
+        "right_arm_joint_1",
+        "right_arm_joint_2",
+        "right_arm_joint_3",
+        "right_arm_joint_4",
+        "right_arm_joint_5",
+        "right_arm_joint_6"
+      ],
+      "operations": {
+        "joint_velocity": {
+          "profile": "joints.velocity_jog.v1",
+          "command": {
+            "track_name": "/right_arm/joint_jog",
+            "msg_type": "control_msgs/msg/JointJog",
+            "format": "json"
+          },
+          "presentations": [
+            "gamepad",
+            "joint_sliders"
+          ]
+        },
+        "joint_position": {
+          "profile": "joints.trajectory.v1",
+          "command": {
+            "track_name": "/right_arm/joint_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/right_arm/joint_states"
+          ],
+          "presentations": [
+            "joint_sliders"
+          ]
+        },
+        "gripper_position": {
+          "profile": "gripper.position.v1",
+          "command": {
+            "track_name": "/right_arm/gripper_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/right_arm/joint_states"
+          ],
+          "presentations": [
+            "gripper_controls"
+          ],
+          "control_channel": "gripper",
+          "joint_names": [
+            "right_arm_gripper_joint"
+          ]
+        },
+        "cartesian_pose": {
+          "profile": "arm.cartesian_pose.v1",
+          "command": {
+            "track_name": "/right_arm/pose_target",
+            "msg_type": "geometry_msgs/msg/PoseStamped",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/right_arm/end_effector_pose"
+          ],
+          "presentations": [
+            "hand_tracking",
+            "vr"
+          ]
+        }
+      }
+    }
+  }
+}

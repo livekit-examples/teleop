@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "label": "Rover with discovery exclusions",
+  "exclude_data_tracks": [
+    "/debug/.*"
+  ],
+  "exclude_video_tracks": [
+    "private-.*"
+  ],
+  "exclude_audio_tracks": [
+    "private-.*"
+  ],
+  "default_video_rate_hz": 30,
+  "control": {
+    "scope": "robot",
+    "ownership": "portal_active_operator"
+  },
+  "control_interfaces": {
+    "base": {
+      "label": "Rover",
+      "frame_id": "base_link",
+      "operations": {
+        "drive": {
+          "profile": "base.twist.v1",
+          "command": {
+            "track_name": "/cmd_vel",
+            "msg_type": "geometry_msgs/msg/Twist",
+            "format": "json"
+          },
+          "presentations": [
+            "gamepad",
+            "joystick",
+            "keyboard"
+          ]
+        }
+      }
+    }
+  }
+}

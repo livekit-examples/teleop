@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "label": "Single arm",
+  "exclude_data_tracks": [],
+  "exclude_video_tracks": [],
+  "exclude_audio_tracks": [],
+  "default_video_rate_hz": 30,
+  "control": {
+    "scope": "robot",
+    "ownership": "portal_active_operator"
+  },
+  "control_interfaces": {
+    "arm": {
+      "label": "Arm",
+      "frame_id": "arm_base_link",
+      "joint_names": [
+        "arm_joint_1",
+        "arm_joint_2",
+        "arm_joint_3",
+        "arm_joint_4",
+        "arm_joint_5",
+        "arm_joint_6"
+      ],
+      "operations": {
+        "joint_velocity": {
+          "profile": "joints.velocity_jog.v1",
+          "command": {
+            "track_name": "/arm/joint_jog",
+            "msg_type": "control_msgs/msg/JointJog",
+            "format": "json"
+          },
+          "presentations": [
+            "gamepad",
+            "joint_sliders"
+          ]
+        },
+        "joint_position": {
+          "profile": "joints.trajectory.v1",
+          "command": {
+            "track_name": "/arm/joint_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/arm/joint_states"
+          ],
+          "presentations": [
+            "joint_sliders"
+          ]
+        },
+        "gripper_position": {
+          "profile": "gripper.position.v1",
+          "command": {
+            "track_name": "/arm/gripper_trajectory",
+            "msg_type": "trajectory_msgs/msg/JointTrajectory",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/arm/joint_states"
+          ],
+          "presentations": [
+            "gripper_controls"
+          ],
+          "control_channel": "gripper",
+          "joint_names": [
+            "arm_gripper_joint"
+          ]
+        },
+        "cartesian_pose": {
+          "profile": "arm.cartesian_pose.v1",
+          "command": {
+            "track_name": "/arm/pose_target",
+            "msg_type": "geometry_msgs/msg/PoseStamped",
+            "format": "json"
+          },
+          "feedback_tracks": [
+            "/arm/end_effector_pose"
+          ],
+          "presentations": [
+            "hand_tracking",
+            "vr"
+          ]
+        }
+      }
+    }
+  }
+}

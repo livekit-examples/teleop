@@ -42,3 +42,5 @@
 
 # macOS
 .DS_Store
+
+.demo-runs/

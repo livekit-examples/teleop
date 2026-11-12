@@ -1,4 +1,8 @@
 [submodule "web/vendor/client-sdk-js"]
 	path = web/vendor/client-sdk-js
 	url = https://github.com/livekit/client-sdk-js.git
-	branch = ladvoc/schema-metadata
+	branch = main
+[submodule "robo-sims"]
+	path = robo-sims
+	url = https://github.com/livekit-examples/robo-sims.git
+	branch = sderosa/general-teleop
