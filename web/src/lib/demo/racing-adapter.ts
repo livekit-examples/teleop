@@ -82,7 +82,6 @@ export function racingAdapters(raw: unknown): Map<string, ProfileAdapter> {
     units: `m/s · steering rad · forward cap ${policy.max_speed} m/s`,
     maxFeedbackAgeMs: 1000,
     repeatIntervalMs: policy.input_interval_ms,
-    telemetryTrack: policy.state_track,
     validateFeedback: (_value, ctx) => match(ctx),
     encode: (input, ctx) => {
       match(ctx);

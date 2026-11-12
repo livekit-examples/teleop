@@ -8,7 +8,12 @@ import { landDots } from '@/lib/fleet/land-dots';
 
 export type OperatorPin = { lat: number; lng: number; label: string; approximate: boolean };
 
-type Placed = FleetRobot & { lat: number; lng: number };
+/** lat/lng is the real position; pinLat/pinLng is where the pin and link are drawn. */
+type Placed = FleetRobot & { lat: number; lng: number; pinLat: number; pinLng: number };
+
+/** Robots closer than this to the operator are fanned out around them so their links show. */
+const NEAR_DEG = 2.5;
+const FAN_RADIUS_DEG = 7;
 
 const DEG = Math.PI / 180;
 
@@ -145,17 +150,35 @@ export function FleetGlobe({
     new Map<string, { el: HTMLElement; pos: THREE.Vector3; dx: number; dy: number; top: boolean }>(),
   );
 
-  const placed = useMemo(
-    () =>
-      robots.flatMap((r): Placed[] =>
-        r.coordinates.ok ? [{ ...r, lat: r.coordinates.value.lat, lng: r.coordinates.value.lng }] : [],
-      ),
-    [robots],
-  );
+  const placed = useMemo(() => {
+    const list = robots.flatMap((r): Placed[] => {
+      if (!r.coordinates.ok) return [];
+      const { lat, lng } = r.coordinates.value;
+      return [{ ...r, lat, lng, pinLat: lat, pinLng: lng }];
+    });
+    // A robot in the operator's own city would sit under the operator pin with a link of
+    // zero length. Spread those robots on a ring around the operator and link to the ring.
+    const hubs = operator ? [operator] : [];
+    const fanned = new Set<string>();
+    for (const hub of hubs) {
+      const home = toVector(hub.lat, hub.lng);
+      const near = list.filter(
+        (r) => !fanned.has(r.identity) && toVector(r.lat, r.lng).angleTo(home) < NEAR_DEG * DEG,
+      );
+      near.forEach((r, i) => {
+        fanned.add(r.identity);
+        const bearing = (-50 + (i * 360) / near.length) * DEG;
+        const cosLat = Math.max(Math.cos(hub.lat * DEG), 0.2);
+        r.pinLat = THREE.MathUtils.clamp(hub.lat + FAN_RADIUS_DEG * Math.cos(bearing), -89, 89);
+        r.pinLng = hub.lng + (FAN_RADIUS_DEG * Math.sin(bearing)) / cosLat;
+      });
+    }
+    return list;
+  }, [robots, operator]);
   // Rebuild arcs only when something the arcs draw actually changes.
   const arcKey = JSON.stringify([
     operator && [operator.lat, operator.lng],
-    placed.map((r) => [r.identity, r.lat, r.lng, r.connection]),
+    placed.map((r) => [r.identity, r.pinLat, r.pinLng, r.connection]),
     selected,
   ]);
 
@@ -362,32 +385,40 @@ export function FleetGlobe({
       (child as THREE.Mesh).geometry.dispose();
       ((child as THREE.Mesh).material as THREE.Material).dispose();
     }
-    if (!operator) return;
-    const from = toVector(operator.lat, operator.lng);
+    const hubs = operator ? [{ lat: operator.lat, lng: operator.lng, dim: 1 }] : [];
     const focused = placed.some((r) => r.identity === selected) ? selected : undefined;
-    placed.forEach((robot, i) => {
-      const to = toVector(robot.lat, robot.lng);
-      if (from.angleTo(to) < 0.004) return;
-      const curve = new THREE.CatmullRomCurve3(arcPoints(from, to));
-      const dim = focused && focused !== robot.identity ? 0.35 : 1;
-      const mesh = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 96, selected === robot.identity ? 0.007 : 0.0048, 6, false),
-        new THREE.ShaderMaterial({
-          vertexShader: ARC_VERTEX,
-          fragmentShader: ARC_FRAGMENT,
-          transparent: true,
-          depthWrite: false,
-          uniforms: {
-            uColor: { value: new THREE.Color(CONNECTION_COLORS[robot.connection]) },
-            uTime: { value: 0 },
-            uPhase: { value: (i * 0.37) % 1 },
-            uSpeed: { value: robot.connection === 'stale' ? 0.12 : 0.32 },
-            uDashed: { value: robot.connection === 'offline' ? 1 : 0 },
-            uDim: { value: dim },
-          },
-        }),
-      );
-      s.arcs.add(mesh);
+    hubs.forEach((hub, h) => {
+      const from = toVector(hub.lat, hub.lng);
+      placed.forEach((robot, i) => {
+        const to = toVector(robot.pinLat, robot.pinLng);
+        if (from.angleTo(to) < 0.004) return;
+        const curve = new THREE.CatmullRomCurve3(arcPoints(from, to));
+        const dim = (focused && focused !== robot.identity ? 0.35 : 1) * hub.dim;
+        const mesh = new THREE.Mesh(
+          new THREE.TubeGeometry(
+            curve,
+            96,
+            selected === robot.identity ? 0.007 : 0.0048,
+            6,
+            false,
+          ),
+          new THREE.ShaderMaterial({
+            vertexShader: ARC_VERTEX,
+            fragmentShader: ARC_FRAGMENT,
+            transparent: true,
+            depthWrite: false,
+            uniforms: {
+              uColor: { value: new THREE.Color(CONNECTION_COLORS[robot.connection]) },
+              uTime: { value: 0 },
+              uPhase: { value: (i * 0.37 + h * 0.23) % 1 },
+              uSpeed: { value: robot.connection === 'stale' ? 0.12 : 0.32 },
+              uDashed: { value: robot.connection === 'offline' ? 1 : 0 },
+              uDim: { value: dim },
+            },
+          }),
+        );
+        s.arcs.add(mesh);
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arcKey]);
@@ -427,22 +458,17 @@ export function FleetGlobe({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, operator?.lat, operator?.lng, placed.length]);
 
-  // A robot in the operator's own city would hide under the operator pin: nudge it aside.
-  const nearOperator = (lat: number, lng: number) =>
-    !!operator && toVector(lat, lng).angleTo(toVector(operator.lat, operator.lng)) < 0.6 * DEG;
   const register = (id: string, lat: number, lng: number) => (el: HTMLElement | null) => {
     if (!el) {
       markers.current.delete(id);
       return;
     }
-    const isOperator = id === '__operator';
-    const nudge = !isOperator && nearOperator(lat, lng);
     markers.current.set(id, {
       el,
       pos: toVector(lat, lng, 1.01),
-      dx: nudge ? -24 : 0,
-      dy: nudge ? -36 : 0,
-      top: isOperator,
+      dx: 0,
+      dy: 0,
+      top: id === '__operator',
     });
   };
 
@@ -470,7 +496,7 @@ export function FleetGlobe({
             type="button"
             className={`fleet-pin robot ${robot.connection} ${selected === robot.identity ? 'selected' : ''}`}
             style={{ '--pin': CONNECTION_COLORS[robot.connection] } as React.CSSProperties}
-            ref={register(robot.identity, robot.lat, robot.lng)}
+            ref={register(robot.identity, robot.pinLat, robot.pinLng)}
             onClick={() => onSelect(selected === robot.identity ? undefined : robot.identity)}
             aria-label={`${robot.name}, ${CONNECTION_LABELS[robot.connection]}`}
           >

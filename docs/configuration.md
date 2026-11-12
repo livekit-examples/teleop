@@ -64,6 +64,7 @@ A top-level field belongs directly to the document. A map stores values under na
 | `control` | Yes | An object that describes control ownership. See [control](#control). |
 | `control_interfaces` | Yes | A map of equipment that the app can control. An empty map means that the user can view the robot but cannot control it. |
 | `camera_info` | No | A map of fixed camera calibration. If you omit this field, the robot provides no camera calibration. See [camera_info](#camera_info). |
+| `hardware_control` | No | The limits that let the app send commands to a physical robot. Without it, the app can show the robot but cannot command it. See [Robot hardware policy](#robot-hardware-policy). |
 | `exclude_data_tracks` | No | A list of patterns that exclude data tracks. The default is `[]`. |
 | `exclude_video_tracks` | No | A list of patterns that exclude video tracks. The default is `[]`. |
 | `exclude_audio_tracks` | No | A list of patterns that exclude audio tracks. The default is `[]`. |
@@ -363,6 +364,62 @@ A simulator can add a `simulation_control` object that gives limits to the app. 
 | `operations` | The supported commands, under `operations[interface ID][operation ID]`. |
 
 Each entry under `operations` has `profile`, `control_channel`, `joint_names`, `units`, and `joints`. The `joints` map gives `min`, `max`, and `max_velocity` for each joint. An entry for a gripper also has `coordinate_label`, `open_position`, and `closed_position`. The app still supports the older `mujoco.joint_trajectory.v1` policy for arms.
+
+## Robot hardware policy
+
+A physical robot adds a `hardware_control` object to send commands from the app. The robot declares its own limits in this object. The app builds an adapter for each declared operation, so it never guesses limits from a profile name. Without this object, the app shows "Live adapter disabled" for every operation. A document can have `hardware_control` or `simulation_control`, but not both.
+
+| Field | Description |
+| --- | --- |
+| `version` | `1`. |
+| `max_feedback_age_ms` | The maximum age of feedback that the app accepts, from 1 to 5000. |
+| `operations` | The supported commands, under `operations[interface ID][operation ID]`. The IDs must match `control_interfaces`. |
+
+Each entry under `operations` has a `profile` and a `control_channel`. Version 1 supports two profiles.
+
+`base.twist.v1` has these fields. Full input sends the maximum value. A differential base ignores the sideways input.
+
+| Field | Description |
+| --- | --- |
+| `max_linear_speed` | The forward speed in m/s, at most 3. |
+| `max_reverse_speed` | The reverse speed in m/s, as a positive number, at most 3. |
+| `max_angular_speed` | The yaw rate in rad/s, at most 6. |
+| `command_timeout_ms` | The time after which the robot stops on its own when commands stop, from 150 to 1000. The app sends a command every 50 ms while the control is armed, and a zero Twist when the user releases it. |
+
+`joints.trajectory.v1` has the same fields as a simulator position capability: `joint_names`, `units` (`"rad"`), and `joints` with `min`, `max`, and `max_velocity` for each joint. The joint sliders use `min` and `max`. The app sends one trajectory point. Its `time_from_start` covers the move at `max_velocity`, with a margin. To cancel, the app sends a trajectory with empty `points`. The robot then holds its measured position.
+
+```json
+"hardware_control": {
+  "version": 1,
+  "max_feedback_age_ms": 1000,
+  "operations": {
+    "base": {
+      "drive": {
+        "profile": "base.twist.v1",
+        "control_channel": "primary",
+        "max_linear_speed": 0.35,
+        "max_reverse_speed": 0.25,
+        "max_angular_speed": 1.5,
+        "command_timeout_ms": 500
+      }
+    },
+    "head": {
+      "joint_position": {
+        "profile": "joints.trajectory.v1",
+        "control_channel": "primary",
+        "joint_names": ["pan_joint", "tilt_joint"],
+        "units": "rad",
+        "joints": {
+          "pan_joint": { "min": -0.895, "max": 1.005, "max_velocity": 3.5 },
+          "tilt_joint": { "min": -1.556, "max": 0.481, "max_velocity": 3.5 }
+        }
+      }
+    }
+  }
+}
+```
+
+The robot must still enforce its own limits and stop when commands stop. The app limits are the operator interface, not a safety system.
 
 ## Names and IDs
 

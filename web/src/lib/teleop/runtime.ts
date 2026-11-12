@@ -1,6 +1,7 @@
 import { operationPresentations } from './control-profiles';
 import { discoveredSimulationAdapters } from '../demo/trajectory-adapter';
 import { CameraDeck } from './cameras';
+import { discoveredHardwareAdapters } from './hardware-adapters';
 import {
   ControlManager,
   controlKey,
@@ -225,8 +226,12 @@ export class WorkspaceRuntime {
       try {
         this.config = parseDiscovery(payload);
         if (this.discoverAdapters) {
-          const adapters = discoveredSimulationAdapters(payload);
-          for (const [profile, adapter] of adapters) this.controls.adapters.set(profile, adapter);
+          const simulated = discoveredSimulationAdapters(payload);
+          const hardware = discoveredHardwareAdapters(payload);
+          if (simulated.size && hardware.size)
+            throw new Error('Declare either simulation_control or hardware_control, not both.');
+          for (const [profile, adapter] of [...simulated, ...hardware])
+            this.controls.adapters.set(profile, adapter);
         }
       } catch (error) {
         this.discovery = 'failed';

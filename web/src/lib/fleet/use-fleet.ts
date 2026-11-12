@@ -166,7 +166,10 @@ export function useFleet(): FleetState {
         await lkRoom.connect(credentials.server_url, credentials.token, { autoSubscribe: false });
         if (cancelled) return;
         await lkRoom.localParticipant
-          .setAttributes({ 'lk.portal.role': 'observer', 'lk.portal.version': '3' })
+          .setAttributes({
+            'lk.portal.role': 'observer',
+            'lk.portal.version': '3',
+          })
           .catch(() => {});
         setRoom(lkRoom.name);
         setIdentity(lkRoom.localParticipant.identity);

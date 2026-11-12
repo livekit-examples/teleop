@@ -95,7 +95,6 @@ describe('RC driving adapter', () => {
       JSON.stringify({ simulation_control: { implementation: policy.kind, policy } }),
     );
     expect(discovered.get(policy.profile)?.repeatIntervalMs).toBe(20);
-    expect(simulationAdapters(policy).get(policy.profile)?.telemetryTrack).toBe('/vehicle_state');
   });
   it('sends neutral first, maps SI units, brakes on release and resets first-frame state', () => {
     const a = simulationAdapters(policy).get(policy.profile)!;

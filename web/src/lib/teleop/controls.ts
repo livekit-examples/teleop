@@ -36,7 +36,6 @@ export type ProfileAdapter = {
   mandatoryFeedback?: 'joints' | 'pose';
   maxFeedbackAgeMs: number;
   repeatIntervalMs?: number;
-  telemetryTrack?: string;
   jointLimits?(context: AdapterContext): Record<string, { min: number; max: number }>;
   gripperTargets?(context: AdapterContext): {
     open: number;
@@ -473,7 +472,7 @@ export class ControlManager {
     const adapter = this.adapters.get(op.profile);
     if (!adapter)
       return knownProfiles.includes(op.profile)
-        ? 'Live adapter disabled: verified device units, limits, release behavior and gateway authorization are not configured.'
+        ? 'Live adapter disabled: the robot does not declare hardware_control limits for this profile.'
         : `Unsupported profile: ${op.profile}.`;
     if (
       !operationPresentations(op).includes(s.presentation) ||

@@ -98,9 +98,11 @@ robots update) would fix that.
 ## Operator location
 
 The globe shows only the current operator: this browser. Its position comes
-from the browser's geolocation (asked once, when the globe first opens). If
-that's declined, the portal falls back to the city for the browser's time zone
-and marks it approximate. The operator's location is not published to the room.
+from the browser's geolocation (asked once, when the page loads). If that's declined, the portal falls back
+to the city for the browser's time zone and marks it approximate. The operator's location is not published to the room.
+
+A robot within about 250 km of the operator would sit under the operator's pin. The globe
+draws those robots on a small ring around the operator so their links stay visible.
 
 ## Files
 

@@ -92,7 +92,15 @@ function useOperatorLocation(enabled: boolean): OperatorPin | undefined {
     if (!enabled) return;
     const zone = placeFromTimeZone();
     if (zone)
-      setPin((p) => p ?? { lat: zone.lat, lng: zone.lng, label: `${zone.city}, ${zone.country}`, approximate: true });
+      setPin(
+        (p) =>
+          p ?? {
+            lat: zone.lat,
+            lng: zone.lng,
+            label: `${zone.city}, ${zone.country}`,
+            approximate: true,
+          },
+      );
     if (!('geolocation' in navigator)) return;
     let cancelled = false;
     navigator.geolocation.getCurrentPosition(
@@ -373,7 +381,12 @@ export function FleetPortal() {
           </>
         ) : (
           <section className="fleet-globe-view" aria-label="Fleet globe">
-            <FleetGlobe robots={robots} operator={operator} selected={selected} onSelect={setSelected} />
+            <FleetGlobe
+              robots={robots}
+              operator={operator}
+              selected={selected}
+              onSelect={setSelected}
+            />
             <aside className="fleet-globe-side">
               <div className="fleet-legend" aria-label="Legend">
                 {(['connected', 'stale', 'offline'] as const).map((state) => (

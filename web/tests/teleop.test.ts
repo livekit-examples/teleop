@@ -719,6 +719,92 @@ describe('runtime reconnect, discovery and demand isolation', () => {
     await runtime.dispose();
   });
 
+  it('loads robot-declared hardware limits on discovery and clears them on disconnect', async () => {
+    const transport = new FixtureTransport();
+    Object.defineProperty(transport, 'fixture', { value: false });
+    const hardware_control = {
+      version: 1,
+      max_feedback_age_ms: 1000,
+      operations: {
+        base: {
+          drive: {
+            profile: 'base.twist.v1',
+            control_channel: 'primary',
+            max_linear_speed: 0.3,
+            max_reverse_speed: 0.2,
+            max_angular_speed: 1,
+            command_timeout_ms: 500,
+          },
+        },
+        left_arm: {
+          position: {
+            profile: 'joints.trajectory.v1',
+            control_channel: 'primary',
+            joint_names: ['left_1', 'left_2'],
+            units: 'rad',
+            joints: {
+              left_1: { min: -1, max: 1, max_velocity: 0.5 },
+              left_2: { min: -2, max: 2, max_velocity: 0.5 },
+            },
+          },
+        },
+      },
+    };
+    vi.spyOn(transport, 'rpc').mockResolvedValue(
+      JSON.stringify({ ...structuredClone(fixtureConfig), hardware_control }),
+    );
+    const runtime = new WorkspaceRuntime(transport, storage());
+    transport.emit('connected');
+    await flush();
+    expect(runtime.discovery).toBe('ready');
+    expect(runtime.controls.adapter('base')?.units).toContain('robot limits');
+    expect(runtime.controls.adapter('left_arm')?.units).toContain('robot limits');
+    expect(runtime.controls.reason('base') ?? '').not.toContain('Live adapter disabled');
+    transport.emit('disconnected');
+    expect(runtime.controls.adapters.size).toBe(0);
+    await runtime.dispose();
+  });
+
+  it('fails discovery when a robot declares both simulator and hardware limits', async () => {
+    const transport = new FixtureTransport();
+    Object.defineProperty(transport, 'fixture', { value: false });
+    vi.spyOn(transport, 'rpc').mockResolvedValue(
+      JSON.stringify({
+        ...structuredClone(fixtureConfig),
+        simulation_control: {
+          implementation: 'mujoco.joint_trajectory.v1',
+          policy: {
+            profile: 'joints.trajectory.v1',
+            max_feedback_age_ms: 1000,
+            interfaces: { left_arm: { left_1: { min: -1, max: 1, max_velocity: 0.5 } } },
+          },
+        },
+        hardware_control: {
+          version: 1,
+          max_feedback_age_ms: 1000,
+          operations: {
+            base: {
+              drive: {
+                profile: 'base.twist.v1',
+                control_channel: 'primary',
+                max_linear_speed: 0.3,
+                max_reverse_speed: 0.2,
+                max_angular_speed: 1,
+                command_timeout_ms: 500,
+              },
+            },
+          },
+        },
+      }),
+    );
+    const runtime = new WorkspaceRuntime(transport, storage());
+    transport.emit('connected');
+    await flush();
+    expect(runtime.discovery).toBe('failed');
+    expect(runtime.error).toContain('not both');
+    await runtime.dispose();
+  });
+
   it('subscribes all eligible initial/new videos, no audio, and no excluded video', async () => {
     const transport = new FixtureTransport();
     const runtime = new WorkspaceRuntime(transport, storage());

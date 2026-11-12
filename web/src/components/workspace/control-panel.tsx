@@ -17,7 +17,6 @@ import { XrControls } from "./xr-controls";
 import { HandControls } from "./hand-tracking";
 import { ImmersiveVrButton, useImmersiveVr } from "./immersive-vr";
 import { chooseControl } from "@/lib/teleop/control-select";
-import { RacingTelemetry } from "./racing-telemetry";
 import { KeyboardSteering } from "@/lib/teleop/keyboard-steering";
 
 function InputPresentation({ id }: { id: string }) {
@@ -605,7 +604,6 @@ export function ControlPanel({ active }: { active: boolean }) {
               heading="h3"
               title={equipment?.label ?? equipmentId}
             >
-              <RacingTelemetry equipmentId={equipmentId} active={active} />
               {[...channels].map((channel) => (
                 <ControlChannel
                   key={channel}
