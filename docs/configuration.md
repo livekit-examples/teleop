@@ -16,11 +16,41 @@ An attribute is a named value on a participant. The robot sets these participant
 
 | Attribute | Value |
 | --- | --- |
-| `lk.portal.role` | `robot` for a robot, `operator` for a browser. |
+| `lk.portal.role` | `robot` for a robot. A browser sets `operator`, or `observer` when it can't take control. |
 | `lk.portal.version` | The string `3`. The app rejects any other version. |
 | `lk.portal.active_operator` | The identity of the operator in control, or an empty string. |
 
 If you change the document, restart the robot. The app reads the new document the next time it connects.
+
+### Fleet Portal attributes
+
+The Fleet Portal at `/fleet` lists every robot in the room. It reads the attributes below. They are optional. When one is missing, the portal shows the attribute name in its place. Attribute values are strings, so send numbers as strings.
+
+| Attribute | Example | Value |
+| --- | --- | --- |
+| `lk.fleet.city` | `Denver` | The city of the robot. |
+| `lk.fleet.country` | `US` | The country of the robot. Use an ISO 3166-1 alpha-2 code if you can. Full names also work. |
+| `lk.fleet.lat` | `39.7392` | The latitude in decimal degrees, from -90 to 90. It places the robot on the globe. |
+| `lk.fleet.lng` | `-104.9903` | The longitude in decimal degrees, from -180 to 180. Set it together with `lk.fleet.lat`. |
+| `lk.fleet.model` | `trossen-arm` | The robot type or model. The portal shows a friendly name for `trossen-arm`, `trossen-workbench`, `carla-sim`, `f1tenth-sim`, `mujoco-sim`, and `rover`. It shows any other value as written. |
+| `lk.fleet.control` | `teleop` | One of `autonomous`, `teleop`, or `standby`. The portal marks any other value as invalid. |
+
+Without `lk.fleet.lat` and `lk.fleet.lng`, the portal places the robot at the center of `lk.fleet.city` from a small built-in list of cities, and marks the position as approximate. If the city is not in the list, the robot does not appear on the globe.
+
+The portal also shows `lk.portal.active_operator` and `lk.portal.version`. Connection state is not an attribute. The portal reads it from the room. For more about the portal, see [fleet-portal.md](fleet-portal.md).
+
+```python
+await room.local_participant.set_attributes({
+    "lk.portal.role": "robot",
+    "lk.portal.version": "3",
+    "lk.fleet.city": "Denver",
+    "lk.fleet.country": "US",
+    "lk.fleet.lat": "39.7392",
+    "lk.fleet.lng": "-104.9903",
+    "lk.fleet.model": "trossen-arm",
+    "lk.fleet.control": "standby",
+})
+```
 
 ## Top-level fields
 
