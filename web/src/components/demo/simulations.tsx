@@ -111,7 +111,7 @@ function PreviewCameras({ runtime }: { runtime: NonNullable<Session['runtime']> 
 
 export function Simulations() {
   const router = useRouter();
-  const [catalog, setCatalog] = useState<DemoSimulation[]>([]);
+  const [catalog, setCatalog] = useState<DemoSimulation[] | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [previews, setPreviews] = useState<Set<string>>(() => new Set());
@@ -162,8 +162,8 @@ export function Simulations() {
         <h2 id="simulations-title">Try a simulation</h2>
         <p>Watch a shared robot or join its control queue. Each simulation has its own queue.</p>
         <p>
-          Turns last {catalog[0]?.turn_seconds ?? 60} seconds. Viewers can keep a simulation running
-          with Keep watching.
+          Turns last {catalog?.[0]?.turn_seconds ?? 60} seconds. Viewers can keep a simulation
+          running with Keep watching.
         </p>
       </div>
       {error && (
@@ -173,9 +173,9 @@ export function Simulations() {
       )}
       <div className="demo-catalog">
         {cards.map(([id, name, photo]) => {
-          const simulation = catalog.find((item) => item.id === id);
-          if (!simulation) return null;
-          const run = simulation.instance;
+          const simulation = catalog?.find((item) => item.id === id);
+          if (catalog && !simulation) return null;
+          const run = simulation?.instance;
           return (
             <article
               className="demo-sim-card demo-run"
@@ -187,17 +187,25 @@ export function Simulations() {
                 <Image src={'/simulations/' + photo + '.png'} alt={name} fill sizes="300px" />
               </div>
               <h3>{name}</h3>
-              <p>{simulation.summary}</p>
-              <p role="status">{run?.state ?? 'Starts on demand'}</p>
+              {simulation && <p>{simulation.summary}</p>}
+              <p role="status">
+                {simulation
+                  ? (run?.state ?? 'Starts on demand')
+                  : error
+                    ? 'Status unavailable'
+                    : 'Checking availability…'}
+              </p>
               {run?.state === 'ready' && (
                 <p>
                   {run.viewer_count ?? 0} viewing · {run.queue_length ?? 0} in control queue
                 </p>
               )}
-              {!simulation.available && <p>{simulation.reason}</p>}
+              {simulation && !simulation.available && <p>{simulation.reason}</p>}
               <button
-                disabled={!simulation.available || busy === id}
-                onClick={() => void watch(simulation)}
+                disabled={!simulation?.available || busy === id}
+                onClick={() => {
+                  if (simulation) void watch(simulation);
+                }}
               >
                 {busy === id ? 'Starting…' : 'Watch ' + name}
               </button>

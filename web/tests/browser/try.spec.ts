@@ -10,6 +10,35 @@ const simulations = ['trossen-wxai', 'vacuum', 'unsupported'].map((id) => ({
   idle_seconds: 120,
 }));
 
+test('thumbnail images load before the simulation catalog responds', async ({ page }) => {
+  let releaseCatalog!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    releaseCatalog = resolve;
+  });
+  await page.route('**/api/demo/simulations', async (route) => {
+    await pending;
+    await route.fulfill({ json: { enabled: true, simulations } });
+  });
+  try {
+    const response = await page.goto('/try');
+    expect(await response!.text()).toMatch(/<img[^>]*alt="Formula RC"/);
+    await expect(page.locator('.demo-sim-photo img')).toHaveCount(7);
+    await expect
+      .poll(() =>
+        page
+          .getByRole('img', { name: 'Formula RC', exact: true })
+          .evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
+      )
+      .toBe(true);
+    await expect(page.getByRole('button', { name: 'Watch wxai', exact: true })).toBeDisabled();
+    releaseCatalog();
+    await expect(page.getByRole('button', { name: 'Watch wxai', exact: true })).toBeEnabled();
+    await expect(page.locator('.demo-sim-card')).toHaveCount(2);
+  } finally {
+    releaseCatalog();
+  }
+});
+
 test('the catalog does not start workers and retries Watch safely', async ({ page }) => {
   let starts = 0;
   await page.route('**/api/demo/simulations', (route) =>

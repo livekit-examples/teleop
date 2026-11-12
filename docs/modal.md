@@ -98,7 +98,7 @@ Configure the shared room independently of the direct robot room. Use a differen
 | SIM_SESSION_CLEANUP_SECONDS | 5 |
 | SIM_SESSION_FPS | 30 |
 | SIM_LAUNCHES_PER_HOUR | 120 |
-| SIM_VISITOR_LAUNCHES_PER_HOUR | 6 |
+| SIM_VISITOR_LAUNCHES_PER_HOUR | 20 |
 
 A tab can watch several simulations through one connection. It can hold one queue place or turn at a time. Different tabs can control different simulations simultaneously.
 
