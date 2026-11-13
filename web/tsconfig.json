@@ -39,8 +39,6 @@
     ".next-demo/dev/types/**/*.ts",
     ".next-demo-build/types/**/*.ts",
     ".next-demo-build/dev/types/**/*.ts",
-    ".next-demo-local-native/types/**/*.ts",
-    ".next-demo-local-native/dev/types/**/*.ts",
     ".next-demo-modal/types/**/*.ts",
     ".next-demo-modal/dev/types/**/*.ts",
     ".next-demo-remote-native/types/**/*.ts",

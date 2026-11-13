@@ -46,3 +46,7 @@
 .demo-runs/
 
 .vscode/
+
+# Python bytecode
+__pycache__/
+*.pyc

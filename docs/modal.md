@@ -136,4 +136,3 @@ This command needs an authenticated Modal profile and reachable LiveKit credenti
 
 The test uses short timeouts only in its temporary environment. Production defaults remain 60-second turns and 120-second inactivity. Test logs appear under .demo-runs/teleop-shared-check-*/.
 
-The standalone scripts/modal-smoke.py still tests one private Sandbox. It does not implement the shared website queue. The shared browser test exercises the new worker Function and API.
