@@ -140,7 +140,6 @@ src/
   hooks/
     use-data-tracks.ts     # LiveKit data track subscription management
     use-arrow-key-degrees.ts  # Keyboard input handler for arrow keys
-    use-repeat-step.ts     # Hold-to-repeat input utility
   lib/
     types.ts               # Mode type definition ('view' | 'operate')
     utils.ts               # cn() helper (clsx + tailwind-merge)

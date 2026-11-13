@@ -31,9 +31,9 @@ export function VrTeleopDriver({ status }: { status(message: string): void }) {
       for (const [operation, op] of Object.entries(equipment.operations)) {
         if (!operationPresentations(op).includes("vr")) continue;
         const key = controlKey(equipmentId, op.control_channel ?? "primary");
-        const session = runtime.controls.session(key);
-        if (!session || session.presentation === "vr" || previous.some((entry) => entry.key === key)) continue;
-        previous.push({ key, operation: session.operation, presentation: session.presentation });
+        const current = runtime.controls.session(key);
+        if (!current || current.presentation === "vr" || previous.some((entry) => entry.key === key)) continue;
+        previous.push({ key, operation: current.operation, presentation: current.presentation });
         void runtime.controls.select(key, operation, "vr").then(runtime.notify);
       }
     }
@@ -41,10 +41,11 @@ export function VrTeleopDriver({ status }: { status(message: string): void }) {
     const bound = runtime.layout?.controller_hands ?? {};
     if (runtime.layout && !bound.left && !bound.right) {
       const ids = vrInterfaces(runtime).map(([id]) => id);
-      const hands: Partial<Record<"left" | "right", string>> = {};
-      if (ids[0]) hands.right = ids[0];
-      if (ids[1]) hands.left = ids[1];
-      if (ids[0]) runtime.editLayout({ ...runtime.layout, controller_hands: hands });
+      if (ids[0]) {
+        const hands: Partial<Record<"left" | "right", string>> = { right: ids[0] };
+        if (ids[1]) hands.left = ids[1];
+        runtime.editLayout({ ...runtime.layout, controller_hands: hands });
+      }
     }
     status("VR active. Release grip, then press it to establish a fresh reference.");
     const hidden = () => {

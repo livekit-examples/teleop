@@ -5,7 +5,7 @@ import { selectJoints } from './selectors';
 import { object } from './validation';
 
 /** Where the limits come from: a simulator policy or a robot's `hardware_control` block. */
-export type LimitSource = 'simulation' | 'robot';
+type LimitSource = 'simulation' | 'robot';
 const title = (source: LimitSource) => (source === 'simulation' ? 'Simulation' : 'Robot');
 
 export function validateJointLimits(

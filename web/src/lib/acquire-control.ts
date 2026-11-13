@@ -6,7 +6,7 @@ export const ACQUIRE_CONTROL_PAYLOAD = JSON.stringify({ acquire: true });
 /** Matches API examples: release */
 export const RELEASE_CONTROL_PAYLOAD = JSON.stringify({ acquire: false });
 
-export type AcquireControlResponseKind =
+type AcquireControlResponseKind =
   | 'acquired'
   | 'already_controller'
   | 'other_controller'

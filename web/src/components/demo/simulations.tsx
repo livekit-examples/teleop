@@ -142,13 +142,11 @@ export function Simulations({ publicDeployment = false }: { publicDeployment?: b
   }, []);
   const watching = useRef<AbortController | null>(null);
   useEffect(() => () => watching.current?.abort(), []);
-  // Open the full teleop page for a robot that is running.
-  const openTeleop = (run: DemoRun) =>
-    router.push(
-      publicDeployment
-        ? '/workspace?session=' + run.id
-        : '/?robot=' + encodeURIComponent(run.robot_identity!),
-    );
+  // The full teleop page for a robot that is running.
+  const teleopHref = (run: DemoRun) =>
+    publicDeployment
+      ? '/workspace?session=' + run.id
+      : '/?robot=' + encodeURIComponent(run.robot_identity ?? '');
   const watch = async (simulation: DemoSimulation) => {
     watching.current?.abort();
     const abort = new AbortController();
@@ -172,7 +170,7 @@ export function Simulations({ publicDeployment = false }: { publicDeployment?: b
         await new Promise((resolve) => setTimeout(resolve, 1000));
         run = await demoRequest<DemoRun>('instances/' + run.id, { signal: abort.signal });
       }
-      if (!abort.signal.aborted) openTeleop(run);
+      if (!abort.signal.aborted) router.push(teleopHref(run));
     } catch (problem) {
       if (!abort.signal.aborted) setError((problem as Error).message);
     } finally {
@@ -261,15 +259,7 @@ export function Simulations({ publicDeployment = false }: { publicDeployment?: b
                   >
                     Preview
                   </button>
-                  <Link
-                    href={
-                      publicDeployment
-                        ? '/workspace?session=' + run.id
-                        : '/?robot=' + encodeURIComponent(run.robot_identity ?? '')
-                    }
-                  >
-                    Open teleop
-                  </Link>
+                  <Link href={teleopHref(run)}>Open teleop</Link>
                 </>
               )}
             </article>

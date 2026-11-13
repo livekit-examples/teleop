@@ -47,6 +47,13 @@ function connectionOf(p: RemoteParticipant): ConnectionState {
   return p.connectionQuality === ConnectionQuality.Lost ? 'stale' : 'connected';
 }
 
+const markOffline = (s: Seen): Seen => ({
+  ...s,
+  connection: 'offline',
+  since: Date.now(),
+  live: undefined,
+});
+
 function toRobots(seen: Map<string, Seen>): FleetRobot[] {
   return [...seen.values()]
     .map((s) => ({
@@ -123,7 +130,7 @@ export function useFleet(): FleetState {
       // Robots seen earlier in this session that left the room are offline.
       for (const [id, s] of map)
         if (!present.has(id) && s.connection !== 'offline')
-          map.set(id, { ...s, connection: 'offline', since: Date.now(), live: undefined });
+          map.set(id, markOffline(s));
       setOthers(nonRobots);
       setRobots(toRobots(map));
     };
@@ -149,7 +156,7 @@ export function useFleet(): FleetState {
       setStatus('disconnected');
       // Without a room we can't vouch for anyone.
       for (const [id, s] of map)
-        if (s.connection !== 'offline') map.set(id, { ...s, connection: 'offline', since: Date.now(), live: undefined });
+        if (s.connection !== 'offline') map.set(id, markOffline(s));
       setRobots(toRobots(map));
     });
     (async () => {

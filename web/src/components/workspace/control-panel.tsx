@@ -654,7 +654,7 @@ function ControlChannel({
 }) {
   const runtime = useRuntime();
   const id = controlKey(equipmentId, channel);
-  const choose = (id: string, operation: string, presentation: string) =>
+  const choose = (operation: string, presentation: string) =>
     chooseControl(runtime, equipmentId, channel, operation, presentation);
   const equipment = own(runtime.config?.control_interfaces, equipmentId);
   const session = runtime.controls.session(id);
@@ -719,12 +719,12 @@ function ControlChannel({
             value={session.operation}
             onChange={(event) => {
               const next = equipment.operations[event.target.value];
+              const options = operationPresentations(next);
               void choose(
-                id,
                 event.target.value,
-                operationPresentations(next).includes(session.presentation)
+                options.includes(session.presentation)
                   ? session.presentation
-                  : (operationPresentations(next)[0] ?? session.presentation),
+                  : (options[0] ?? session.presentation),
               );
             }}
           >
@@ -743,7 +743,7 @@ function ControlChannel({
             disabled={session.switching}
             value={session.presentation}
             onChange={(event) =>
-              void choose(id, session.operation, event.target.value)
+              void choose(session.operation, event.target.value)
             }
           >
             {presentations.map((presentation) => (

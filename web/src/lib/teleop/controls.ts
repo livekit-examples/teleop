@@ -46,7 +46,7 @@ export type ProfileAdapter = {
   release(context: AdapterContext): unknown;
   validateFeedback(value: unknown, context: AdapterContext): void;
 };
-export type ControlSession = {
+type ControlSession = {
   operation: string;
   presentation: string;
   armed: boolean;
@@ -60,7 +60,7 @@ export type ControlSession = {
   ending?: Promise<boolean>;
   feedback: (() => void)[];
 };
-export const knownProfiles = Object.keys(controlProfiles);
+const knownProfiles = Object.keys(controlProfiles);
 
 /** Non-primary session IDs are serialized tuples; primary IDs remain backward compatible. */
 /** Profiles that stay armed while idle, until the operator disarms them. */
@@ -72,7 +72,7 @@ const REPEAT_PROFILES = ['joints.trajectory.v1', 'gripper.position.v1'];
 export function controlKey(id: string, channel = 'primary'): string {
   return channel === 'primary' ? id : JSON.stringify([id, channel]);
 }
-export function controlTarget(key: string): [string, string] {
+function controlTarget(key: string): [string, string] {
   return key.startsWith('[') ? JSON.parse(key) : [key, 'primary'];
 }
 export function controlChannels(equipment: ControlInterface): string[] {

@@ -24,7 +24,6 @@ export function useControlCmdTrack(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) {
-      const t = trackRef.current;
       trackRef.current = null;
       return;
     }
@@ -47,7 +46,6 @@ export function useControlCmdTrack(enabled: boolean) {
 
     return () => {
       cancelled = true;
-      const t = trackRef.current;
       trackRef.current = null;
     };
   }, [enabled, localParticipant]);

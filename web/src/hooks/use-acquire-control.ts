@@ -12,7 +12,7 @@ import { Mode } from '@/lib/types';
 
 let warnedMissingRobotIdentity = false;
 
-export interface UseAcquireControlOptions {
+interface UseAcquireControlOptions {
   isConnected: boolean;
   identity: string | undefined;
 }

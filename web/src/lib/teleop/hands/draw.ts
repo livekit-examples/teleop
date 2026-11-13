@@ -38,11 +38,13 @@ export function drawHands(
     const text = view.gripping
       ? `${side}: ${view.moved.map((v) => Math.round(v * 1000)).join(', ')} mm · ${Math.round((view.turned * 180) / Math.PI)}° · grip ${Math.round(view.grip * 100)}%${view.waiting ? ' (waiting)' : ''}`
       : `${side}: curl ${view.curl ? view.curl.map((c) => c.toFixed(1)).join(' ') : '-'}`;
+    const textX = Math.max(4, left);
+    const textY = Math.max(16, top - 8);
     ctx.font = '14px sans-serif';
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#000000';
-    ctx.strokeText(text, Math.max(4, left), Math.max(16, top - 8));
+    ctx.strokeText(text, textX, textY);
     ctx.fillStyle = colour;
-    ctx.fillText(text, Math.max(4, left), Math.max(16, top - 8));
+    ctx.fillText(text, textX, textY);
   }
 }

@@ -44,7 +44,7 @@ export const defaultHandSettings: HandSettings = {
 };
 
 /** Hands not seen for this long are let go. */
-export const STALE_MS = 250;
+const STALE_MS = 250;
 /** A palm that moves this far between two frames is a tracking glitch, or two hands swapped. */
 const MAX_JUMP_M = 0.08;
 /** A palm that turns this far between two frames is one too. */
@@ -75,6 +75,7 @@ type Arm = {
 export class HandTeleop {
   private arms: Record<Side, Arm>;
   private seen = -1;
+  private applied: string;
 
   constructor(
     private runtime: WorkspaceRuntime,
@@ -84,7 +85,6 @@ export class HandTeleop {
     this.applied = JSON.stringify(this.settings());
   }
 
-  private applied: string;
   private make(): Arm {
     return {
       clutch: new Clutch(),
@@ -116,7 +116,6 @@ export class HandTeleop {
       turned: arm.follower.turned(),
       grip: arm.follower.grip,
       waiting: arm.follower.gripWaiting,
-      note: arm.note,
     };
   }
 
@@ -196,8 +195,7 @@ export class HandTeleop {
       this.applied = settings;
     }
     const fresh = !!sighting && now - sighting.at < STALE_MS;
-    const dueForNewFrame = fresh && sighting.seq !== this.seen;
-    if (dueForNewFrame) this.see(sighting);
+    if (fresh && sighting.seq !== this.seen) this.see(sighting);
     if (!fresh) {
       for (const side of ['left', 'right'] as Side[]) {
         const arm = this.arms[side];

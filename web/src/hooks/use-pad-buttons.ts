@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type PadDir = 'up' | 'down' | 'left' | 'right';
+type PadDir = 'up' | 'down' | 'left' | 'right';
 
 function addPadDir(prev: Set<PadDir>, d: PadDir): Set<PadDir> {
   const next = new Set(prev);

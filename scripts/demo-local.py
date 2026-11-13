@@ -119,14 +119,13 @@ def main():
             raise SystemExit('Install the local simulation prerequisites in docs/modal.md first.')
         if provider == 'docker' and not shutil.which('docker'):
             raise SystemExit('Install Docker or use SIM_DEMO_PROVIDER=native.')
-    for number in (port,):
-        with socket.socket() as sock:
-            try:
-                sock.bind(('127.0.0.1', number))
-            except PermissionError:
-                raise SystemExit('Local socket access is denied. Run this launcher with network access.')
-            except OSError:
-                raise SystemExit(f'Port {number} is in use. Stop that service before starting the demo.')
+    with socket.socket() as sock:
+        try:
+            sock.bind(('127.0.0.1', port))
+        except PermissionError:
+            raise SystemExit('Local socket access is denied. Run this launcher with network access.')
+        except OSError:
+            raise SystemExit(f'Port {port} is in use. Stop that service before starting the demo.')
     launcher = secrets.token_hex(16)
     mode = 'modal' if args.modal else 'local-' + provider
     directory = ROOT / '.demo-runs' / mode / launcher
@@ -162,9 +161,8 @@ def main():
           f'Website: http://127.0.0.1:{port}/try\nLogs: {directory}\n', flush=True)
     try:
         if not args.modal:
-            settings = dict(values)
             path = directory / 'trial.env'
-            path.write_text(''.join(f'{key}={value}\n' for key, value in settings.items()))
+            path.write_text(''.join(f'{key}={value}\n' for key, value in values.items()))
             path.chmod(0o600)
             # Fail before starting Next.js if assets or selected local dependencies are missing.
             checked = subprocess.run([str(python), '-m', 'sims.demo.check_image'], cwd=SIMS,
@@ -175,7 +173,7 @@ def main():
                    '--port', str(urlparse(values['SIM_SUPERVISOR_URL']).port),
                    '--directory', str(directory / 'sessions'), '--provider', provider,
                    '--image', os.environ.get('SIM_DEMO_IMAGE', 'teleop-simulation:local')], SIMS,
-                  'supervisor', {**env, **settings})
+                  'supervisor', env)
         deadline = time.monotonic() + (90 if args.modal else 20)
         while True:
             try:

@@ -80,8 +80,7 @@ def joint_model(key, label, names=None, *, arm=True, vr=False):
             "joints.trajectory.v1", f"/{key}/joint_trajectory",
             "trajectory_msgs/msg/JointTrajectory", [state_track],
         )
-    if arm:
-        gripper = operation("gripper.position.v1", f"/{key}/gripper_trajectory",
+        gripper =operation("gripper.position.v1", f"/{key}/gripper_trajectory",
                             "trajectory_msgs/msg/JointTrajectory", [state_track])
         gripper.update(control_channel="gripper", joint_names=[f"{key}_gripper_joint"])
         model["control_interfaces"][key]["operations"]["gripper_position"] = gripper

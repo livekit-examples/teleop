@@ -127,16 +127,6 @@ export type SimulationPolicy =
   | PositionSimulationPolicy
   | RacingPolicy
   | VacuumPolicy;
-export type DemoCredentials = {
-  server_url: string;
-  room_name: string;
-  duration_seconds: number;
-  token: string;
-  robot_identity: string;
-  expires_at: number;
-  mode: 'preview' | 'control';
-  policy: SimulationPolicy | null;
-};
 export async function demoRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/demo/${path}`, {
     ...init,

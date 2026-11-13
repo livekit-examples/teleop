@@ -19,7 +19,7 @@ import {
   strings,
 } from "./validation";
 
-export const SYSTEM_VIEWS = ["@cameras", "@controls", "@catalog"];
+const SYSTEM_VIEWS = ["@cameras", "@controls", "@catalog"];
 export const visualizationNames: Record<Visualization, string> = {
   plot: "Numeric plot",
   value: "Numeric value",

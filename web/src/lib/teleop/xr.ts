@@ -59,10 +59,8 @@ export class XrTeleop {
     if (!this.engaged.delete(id)) return;
     // Aim the robot at where it is now. Without this it keeps moving to the last target it was
     // given, which can be well past the point where the operator let go.
-    const feedback = Object.values(this.runtime.controls.context(id).feedback)[0] as
-      | { pose?: Pose }
-      | undefined;
-    if (feedback?.pose) this.runtime.controls.send(id, { pose: structuredClone(feedback.pose) });
+    const pose = this.feedbackPose(id);
+    if (pose) this.runtime.controls.send(id, { pose: structuredClone(pose) });
   }
 
   /** A hand moves a robot only while its interface is armed with the VR presentation. */
@@ -86,6 +84,13 @@ export class XrTeleop {
   }
 
   private suffix: Record<'left' | 'right', string> = { left: '', right: '' };
+
+  private feedbackPose(id: string): Pose | undefined {
+    const feedback = Object.values(this.runtime.controls.context(id).feedback)[0] as
+      | { pose?: Pose }
+      | undefined;
+    return feedback?.pose;
+  }
 
   private report(hand: 'left' | 'right', base: string) {
     const message = base + this.suffix[hand];
@@ -121,10 +126,10 @@ export class XrTeleop {
       try {
         target = selectJoints(Object.values(ctx.feedback)[0], [name])[0].position;
       } catch {
-        return 'no gripper position yet';
+        // Falls through to the missing position below.
       }
+      if (target === undefined) return 'no gripper position yet';
     }
-    if (target === undefined) return 'no gripper position yet';
     const seconds = Math.min(0.1, Math.max(0, (now - (previous?.at ?? now)) / 1000));
     const range = targets.open - targets.closed;
     target = Math.min(
@@ -144,15 +149,18 @@ export class XrTeleop {
     for (const hand of hands) {
       const id = runtime.layout?.controller_hands?.[hand.handedness];
       this.suffix[hand.handedness] = '';
-      if (id) {
-        const state = this.driveGripper(id, hand, now);
-        const exists = !!runtime.controls.session(controlKey(id, 'gripper'));
-        if (exists) this.suffix[hand.handedness] = state === 'on' ? ' · gripper on' : state === 'off' ? ' · gripper off: Enable gripper' : ` · ${state}`;
-      }
       if (!id) {
         this.report(hand.handedness, 'no interface bound');
         continue;
       }
+      const state = this.driveGripper(id, hand, now);
+      if (runtime.controls.session(controlKey(id, 'gripper')))
+        this.suffix[hand.handedness] =
+          state === 'on'
+            ? ' · gripper on'
+            : state === 'off'
+              ? ' · gripper off: Enable gripper'
+              : ` · ${state}`;
       if (!this.allowed(id)) {
         this.report(hand.handedness, this.why(id));
         // A hand that cannot move a robot forgets its grip, so a held grip never engages by arming.
@@ -191,10 +199,8 @@ export class XrTeleop {
         continue;
       }
       if (!was && !this.engaged.has(id)) {
-        const feedback = Object.values(runtime.controls.context(id).feedback)[0] as
-          | { pose?: Pose }
-          | undefined;
-        if (!feedback?.pose) {
+        const robot = this.feedbackPose(id);
+        if (!robot) {
           this.stop(id);
           this.report(hand.handedness, 'waiting for the robot pose. Release grip and try again');
           continue;
@@ -202,7 +208,7 @@ export class XrTeleop {
         this.engaged.set(id, {
           point: pose.position,
           q: pose.orientation,
-          robot: structuredClone(feedback.pose),
+          robot: structuredClone(robot),
           last: pose.position,
           lastQ: pose.orientation,
           at: now,

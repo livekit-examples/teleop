@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 export const MAX_VR_EYE_OFFSET_CM = 12;
-export const DEFAULT_VR_EYE_OFFSET_CM = 10;
+const DEFAULT_VR_EYE_OFFSET_CM = 10;
 export const VR_EYE_OFFSET_STEP_CM = 0.25;
 
 // The headset keeps its alignment across visits, so the offset lives in this browser's localStorage.

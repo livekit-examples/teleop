@@ -1,6 +1,6 @@
 import type { Operation } from './types';
 
-export type InputCapabilities = { gamepad: boolean; xr: boolean; camera: boolean };
+type InputCapabilities = { gamepad: boolean; xr: boolean; camera: boolean };
 
 /** Register input modes here; their UI/input implementations live in the workspace components. */
 export const presentations = {

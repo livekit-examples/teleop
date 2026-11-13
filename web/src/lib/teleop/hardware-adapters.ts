@@ -10,10 +10,10 @@ import {
 import { object, parseJson } from './validation';
 
 /** How often the desktop controls sample and send driving input (control-panel.tsx). */
-export const DRIVE_INPUT_INTERVAL_MS = 50;
+const DRIVE_INPUT_INTERVAL_MS = 50;
 
 /** `base.twist.v1` limits that a robot declares in `hardware_control`. */
-export type TwistCapability = {
+type TwistCapability = {
   profile: 'base.twist.v1';
   control_channel: string;
   /** Forward speed at full input, m/s. */

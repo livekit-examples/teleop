@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { parseEnv } from 'node:util';
 import { SCIENTIST_NAMES } from './scientist-names';
 
-export const dynamic = 'force-dynamic' as const;
+export const dynamic = 'force-dynamic';
 
 type Credentials = {
   url: string;
@@ -42,8 +42,7 @@ function loadCredentials(): Credentials {
   };
 }
 
-// Module scope: evaluated once when the server process starts (not on each
-// request). Set the LIVEKIT_* variables in `.env.local` or in the process
+// Loaded once on first request and cached for the life of the server process. Set the LIVEKIT_* variables in `.env.local` or in the process
 // environment. `.env.local` takes priority when it exists.
 let cachedCredentials: Credentials | null = null;
 
@@ -116,13 +115,8 @@ export async function GET() {
     canUpdateOwnMetadata: true,
   });
 
-  const token = await at.toJwt();
-  const response = {
-    server_url: credentials.url,
-    token,
-  };
-
-  return NextResponse.json(response, {
-    headers: { 'Cache-Control': 'no-store' },
-  });
+  return NextResponse.json(
+    { server_url: credentials.url, token: await at.toJwt() },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
 }

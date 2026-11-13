@@ -6,6 +6,9 @@ import { acquireSharedRoom } from './shared-room';
 import { demoRequest, type ControlQueueState, type DemoRun, type SharedCredentials } from './types';
 import { simulationAdapters } from './trajectory-adapter';
 
+const recoverable = (state: DemoRun['state']) =>
+  state === 'stopped' || state === 'expired' || state === 'stopping';
+
 export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
   const [runtime, setRuntime] = useState<WorkspaceRuntime | null>(null);
   const [queue, setQueue] = useState<(ControlQueueState & { clockOffset?: number }) | null>(null);
@@ -46,8 +49,6 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
         if (current) await current.dispose();
         shared?.release();
       })());
-    const recoverable = (state: DemoRun['state']) =>
-      state === 'stopped' || state === 'expired' || state === 'stopping';
     setRuntime(null);
     setQueue(null);
     setError('');
@@ -340,7 +341,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
           setError(run.reason ?? 'This simulation failed to start.');
           return;
         }
-        if (['stopped', 'expired', 'stopping'].includes(run.state)) {
+        if (recoverable(run.state)) {
           const next = await demoRequest<DemoRun>('simulations/' + run.simulation_id + '/watch', {
             method: 'POST',
             body: '{}',

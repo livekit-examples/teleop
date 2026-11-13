@@ -29,8 +29,6 @@ export const FLEET_KEYS = {
   control: 'lk.fleet.control',
 } as const;
 
-export type FleetKey = (typeof FLEET_KEYS)[keyof typeof FLEET_KEYS];
-
 export const CONTROL_MODES = ['autonomous', 'teleop', 'standby'] as const;
 export type ControlMode = (typeof CONTROL_MODES)[number];
 

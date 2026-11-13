@@ -18,7 +18,7 @@ export type GyroStatePayload = {
 };
 
 /** Same wrapping as `PanTiltController::wrapTicks`. */
-export function wrapServoTicks(rawTicks: number): number {
+function wrapServoTicks(rawTicks: number): number {
   let wrapped = rawTicks % SERVO_TICKS_PER_REV;
   if (wrapped < 0) {
     wrapped += SERVO_TICKS_PER_REV;

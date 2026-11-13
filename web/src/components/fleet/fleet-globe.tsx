@@ -123,10 +123,6 @@ const SPHERE_VERTEX = /* glsl */ `
 `;
 
 type Scene = {
-  renderer: THREE.WebGLRenderer;
-  scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
-  globe: THREE.Group;
   arcs: THREE.Group;
   view: { rotX: number; rotY: number; targetX?: number; targetY?: number; zoom: number };
   lastInteraction: number;
@@ -147,7 +143,7 @@ export function FleetGlobe({
   const canvasHost = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<Scene | null>(null);
   const markers = useRef(
-    new Map<string, { el: HTMLElement; pos: THREE.Vector3; dx: number; dy: number; top: boolean }>(),
+    new Map<string, { el: HTMLElement; pos: THREE.Vector3; top: boolean }>(),
   );
 
   const placed = useMemo(() => {
@@ -158,19 +154,14 @@ export function FleetGlobe({
     });
     // A robot in the operator's own city would sit under the operator pin with a link of
     // zero length. Spread those robots on a ring around the operator and link to the ring.
-    const hubs = operator ? [operator] : [];
-    const fanned = new Set<string>();
-    for (const hub of hubs) {
-      const home = toVector(hub.lat, hub.lng);
-      const near = list.filter(
-        (r) => !fanned.has(r.identity) && toVector(r.lat, r.lng).angleTo(home) < NEAR_DEG * DEG,
-      );
+    if (operator) {
+      const home = toVector(operator.lat, operator.lng);
+      const near = list.filter((r) => toVector(r.lat, r.lng).angleTo(home) < NEAR_DEG * DEG);
       near.forEach((r, i) => {
-        fanned.add(r.identity);
         const bearing = (-50 + (i * 360) / near.length) * DEG;
-        const cosLat = Math.max(Math.cos(hub.lat * DEG), 0.2);
-        r.pinLat = THREE.MathUtils.clamp(hub.lat + FAN_RADIUS_DEG * Math.cos(bearing), -89, 89);
-        r.pinLng = hub.lng + (FAN_RADIUS_DEG * Math.sin(bearing)) / cosLat;
+        const cosLat = Math.max(Math.cos(operator.lat * DEG), 0.2);
+        r.pinLat = THREE.MathUtils.clamp(operator.lat + FAN_RADIUS_DEG * Math.cos(bearing), -89, 89);
+        r.pinLng = operator.lng + (FAN_RADIUS_DEG * Math.sin(bearing)) / cosLat;
       });
     }
     return list;
@@ -236,10 +227,6 @@ export function FleetGlobe({
     globe.add(arcs);
 
     const state: Scene = {
-      renderer,
-      scene,
-      camera,
-      globe,
       arcs,
       view: { rotX: 0.5, rotY: 1.7, zoom: 4.4 },
       lastInteraction: 0,
@@ -340,7 +327,7 @@ export function FleetGlobe({
 
       // Project HTML markers.
       const { width, height } = container.getBoundingClientRect();
-      for (const { el: marker, pos, dx, dy, top } of markers.current.values()) {
+      for (const { el: marker, pos, top } of markers.current.values()) {
         world.copy(pos).applyMatrix4(globe.matrixWorld);
         toCam.copy(camera.position).sub(world);
         const facing = world.clone().normalize().dot(toCam.normalize());
@@ -348,7 +335,7 @@ export function FleetGlobe({
         const x = ((ndc.x + 1) / 2) * width;
         const y = ((1 - ndc.y) / 2) * height;
         const opacity = THREE.MathUtils.smoothstep(facing, 0.02, 0.25);
-        marker.style.transform = `translate(${x + dx}px, ${y + dy}px) translate(-50%, -50%)`;
+        marker.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
         marker.style.opacity = String(opacity);
         marker.style.pointerEvents = opacity > 0.5 ? 'auto' : 'none';
         marker.style.zIndex = String(Math.round(facing * 100) + (top ? 400 : 100));
@@ -385,40 +372,32 @@ export function FleetGlobe({
       (child as THREE.Mesh).geometry.dispose();
       ((child as THREE.Mesh).material as THREE.Material).dispose();
     }
-    const hubs = operator ? [{ lat: operator.lat, lng: operator.lng, dim: 1 }] : [];
+    if (!operator) return;
     const focused = placed.some((r) => r.identity === selected) ? selected : undefined;
-    hubs.forEach((hub, h) => {
-      const from = toVector(hub.lat, hub.lng);
-      placed.forEach((robot, i) => {
-        const to = toVector(robot.pinLat, robot.pinLng);
-        if (from.angleTo(to) < 0.004) return;
-        const curve = new THREE.CatmullRomCurve3(arcPoints(from, to));
-        const dim = (focused && focused !== robot.identity ? 0.35 : 1) * hub.dim;
-        const mesh = new THREE.Mesh(
-          new THREE.TubeGeometry(
-            curve,
-            96,
-            selected === robot.identity ? 0.007 : 0.0048,
-            6,
-            false,
-          ),
-          new THREE.ShaderMaterial({
-            vertexShader: ARC_VERTEX,
-            fragmentShader: ARC_FRAGMENT,
-            transparent: true,
-            depthWrite: false,
-            uniforms: {
-              uColor: { value: new THREE.Color(CONNECTION_COLORS[robot.connection]) },
-              uTime: { value: 0 },
-              uPhase: { value: (i * 0.37 + h * 0.23) % 1 },
-              uSpeed: { value: robot.connection === 'stale' ? 0.12 : 0.32 },
-              uDashed: { value: robot.connection === 'offline' ? 1 : 0 },
-              uDim: { value: dim },
-            },
-          }),
-        );
-        s.arcs.add(mesh);
-      });
+    const from = toVector(operator.lat, operator.lng);
+    placed.forEach((robot, i) => {
+      const to = toVector(robot.pinLat, robot.pinLng);
+      if (from.angleTo(to) < 0.004) return;
+      const curve = new THREE.CatmullRomCurve3(arcPoints(from, to));
+      const dim = focused && focused !== robot.identity ? 0.35 : 1;
+      const mesh = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 96, selected === robot.identity ? 0.007 : 0.0048, 6, false),
+        new THREE.ShaderMaterial({
+          vertexShader: ARC_VERTEX,
+          fragmentShader: ARC_FRAGMENT,
+          transparent: true,
+          depthWrite: false,
+          uniforms: {
+            uColor: { value: new THREE.Color(CONNECTION_COLORS[robot.connection]) },
+            uTime: { value: 0 },
+            uPhase: { value: (i * 0.37) % 1 },
+            uSpeed: { value: robot.connection === 'stale' ? 0.12 : 0.32 },
+            uDashed: { value: robot.connection === 'offline' ? 1 : 0 },
+            uDim: { value: dim },
+          },
+        }),
+      );
+      s.arcs.add(mesh);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arcKey]);
@@ -466,8 +445,6 @@ export function FleetGlobe({
     markers.current.set(id, {
       el,
       pos: toVector(lat, lng, 1.01),
-      dx: 0,
-      dy: 0,
       top: id === '__operator',
     });
   };

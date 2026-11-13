@@ -90,7 +90,7 @@ export function ImmersiveVrProvider({ runtime, children }: { runtime: WorkspaceR
 }
 
 /** A headset. Drawn here because the icon set has no VR headset. */
-export function HeadsetIcon({ size = 14 }: { size?: number }) {
+function HeadsetIcon({ size = 14 }: { size?: number }) {
   return (
     <svg
       width={size}
