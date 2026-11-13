@@ -44,3 +44,5 @@
 .DS_Store
 
 .demo-runs/
+
+.vscode/

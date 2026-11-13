@@ -80,23 +80,58 @@
     background 0.15s,
     border-color 0.15s;
 }
-.demo-sim-photo {
+/* The photo is the Operate button. Scoped under .demo-sim-card.demo-run so the
+   generic `.demo-run button` styles don't apply. */
+.demo-sim-card.demo-run .demo-sim-photo {
   position: relative;
   display: block;
   aspect-ratio: 4 / 3;
   width: calc(100% + 2.6rem);
+  height: auto;
   margin: -1.3rem -1.3rem 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--lk-separator1);
+  border-radius: 0;
+  background: var(--lk-bg0);
+  cursor: pointer;
+}
+.demo-sim-card.demo-run .demo-sim-photo:hover:not(:disabled) {
+  background: var(--lk-bg0);
+  border-color: var(--lk-separator-accent);
+}
+.demo-sim-card.demo-run .demo-sim-photo:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--lk-fg-accent1);
+}
+.demo-sim-card.demo-run .demo-sim-photo:disabled {
+  cursor: not-allowed;
 }
 .demo-sim-photo img {
   object-fit: cover;
   object-position: center 65%;
+  transition:
+    transform 200ms var(--lk-ease),
+    filter 200ms var(--lk-ease);
 }
-.demo-sim-loading {
+.demo-sim-photo:hover:not(:disabled) img {
+  transform: scale(1.03);
+}
+.demo-sim-photo:disabled:not([aria-busy='true']) img {
+  filter: grayscale(1) brightness(0.6);
+}
+.demo-sim-card .demo-sim-loading {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgb(0 0 0 / 0.45);
+  background: rgb(0 0 0 / 0.55);
+  color: var(--lk-fg0);
+  font-family: var(--font-lk-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 .demo-sim-card:hover:not(:disabled) {
   background: var(--lk-bg3);

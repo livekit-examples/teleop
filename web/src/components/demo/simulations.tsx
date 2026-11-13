@@ -191,6 +191,8 @@ export function Simulations({ publicDeployment = false }: { publicDeployment?: b
         <p>
           Turns last {catalog?.[0]?.turn_seconds ?? 60} seconds. Viewers can keep a simulation
           running with Keep watching.
+
+          If a simulation is not already running, it will start on demand.
         </p>
       </div>
       {error && (
@@ -210,32 +212,40 @@ export function Simulations({ publicDeployment = false }: { publicDeployment?: b
               data-simulation-id={id}
               data-run-id={run?.id}
             >
-              <div className="demo-sim-photo">
-                <Image src={'/simulations/' + photo + '.png'} alt={name} fill sizes="300px" />
-              </div>
+              <button
+                type="button"
+                className="demo-sim-photo"
+                aria-label={'Operate ' + name}
+                aria-busy={busy === id}
+                disabled={!simulation?.available || busy === id}
+                onClick={() => {
+                  if (simulation) void watch(simulation);
+                }}
+              >
+                <Image src={'/simulations/' + photo + '.png'} alt="" fill sizes="300px" />
+                {busy === id && (
+                  <span className="demo-sim-loading" role="status">
+                    {run?.state === 'ready' ? 'Opening…' : 'Starting…'}
+                  </span>
+                )}
+              </button>
               <h3>{name}</h3>
               {simulation && <p>{simulation.summary}</p>}
-              <p role="status">
-                {simulation
-                  ? (run?.reason ?? run?.state ?? 'Starts on demand')
-                  : error
-                    ? 'Status unavailable'
-                    : 'Checking availability…'}
-              </p>
+              {(run?.reason || run?.state || !simulation) && (
+                <p role="status">
+                  {simulation
+                    ? (run?.reason ?? run?.state)
+                    : error
+                      ? 'Status unavailable'
+                      : 'Checking availability…'}
+                </p>
+              )}
               {run?.state === 'ready' && (
                 <p>
                   {run.viewer_count ?? 0} viewing · {run.queue_length ?? 0} in control queue
                 </p>
               )}
               {simulation && !simulation.available && <p>{simulation.reason}</p>}
-              <button
-                disabled={!simulation?.available || busy === id}
-                onClick={() => {
-                  if (simulation) void watch(simulation);
-                }}
-              >
-                {busy === id ? (run?.state === 'ready' ? 'Opening…' : 'Starting…') : 'Watch ' + name}
-              </button>
               {run?.state === 'ready' && (
                 <>
                   <button
