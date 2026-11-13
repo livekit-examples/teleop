@@ -346,7 +346,7 @@ function ManagedWorkspace({ id }: { id: string }) {
         <h2>Viewing ended</h2>
         <p role="status">{error || 'Choose Watch to return to a shared simulation.'}</p>
         <Link href="/try">Return to simulations</Link>
-        <button onClick={session.retry}>Continue watching</button>
+        {session.canContinue && <button onClick={session.retry}>Continue watching</button>}
       </main>
     );
   if (!runtime)

@@ -103,15 +103,25 @@ test('Watch opens the shared instance and stopped worlds require deliberate cont
 });
 
 test('startup errors remain visible without creating another instance', async ({ page }) => {
+  let watches = 0;
   await page.route('**/api/demo/instances/' + id, (route) =>
-    route.fulfill({ json: { id, state: 'failed', reason: 'Simulation execution failed.' } }),
+    route.fulfill({
+      json: { id, state: 'failed', reason: 'Simulation startup timed out.' },
+    }),
   );
+  await page.route('**/api/demo/simulations/**/watch', (route) => {
+    watches++;
+    return route.fulfill({ status: 503, json: { error: 'should not restart' } });
+  });
   await page.goto('/workspace?session=' + id);
-  await expect(page.getByRole('status')).toContainText('Simulation execution failed.');
+  await expect(page.getByRole('heading', { name: 'Viewing ended' })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('Simulation startup timed out.');
   await expect(page.getByRole('link', { name: 'Return to simulations' })).toHaveAttribute(
     'href',
     '/try',
   );
+  await expect(page.getByRole('button', { name: 'Continue watching' })).toHaveCount(0);
+  expect(watches).toBe(0);
 });
 
 test('direct discovery never requests the simulation service', async ({ page }) => {

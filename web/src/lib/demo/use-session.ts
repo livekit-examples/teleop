@@ -13,6 +13,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
   const [actionError, setActionError] = useState('');
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [ended, setEnded] = useState(false);
+  const [canContinue, setCanContinue] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const action = useRef<(name: string) => Promise<void>>(async () => {});
   const engage = useRef<(force?: boolean) => Promise<void>>(async () => {});
@@ -21,6 +22,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
     if (!id) return;
     if (!/^[a-f0-9]{32}$/.test(id)) {
       setError('Invalid simulation instance.');
+      setCanContinue(false);
       return;
     }
     const abort = new AbortController();
@@ -44,12 +46,15 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
         if (current) await current.dispose();
         shared?.release();
       })());
+    const recoverable = (state: DemoRun['state']) =>
+      state === 'stopped' || state === 'expired' || state === 'stopping';
     setRuntime(null);
     setQueue(null);
     setError('');
     setActionError('');
     setEnded(false);
-    const finish = (message = '') => {
+    setCanContinue(false);
+    const finish = (message = '', allowContinue = false) => {
       if (disposed) return;
       disposed = true;
       abort.abort();
@@ -59,6 +64,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
       setRuntime(null);
       setError(message);
       setEnded(true);
+      setCanContinue(allowContinue);
     };
     const signed = (value: string) => ({ 'X-Sim-Proof': value });
     const updateDeadline = (until: number) => {
@@ -149,7 +155,10 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
             signal: abort.signal,
           }).catch(() => null);
           if (state && !['starting', 'ready'].includes(state.state)) {
-            finish(state.reason ?? 'Simulation paused due to inactivity.');
+            finish(
+              state.reason ?? 'Simulation paused due to inactivity.',
+              recoverable(state.state),
+            );
             return;
           }
           setActionError((problem as Error).message);
@@ -167,7 +176,10 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
         }
         if (disposed) return;
         if (run.state !== 'ready') {
-          finish(run.reason ?? 'This simulation stopped. Choose Watch to restart it.');
+          finish(
+            run.reason ?? 'This simulation stopped. Choose Watch to restart it.',
+            recoverable(run.state),
+          );
           return;
         }
         shared = await acquireSharedRoom();
@@ -241,7 +253,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
                   hadStake = false;
                   fromRoom();
                 } catch {
-                  if (!disposed) finish('Continue watching to reconnect.');
+                  if (!disposed) finish('Continue watching to reconnect.', true);
                 }
               })();
           }
@@ -290,7 +302,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
         clock = setInterval(() => {
           fromRoom();
           if (deadline && Date.now() >= deadline)
-            finish('Your viewing time expired. Continue watching to return.');
+            finish('Your viewing time expired. Continue watching to return.', true);
         }, 200);
         void refresh();
       } catch (problem) {
@@ -314,6 +326,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
     actionError,
     expiresAt,
     ended,
+    canContinue,
     queueAction: (name: 'join' | 'leave' | 'release') => action.current(name),
     keepWatching: () => engage.current(true),
     interact: (event: { isTrusted: boolean }) => {
@@ -322,7 +335,12 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
     retry: async () => {
       try {
         const run = await demoRequest<DemoRun>('instances/' + id);
-        if (['stopped', 'expired', 'failed', 'stopping'].includes(run.state)) {
+        if (run.state === 'failed') {
+          setCanContinue(false);
+          setError(run.reason ?? 'This simulation failed to start.');
+          return;
+        }
+        if (['stopped', 'expired', 'stopping'].includes(run.state)) {
           const next = await demoRequest<DemoRun>('simulations/' + run.simulation_id + '/watch', {
             method: 'POST',
             body: '{}',

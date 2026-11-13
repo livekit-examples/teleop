@@ -77,7 +77,7 @@ function Preview({ id }: { id: string }) {
     return (
       <div role="status">
         <p>{session.error || 'Viewing ended'}</p>
-        <button onClick={session.retry}>Continue watching</button>
+        {session.canContinue && <button onClick={session.retry}>Continue watching</button>}
       </div>
     );
   if (!session.runtime) return <p role="status">Connecting preview…</p>;
