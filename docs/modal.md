@@ -8,7 +8,7 @@ If nobody interacts with a simulation for 120 seconds, its worker stops. Keep wa
 
 ## Local development
 
-Local mode starts Next.js, LiveKit, and the Python service. The service uses the same queue rules as Modal. It stores instance records in a local SQLite snapshot.
+Local mode starts Next.js and the Python service. Both use the LiveKit values in web/.env.local (LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET and LIVEKIT_ROOM_NAME), so every page shows the same robots. Set these values before you start it. The service uses the same queue rules as Modal. It stores instance records in a local SQLite snapshot.
 
 From the repository root, install the dependencies:
 
@@ -33,9 +33,7 @@ The launcher uses these addresses:
 | Service | Address |
 | --- | --- |
 | Website | http://127.0.0.1:3001 |
-| Simulation service | http://127.0.0.1:8001 |
-| LiveKit signaling | ws://127.0.0.1:17880 |
-| LiveKit RTC | TCP 17881 and UDP 17882 |
+| Simulation service | http://127.0.0.1, on a free port that the launcher prints |
 
 The launcher refuses to replace services on occupied ports. It writes a private profile and logs under .demo-runs/. It does not overwrite .env.local files.
 
@@ -48,7 +46,7 @@ cd ..
 SIM_DEMO_PROVIDER=docker python3 scripts/demo-local.py
 ~~~
 
-The Docker provider requires host networking to reach local LiveKit. Enable host networking in Docker Desktop before this mode. The native provider remains the default.
+The native provider remains the default.
 
 ## Modal and Vercel
 

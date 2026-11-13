@@ -12,36 +12,44 @@ spec.loader.exec_module(launcher)
 
 
 class LauncherTests(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.env = Path(folder.name) / '.env.local'
+        self.env.write_text('LIVEKIT_URL=wss://x.livekit.cloud\nLIVEKIT_API_KEY=k\nLIVEKIT_API_SECRET=s\nLIVEKIT_ROOM_NAME=room\n')
     def test_conflicting_modes_are_rejected(self):
         with self.assertRaises(SystemExit): launcher.arguments(['--modal','--no-modal'])
     def test_default_is_local_even_with_modal_connection_settings(self):
         args = launcher.arguments([])
         self.assertFalse(args.modal)
         _, values, provider = launcher.profile(args, dict(
-            SIM_SUPERVISOR_URL='https://example.modal.run', SIM_SUPERVISOR_KEY='k'*32))
+            SIM_SUPERVISOR_URL='https://example.modal.run', SIM_SUPERVISOR_KEY='k'*32), self.env)
         self.assertEqual(provider,'native')
-        self.assertEqual(values['SIM_SUPERVISOR_URL'],'http://127.0.0.1:8001')
+        self.assertTrue(values['SIM_SUPERVISOR_URL'].startswith('http://127.0.0.1:'))
+        self.assertEqual(values['SIM_LIVEKIT_ROOM_NAME'], 'room')
     def test_old_local_flag_remains_a_compatible_alias(self):
         self.assertFalse(launcher.arguments(['--no-modal']).modal)
     def test_local_does_not_require_modal(self):
-        port, values, provider = launcher.profile(launcher.arguments([]), {})
+        port, values, provider = launcher.profile(launcher.arguments([]), {}, self.env)
         self.assertEqual(port,3001)
         self.assertEqual(provider,'native')
-        self.assertEqual(values['SIM_SUPERVISOR_URL'],'http://127.0.0.1:8001')
+        self.assertTrue(values['SIM_SUPERVISOR_URL'].startswith('http://127.0.0.1:'))
+        self.assertEqual(values['SIM_LIVEKIT_ROOM_NAME'], 'room')
     def test_port_option_overrides_environment_and_is_validated(self):
         args = launcher.arguments(['--port', '3050'])
-        port, _, _ = launcher.profile(args, dict(SIM_WEB_PORT='3010'))
+        port, _, _ = launcher.profile(args, dict(SIM_WEB_PORT='3010'), self.env)
         self.assertEqual(port, 3050)
         with self.assertRaisesRegex(ValueError, '--port'):
-            launcher.profile(launcher.arguments(['--port', '70000']), {})
-    def test_remote_uses_livekit_values_and_a_free_supervisor_port(self):
+            launcher.profile(launcher.arguments(['--port', '70000']), {}, self.env)
+    def test_livekit_values_come_from_the_web_env_file_and_a_free_supervisor_port(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / '.env.local'
-            path.write_text('LIVEKIT_URL=wss://x.livekit.cloud\nLIVEKIT_API_KEY="k"\nLIVEKIT_API_SECRET=s\nOTHER=1\n')
-            args = launcher.arguments(['--remote'])
+            path.write_text('LIVEKIT_URL=wss://x.livekit.cloud\nLIVEKIT_API_KEY="k"\nLIVEKIT_API_SECRET=s\nLIVEKIT_ROOM_NAME=room\nOTHER=1\n')
+            args = launcher.arguments([])
             _, values, _ = launcher.profile(args, {}, path)
             self.assertEqual(values['LIVEKIT_URL'], 'wss://x.livekit.cloud')
             self.assertEqual(values['LIVEKIT_API_KEY'], 'k')
+            self.assertEqual(values['SIM_LIVEKIT_ROOM_NAME'], 'room')
             self.assertNotIn('OTHER', values)
             self.assertNotIn(':8001', values['SIM_SUPERVISOR_URL'])
             path.write_text('LIVEKIT_URL=wss://x\n')
@@ -53,7 +61,7 @@ class LauncherTests(unittest.TestCase):
         for values in ({}, {'SIM_SUPERVISOR_URL':'http://localhost:8001','SIM_SUPERVISOR_KEY':'k'*32}):
             with self.assertRaises(ValueError): launcher.profile(args, values)
         port, values, provider = launcher.profile(args, dict(SIM_WEB_PORT='3010',
-            SIM_SUPERVISOR_URL='https://example.modal.run', SIM_SUPERVISOR_KEY='k'*32))
+            SIM_SUPERVISOR_URL='https://example.modal.run', SIM_SUPERVISOR_KEY='k'*32), self.env)
         self.assertEqual(port,3010)
         self.assertEqual(provider,'modal')
         self.assertNotIn('LIVEKIT_URL',values)

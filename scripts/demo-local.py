@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run /try with local workers by default; use --modal for the deployed development API."""
+"""Run /try with local workers in the LiveKit room from web/.env.local; use --modal for the deployed API."""
 import argparse
 import json
 import os
@@ -22,8 +22,7 @@ def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--modal', action='store_true', help='use deployed development session API')
-    modes.add_argument('--remote', action='store_true',
-                       help='run local workers against the LiveKit server in robo-sims/.env.local')
+    modes.add_argument('--remote', action='store_true', help=argparse.SUPPRESS)  # Kept as an alias.
     modes.add_argument('--no-modal', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--port', type=int, help='website port (default: SIM_WEB_PORT or 3001)')
     return parser.parse_args(argv)
@@ -89,23 +88,21 @@ def profile(args, environ, env_file=None):
             raise ValueError('Set SIM_SUPERVISOR_KEY to the development API key (at least 32 characters).')
         return port, dict(SIM_SUPERVISOR_URL=base.rstrip('/'), SIM_SUPERVISOR_KEY=key), 'modal'
     provider = environ.get('SIM_DEMO_PROVIDER', 'native')
-    if args.remote:
-        try:
-            remote = read_env_file(env_file or SIMS / '.env.local')
-        except OSError:
-            raise ValueError('Create robo-sims/.env.local with the LIVEKIT_* values first.')
-        missing = [k for k in ('LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET') if not remote.get(k)]
-        if missing:
-            raise ValueError('Set ' + ', '.join(missing) + ' in robo-sims/.env.local.')
-        remote = {k: v for k, v in remote.items() if k.startswith('LIVEKIT_')}
-        if provider not in ('native', 'docker'):
-            raise ValueError('SIM_DEMO_PROVIDER must be native or docker.')
-        return port, dict(remote, SIM_SUPERVISOR_URL=f'http://127.0.0.1:{free_port()}',
-                          SIM_SUPERVISOR_KEY=secrets.token_hex(32)), provider
+    # The workers use the same LiveKit values as every web page.
+    try:
+        livekit = read_env_file(env_file or ROOT / 'web' / '.env.local')
+    except OSError:
+        raise ValueError('Create web/.env.local with the LIVEKIT_* values first.')
+    missing = [k for k in ('LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET') if not livekit.get(k)]
+    if missing:
+        raise ValueError('Set ' + ', '.join(missing) + ' in web/.env.local.')
+    livekit = {k: v for k, v in livekit.items() if k.startswith('LIVEKIT_')}
+    if livekit.get('LIVEKIT_ROOM_NAME'):
+        livekit['SIM_LIVEKIT_ROOM_NAME'] = livekit['LIVEKIT_ROOM_NAME']
     if provider not in ('native', 'docker'):
         raise ValueError('SIM_DEMO_PROVIDER must be native or docker.')
-    return port, dict(SIM_SUPERVISOR_URL='http://127.0.0.1:8001',
-                     SIM_SUPERVISOR_KEY=secrets.token_hex(32)), provider
+    return port, dict(livekit, SIM_SUPERVISOR_URL=f'http://127.0.0.1:{free_port()}',
+                      SIM_SUPERVISOR_KEY=secrets.token_hex(32)), provider
 
 
 def main():
@@ -118,11 +115,11 @@ def main():
         raise SystemExit('Install pnpm and run pnpm install in web/ first.')
     python = SIMS / '.venv/bin/python'
     if not args.modal:
-        if not python.exists() or not (args.remote or shutil.which('livekit-server')):
+        if not python.exists():
             raise SystemExit('Install the local simulation prerequisites in docs/modal.md first.')
         if provider == 'docker' and not shutil.which('docker'):
             raise SystemExit('Install Docker or use SIM_DEMO_PROVIDER=native.')
-    for number in ((port,) if args.modal else ((port,) if args.remote else (17880, 17881, 17882, 8001, port))):
+    for number in (port,):
         with socket.socket() as sock:
             try:
                 sock.bind(('127.0.0.1', number))
@@ -131,7 +128,7 @@ def main():
             except OSError:
                 raise SystemExit(f'Port {number} is in use. Stop that service before starting the demo.')
     launcher = secrets.token_hex(16)
-    mode = 'modal' if args.modal else ('remote-' if args.remote else 'local-') + provider
+    mode = 'modal' if args.modal else 'local-' + provider
     directory = ROOT / '.demo-runs' / mode / launcher
     directory.mkdir(mode=0o700, parents=True)
     # Trial configuration never replaces the LIVEKIT_* direct-room variables.
@@ -165,9 +162,7 @@ def main():
           f'Website: http://127.0.0.1:{port}/try\nLogs: {directory}\n', flush=True)
     try:
         if not args.modal:
-            settings = dict(values) if args.remote else {
-                **values, 'LIVEKIT_URL': 'ws://127.0.0.1:17880',
-                'LIVEKIT_API_KEY': 'devkey', 'LIVEKIT_API_SECRET': 'secret'}
+            settings = dict(values)
             path = directory / 'trial.env'
             path.write_text(''.join(f'{key}={value}\n' for key, value in settings.items()))
             path.chmod(0o600)
@@ -176,8 +171,6 @@ def main():
                                      capture_output=True, text=True)
             if checked.returncode:
                 raise RuntimeError('Required simulation assets are missing. Run sims fetch-assets. ' + checked.stderr[-500:])
-            if not args.remote:
-                start(['livekit-server', '--dev', '--config', 'tests/livekit-dev.yaml'], SIMS, 'livekit')
             start([str(python), '-m', 'sims.demo.supervisor', '--env-file', str(path),
                    '--port', str(urlparse(values['SIM_SUPERVISOR_URL']).port),
                    '--directory', str(directory / 'sessions'), '--provider', provider,
