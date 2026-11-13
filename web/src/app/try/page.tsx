@@ -11,7 +11,7 @@ export default async function TryPage() {
           <Link href="/workspace">Open direct robot workspace</Link>
         </nav>
       )}
-      <Simulations />
+      <Simulations publicDeployment={process.env.TELEOP_PUBLIC_DEPLOYMENT === '1'} />
     </main>
   );
 }

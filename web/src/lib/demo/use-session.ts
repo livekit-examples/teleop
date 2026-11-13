@@ -178,7 +178,7 @@ export function useDemoSession(id: string | null, mode: 'preview' | 'control') {
         if (run.state !== 'ready') {
           finish(
             run.reason ?? 'This simulation stopped. Choose Watch to restart it.',
-            recoverable(run.state),
+            !!run.ready_at && recoverable(run.state),
           );
           return;
         }

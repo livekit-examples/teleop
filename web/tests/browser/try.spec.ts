@@ -59,47 +59,96 @@ test('the catalog does not start workers and retries Watch safely', async ({ pag
   await expect(page.getByRole('button', { name: /Stop simulation/ })).toHaveCount(0);
 });
 
-test('Watch opens the shared instance and stopped worlds require deliberate continuation', async ({
+test('Watch waits for the simulation and opens the teleop page for its robot', async ({
   page,
 }) => {
   await page.route('**/api/demo/simulations', (route) =>
     route.fulfill({ json: { enabled: true, simulations } }),
   );
+  await page.route('**/api/credentials', (route) => route.abort());
   let starts = 0;
-  const replacement = 'b'.repeat(32);
+  let polls = 0;
   await page.route('**/api/demo/simulations/trossen-wxai/watch', (route) => {
     starts++;
     return route.fulfill({
-      json: {
-        id: starts === 1 ? id : replacement,
-        simulation_id: 'trossen-wxai',
-        state: 'starting',
-      },
+      json: { id, simulation_id: 'trossen-wxai', state: 'starting' },
     });
   });
-  await page.route('**/api/demo/instances/' + replacement, (route) =>
-    route.fulfill({ json: { id: replacement, simulation_id: 'trossen-wxai', state: 'starting' } }),
-  );
   await page.route('**/api/demo/instances/' + id, (route) =>
     route.fulfill({
       json: {
         id,
         simulation_id: 'trossen-wxai',
-        state: 'expired',
-        reason: 'Simulation paused due to inactivity.',
+        state: ++polls < 2 ? 'starting' : 'ready',
+        robot_identity: 'sim-wxai',
       },
     }),
   );
   await page.goto('/try');
   await page.getByRole('button', { name: 'Watch wxai', exact: true }).click();
-  await expect(page).toHaveURL('/workspace?session=' + id);
-  await expect(page.getByRole('heading', { name: 'Viewing ended' })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('inactivity');
-  await expect(page.getByRole('button', { name: 'Continue watching' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Starting…' })).toBeVisible();
+  await expect(page).toHaveURL('/?robot=sim-wxai');
   expect(starts).toBe(1);
-  await page.getByRole('button', { name: 'Continue watching' }).click();
-  await expect(page).toHaveURL('/workspace?session=' + replacement);
-  expect(starts).toBe(2);
+});
+
+test('Watch skips the start request when the simulation is already ready', async ({ page }) => {
+  let starts = 0;
+  await page.route('**/api/demo/simulations', (route) =>
+    route.fulfill({
+      json: {
+        enabled: true,
+        simulations: simulations.map((item) =>
+          item.id === 'vacuum'
+            ? {
+                ...item,
+                instance: {
+                  id,
+                  simulation_id: 'vacuum',
+                  state: 'ready',
+                  robot_identity: 'sim-vacuum',
+                },
+              }
+            : item,
+        ),
+      },
+    }),
+  );
+  await page.route('**/api/credentials', (route) => route.abort());
+  await page.route('**/api/demo/simulations/vacuum/watch', (route) => {
+    starts++;
+    return route.abort();
+  });
+  await page.goto('/try');
+  await page.getByRole('button', { name: 'Watch Vacuum robot', exact: true }).click();
+  await expect(page).toHaveURL('/?robot=sim-vacuum');
+  expect(starts).toBe(0);
+});
+
+test('catalog shows startup failure reason instead of a silent stop', async ({ page }) => {
+  await page.route('**/api/demo/simulations', (route) =>
+    route.fulfill({
+      json: {
+        enabled: true,
+        simulations: simulations.map((item) =>
+          item.id === 'trossen-wxai'
+            ? {
+                ...item,
+                instance: {
+                  id,
+                  simulation_id: 'trossen-wxai',
+                  state: 'stopping',
+                  reason: 'Simulation startup timed out.',
+                },
+              }
+            : item,
+        ),
+      },
+    }),
+  );
+  await page.goto('/try');
+  await expect(
+    page.locator('[data-simulation-id="trossen-wxai"] [role="status"]'),
+  ).toContainText('Simulation startup timed out.');
 });
 
 test('startup errors remain visible without creating another instance', async ({ page }) => {

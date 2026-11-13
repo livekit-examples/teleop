@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { demoRequest, type DemoRun, type DemoSimulation } from '@/lib/demo/types';
 import { useDemoSession, useSeconds } from '@/lib/demo/use-session';
 import { RuntimeContext } from '@/components/workspace/context';
@@ -109,7 +109,7 @@ function PreviewCameras({ runtime }: { runtime: NonNullable<Session['runtime']> 
   );
 }
 
-export function Simulations() {
+export function Simulations({ publicDeployment = false }: { publicDeployment?: boolean }) {
   const router = useRouter();
   const [catalog, setCatalog] = useState<DemoSimulation[] | null>(null);
   const [error, setError] = useState('');
@@ -140,19 +140,46 @@ export function Simulations() {
       clearTimeout(timer);
     };
   }, []);
+  const watching = useRef<AbortController | null>(null);
+  useEffect(() => () => watching.current?.abort(), []);
+  // Open the full teleop page for a robot that is running.
+  const openTeleop = (run: DemoRun) =>
+    router.push(
+      publicDeployment
+        ? '/workspace?session=' + run.id
+        : '/?robot=' + encodeURIComponent(run.robot_identity!),
+    );
   const watch = async (simulation: DemoSimulation) => {
+    watching.current?.abort();
+    const abort = new AbortController();
+    watching.current = abort;
     setBusy(simulation.id);
     setError('');
     try {
-      const run = await demoRequest<DemoRun>('simulations/' + simulation.id + '/watch', {
-        method: 'POST',
-        body: '{}',
-      });
-      router.push('/workspace?session=' + run.id);
+      let run = simulation.instance;
+      // Start the simulation only when no usable instance exists.
+      if (!run || !['queued', 'starting', 'ready'].includes(run.state))
+        run = await demoRequest<DemoRun>('simulations/' + simulation.id + '/watch', {
+          method: 'POST',
+          body: '{}',
+          signal: abort.signal,
+        });
+      // The managed page waits for the instance by itself.
+      while (!publicDeployment && !abort.signal.aborted) {
+        if (run.state === 'ready' && run.robot_identity) break;
+        if (!['queued', 'starting', 'ready'].includes(run.state))
+          throw new Error(run.reason ?? 'The simulation stopped before it was ready.');
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        run = await demoRequest<DemoRun>('instances/' + run.id, { signal: abort.signal });
+      }
+      if (!abort.signal.aborted) openTeleop(run);
     } catch (problem) {
-      setError((problem as Error).message);
+      if (!abort.signal.aborted) setError((problem as Error).message);
     } finally {
-      setBusy(null);
+      if (watching.current === abort) {
+        watching.current = null;
+        setBusy(null);
+      }
     }
   };
   return (
@@ -190,7 +217,7 @@ export function Simulations() {
               {simulation && <p>{simulation.summary}</p>}
               <p role="status">
                 {simulation
-                  ? (run?.state ?? 'Starts on demand')
+                  ? (run?.reason ?? run?.state ?? 'Starts on demand')
                   : error
                     ? 'Status unavailable'
                     : 'Checking availability…'}
@@ -207,7 +234,7 @@ export function Simulations() {
                   if (simulation) void watch(simulation);
                 }}
               >
-                {busy === id ? 'Starting…' : 'Watch ' + name}
+                {busy === id ? (run?.state === 'ready' ? 'Opening…' : 'Starting…') : 'Watch ' + name}
               </button>
               {run?.state === 'ready' && (
                 <>
@@ -224,7 +251,15 @@ export function Simulations() {
                   >
                     Preview
                   </button>
-                  <Link href={'/workspace?session=' + run.id}>Open shared workspace</Link>
+                  <Link
+                    href={
+                      publicDeployment
+                        ? '/workspace?session=' + run.id
+                        : '/?robot=' + encodeURIComponent(run.robot_identity ?? '')
+                    }
+                  >
+                    Open teleop
+                  </Link>
                 </>
               )}
             </article>
