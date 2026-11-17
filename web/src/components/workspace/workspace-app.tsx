@@ -459,6 +459,16 @@ function ManualWorkspace() {
       current.current = null;
     };
   }, [connect, create]);
+  // A simulation robot has one shared control queue, owned by the managed session page.
+  useEffect(() => {
+    if (!runtime || process.env.PROVIDE_CONTROL_QUEUE !== '1') return;
+    return runtime.subscribe(() => {
+      const instance = runtime
+        .robots()
+        .find((p) => p.identity === runtime.selected)?.attributes['teleop.sim.instance'];
+      if (instance) window.location.replace('/workspace?session=' + instance);
+    });
+  }, [runtime]);
   const disconnect = () => {
     setError('');
     setConnecting(false);

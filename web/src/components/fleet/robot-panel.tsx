@@ -67,8 +67,11 @@ export function RobotPanel({
   useEffect(() => setCopied(false), [robot.identity]);
 
   const id = encodeURIComponent(robot.identity);
-  const teleopHref = `/?robot=${id}`;
-  const watchHref = `/?robot=${id}&watch=1`;
+  // Simulation robots share one control queue per robot, owned by the managed session page.
+  const instance =
+    process.env.PROVIDE_CONTROL_QUEUE === '1' ? robot.attributes['teleop.sim.instance'] : '';
+  const teleopHref = instance ? `/workspace?session=${instance}` : `/?robot=${id}`;
+  const watchHref = instance ? teleopHref : `/?robot=${id}&watch=1`;
   const offline = robot.connection === 'offline';
   const heldBy = robot.activeOperator && robot.activeOperator !== me ? robot.activeOperator : '';
   const youHold = !!robot.activeOperator && robot.activeOperator === me;

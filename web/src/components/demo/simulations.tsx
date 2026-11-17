@@ -109,7 +109,7 @@ function PreviewCameras({ runtime }: { runtime: NonNullable<Session['runtime']> 
   );
 }
 
-export function Simulations({ publicDeployment = false }: { publicDeployment?: boolean }) {
+export function Simulations() {
   const router = useRouter();
   const [catalog, setCatalog] = useState<DemoSimulation[] | null>(null);
   const [error, setError] = useState('');
@@ -142,9 +142,10 @@ export function Simulations({ publicDeployment = false }: { publicDeployment?: b
   }, []);
   const watching = useRef<AbortController | null>(null);
   useEffect(() => () => watching.current?.abort(), []);
-  // The full teleop page for a robot that is running.
+  // With the queue on, the managed page enforces one control queue per robot.
+  const queued = process.env.PROVIDE_CONTROL_QUEUE === '1';
   const teleopHref = (run: DemoRun) =>
-    publicDeployment
+    queued
       ? '/workspace?session=' + run.id
       : '/?robot=' + encodeURIComponent(run.robot_identity ?? '');
   const watch = async (simulation: DemoSimulation) => {
@@ -162,8 +163,8 @@ export function Simulations({ publicDeployment = false }: { publicDeployment?: b
           body: '{}',
           signal: abort.signal,
         });
-      // The managed page waits for the instance by itself.
-      while (!publicDeployment && !abort.signal.aborted) {
+      // The managed page waits for the instance by itself; the direct page needs the robot online.
+      while (!queued && !abort.signal.aborted) {
         if (run.state === 'ready' && run.robot_identity) break;
         if (!['queued', 'starting', 'ready'].includes(run.state))
           throw new Error(run.reason ?? 'The simulation stopped before it was ready.');

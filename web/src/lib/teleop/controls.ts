@@ -550,7 +550,9 @@ export class ControlManager {
       (activation !== undefined && activation !== s.activation)
     )
       return false;
-    if (this.reason(id)) {
+    const blocked = this.reason(id);
+    if (blocked) {
+      console.warn(`[controls] disarming ${id}: ${blocked}`);
       void this.stop(id);
       return false;
     }
