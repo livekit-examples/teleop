@@ -1,0 +1,202 @@
+/* Hey ROS: floating microphone, status and transcript. Sits under drawers and modals. */
+.hey-ros {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+  font-family: var(--font-sans, inherit);
+}
+.hey-ros > * {
+  pointer-events: auto;
+}
+.hey-ros-mic {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--lk-fg-accent1);
+  background: var(--lk-bg2);
+  color: var(--lk-fg-accent1);
+  cursor: pointer;
+  box-shadow: 0 0 14px rgb(31 213 249 / 0.28);
+  animation: hey-ros-glow 3.2s ease-in-out infinite;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.hey-ros-mic:hover {
+  background: var(--lk-bg3);
+}
+.hey-ros-mic:focus-visible {
+  outline: none;
+  box-shadow: var(--lk-focus-ring);
+}
+.hey-ros-mic::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--lk-fg-accent1);
+  opacity: 0;
+  pointer-events: none;
+}
+.hey-ros[data-state='listening'] .hey-ros-mic {
+  background: var(--lk-fg-accent1);
+  color: var(--lk-bg1);
+  animation: none;
+}
+.hey-ros[data-state='listening'] .hey-ros-mic::after {
+  animation: hey-ros-ring 1.6s ease-out infinite;
+}
+.hey-ros[data-state='thinking'] .hey-ros-mic,
+.hey-ros[data-state='connecting'] .hey-ros-mic,
+.hey-ros[data-state='requesting_permission'] .hey-ros-mic {
+  animation: hey-ros-pulse 1.1s ease-in-out infinite;
+  box-shadow: none;
+}
+.hey-ros[data-state='speaking'] .hey-ros-mic {
+  animation: none;
+  box-shadow: 0 0 0 4px rgb(31 213 249 / 0.25);
+}
+.hey-ros[data-state='speaking'] .hey-ros-mic::after {
+  animation: hey-ros-ring 0.9s ease-out infinite;
+}
+.hey-ros[data-state='error'] .hey-ros-mic {
+  border-color: var(--lk-fg-serious1);
+  color: var(--lk-fg-serious1);
+  animation: none;
+  box-shadow: none;
+}
+.hey-ros-panel {
+  width: min(340px, calc(100vw - 40px));
+  border: 1px solid var(--lk-separator1);
+  border-radius: var(--lk-radius-lg);
+  background: var(--lk-bg2);
+  color: var(--lk-fg1);
+  font-size: 13px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.45);
+}
+.hey-ros-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.hey-ros-head strong {
+  font-weight: 600;
+  color: var(--lk-fg0);
+}
+.hey-ros-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lk-fg3);
+}
+.hey-ros-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lk-fg4);
+}
+.hey-ros[data-state='listening'] .hey-ros-status::before {
+  background: var(--lk-fg-success);
+}
+.hey-ros[data-state='thinking'] .hey-ros-status::before,
+.hey-ros[data-state='speaking'] .hey-ros-status::before {
+  background: var(--lk-fg-accent1);
+}
+.hey-ros-robot {
+  margin-left: auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--lk-fg3);
+}
+.hey-ros-head button {
+  border: 0;
+  background: none;
+  color: var(--lk-fg3);
+  cursor: pointer;
+  padding: 2px;
+  display: grid;
+}
+.hey-ros-head button:hover {
+  color: var(--lk-fg0);
+}
+.hey-ros-error {
+  margin: 0;
+  padding: 0 10px 10px;
+  color: var(--lk-fg-serious1);
+}
+.hey-ros-log {
+  list-style: none;
+  margin: 0;
+  padding: 0 10px 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--lk-separator1);
+  padding-top: 8px;
+}
+.hey-ros-log li {
+  line-height: 1.4;
+}
+.hey-ros-log li[data-role='user'] {
+  color: var(--lk-fg3);
+}
+.hey-ros-log li[data-final='false'] {
+  opacity: 0.7;
+}
+.hey-ros-log small {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--lk-fg4);
+  overflow-wrap: anywhere;
+}
+.hey-ros-hint {
+  margin: 0;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--lk-separator1);
+  color: var(--lk-fg3);
+}
+@keyframes hey-ros-glow {
+  50% {
+    box-shadow: 0 0 22px rgb(31 213 249 / 0.5);
+  }
+}
+@keyframes hey-ros-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes hey-ros-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hey-ros-mic,
+  .hey-ros-mic::after {
+    animation: none !important;
+  }
+}

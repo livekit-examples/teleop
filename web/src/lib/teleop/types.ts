@@ -50,6 +50,9 @@ export type Operation = {
 export type ControlInterface = {
   label: string;
   frame_id?: string;
+  /** Optional keymap hints. The app infers both from operations and names when absent. */
+  role?: 'drive' | 'manipulator' | 'linear' | 'aim' | 'joints';
+  side?: 'left' | 'right';
   joint_names?: string[];
   operations: Record<string, Operation>;
 };

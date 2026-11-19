@@ -71,9 +71,11 @@ test('shared room: separate queues, motion, forbidden targets, and independent i
     const firstSeconds = await turnSeconds();
     await expect.poll(turnSeconds).toBeLessThan(firstSeconds);
     await page.getByRole('tab', { name: 'Controls', exact: true }).click();
-    await page.locator('.control-acquire').first().click();
-    await expect(page.locator('.control-arm').first()).toBeEnabled();
-    await page.locator('.control-arm').first().click();
+    // Per-interface cards live under Advanced; Robot controls sits above them.
+    await page.getByRole('button', { name: 'Advanced · per-interface', exact: true }).click();
+    await page.locator('.control-advanced .control-acquire').first().click();
+    await expect(page.locator('.control-advanced .control-arm').first()).toBeEnabled();
+    await page.locator('.control-advanced .control-arm').first().click();
     const slider = page.locator('.joint-controls input[type=range]').first();
     await expect(slider).toBeEnabled();
     await slider.fill(String(before + 0.15));

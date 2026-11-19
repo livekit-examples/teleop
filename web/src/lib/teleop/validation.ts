@@ -135,6 +135,17 @@ export function parseDiscovery(payload: string): RobotConfig {
       if (entry.frame_id !== undefined) result.frame_id = string(entry.frame_id, 'frame_id');
       if (entry.joint_names !== undefined)
         result.joint_names = strings(entry.joint_names, 'joint_names');
+      if (entry.role !== undefined) {
+        const role = string(entry.role, `${id}.role`);
+        if (!['drive', 'manipulator', 'linear', 'aim', 'joints'].includes(role))
+          throw new Error(`${id}.role must be drive, manipulator, linear, aim or joints.`);
+        result.role = role as ControlInterface['role'];
+      }
+      if (entry.side !== undefined) {
+        const side = string(entry.side, `${id}.side`);
+        if (side !== 'left' && side !== 'right') throw new Error(`${id}.side must be left or right.`);
+        result.side = side;
+      }
       return [id, result];
     }),
   );

@@ -17,6 +17,7 @@ import { ImmersiveVrProvider } from './immersive-vr';
 import { HandTrackingDriver } from './hand-tracking';
 import { WorkspaceHost, updatePanel } from './workspace-host';
 import { AddVisualization, type Prefill } from './add-visualization';
+import { VoiceAssistant } from './voice-assistant';
 import { useDemoSession } from '@/lib/demo/use-session';
 import { QueueBanner } from '@/components/demo/simulations';
 import '@/components/demo/simulations.css';
@@ -328,6 +329,14 @@ function ConnectedWorkspace({
                   );
                   close();
                 }}
+              />
+            )}
+            {!fixture && (
+              <VoiceAssistant
+                robot={runtime.selected}
+                robotName={
+                  runtime.robots().find((p) => p.identity === runtime.selected)?.name || undefined
+                }
               />
             )}
           </main>

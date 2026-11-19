@@ -77,10 +77,27 @@ export type PositionCapability = {
   open_position?: number;
   closed_position?: number;
 };
+/** A wheeled base inside a position policy: Twist limits for `base.twist.v1` or
+ * `base.holonomic_twist.v1`. Speeds in m/s, yaw in rad/s, base frame (x forward, y left). */
+export type DriveCapability = {
+  profile: 'base.twist.v1' | 'base.holonomic_twist.v1';
+  control_channel: 'primary';
+  units: 'm/s · rad/s';
+  command_track: string;
+  min_linear_x: number;
+  max_linear_x: number;
+  max_linear_y: number;
+  max_yaw_rate: number;
+  max_acceleration: number;
+  max_yaw_acceleration: number;
+  command_timeout_ms: number;
+  input_interval_ms: number;
+  neutral: 'brake';
+};
 export type PositionSimulationPolicy = {
   version: 2;
   max_feedback_age_ms: number;
-  operations: Record<string, Record<string, PositionCapability>>;
+  operations: Record<string, Record<string, PositionCapability | DriveCapability>>;
 };
 export type RacingPolicy = {
   version: 1;

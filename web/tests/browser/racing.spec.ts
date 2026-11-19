@@ -37,6 +37,8 @@ test('community car launches, streams onboard video, drives and brakes through t
     const steering = async () =>
       JSON.parse(await page.locator('.raw-message').innerText()).data as number;
     await page.getByRole('tab', { name: 'Controls', exact: true }).click();
+    // Per-interface cards live under Advanced; Robot controls sits above them.
+    await page.getByRole('button', { name: 'Advanced · per-interface', exact: true }).click();
     await page.getByRole('button', { name: 'Join control queue', exact: true }).click();
     await expect(page.getByText('Your turn', { exact: false })).toBeVisible();
     await page
@@ -75,6 +77,8 @@ test('community car launches, streams onboard video, drives and brakes through t
     await page.reload();
     await expect(page.locator('.connection-badge')).toContainText('ready', { timeout: 15_000 });
     await page.getByRole('tab', { name: 'Controls', exact: true }).click();
+    // Per-interface cards live under Advanced; Robot controls sits above them.
+    await page.getByRole('button', { name: 'Advanced · per-interface', exact: true }).click();
     await expect(
       page.getByRole('button', { name: 'Acquire control', exact: true }).first(),
     ).toBeVisible();

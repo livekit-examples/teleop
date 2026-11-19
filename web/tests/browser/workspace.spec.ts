@@ -169,6 +169,8 @@ test('control modes remain visible, switching stops old input and reconnect neve
 }) => {
   await fixture(page);
   await page.getByRole('tab', { name: 'Controls', exact: true }).click();
+  // Per-interface cards live under Advanced; Robot controls sits above them.
+  await page.getByRole('button', { name: 'Advanced · per-interface', exact: true }).click();
   await page.getByRole('button', { name: 'Acquire control', exact: true }).first().click();
   const base = page.locator('#control-base');
   await expect(base.getByRole('button', { name: 'Arm', exact: true })).toBeEnabled();
@@ -200,6 +202,8 @@ test('gripper stays in its arm card, runs beside arm input and never moves on en
 }, testInfo) => {
   await fixture(page);
   await page.getByRole('tab', { name: 'Controls', exact: true }).click();
+  // Per-interface cards live under Advanced; Robot controls sits above them.
+  await page.getByRole('button', { name: 'Advanced · per-interface', exact: true }).click();
   await page.getByRole('button', { name: 'Acquire control', exact: true }).first().click();
   const left = page.locator('#control-left_arm');
   const primary = left.locator('[data-control-channel="primary"]');
@@ -239,7 +243,44 @@ test('gripper stays in its arm card, runs beside arm input and never moves on en
   await page.reload();
   await expect(page.locator('.connection-badge')).toContainText('ready');
   await page.getByRole('tab', { name: 'Controls', exact: true }).click();
+  // Per-interface cards live under Advanced; Robot controls sits above them.
+  await page.getByRole('button', { name: 'Advanced · per-interface', exact: true }).click();
   await expect(gripper.getByRole('button', { name: 'Enable gripper', exact: true })).toBeVisible();
   await expect(gripper).toContainText('Target: None m');
   await expect(page.locator('.fixture-toolbar')).toContainText('0 command frames');
+});
+
+test('robot controls arm every part at once and drive them from one keymap', async ({ page }) => {
+  await fixture(page);
+  await page.getByRole('tab', { name: 'Controls', exact: true }).click();
+  const robot = page.getByRole('region', { name: 'Robot controls' });
+  await expect(robot).toContainText('Rover base');
+  await expect(robot).toContainText('Left arm');
+  await expect(robot).toContainText('Right arm');
+  await robot.getByRole('button', { name: 'Take control & arm', exact: true }).click();
+  await expect(robot.locator('.robot-keyboard-title .status')).toHaveText('Armed');
+  await expect(robot.locator('.view-reason')).toHaveCount(0);
+  const frames = async () =>
+    Number(
+      (await page.locator('.fixture-toolbar').innerText()).match(/(\d+) command frames/)?.[1] ?? 0,
+    );
+  await page.locator('.camera-main').click();
+  const before = await frames();
+  await page.keyboard.down('KeyW');
+  await page.keyboard.down('ArrowUp');
+  await expect(robot.locator('.key-cap[data-pressed="true"]')).toHaveCount(2);
+  await expect.poll(frames).toBeGreaterThan(before + 5);
+  await page.keyboard.up('KeyW');
+  await page.keyboard.up('ArrowUp');
+  // Excluding a part disarms only that part.
+  await robot.getByLabel('Include Right arm').uncheck();
+  await expect(robot.locator('.robot-keyboard-part', { hasText: 'Right arm' })).toContainText('Off');
+  await expect(robot.locator('.robot-keyboard-part', { hasText: 'Left arm' })).toContainText('Armed');
+  await page.keyboard.press('Escape');
+  await expect(robot.locator('.robot-keyboard-title .status')).toHaveText('Disarmed');
+  // Shift + A is the keyboard counterpart of the Arm button.
+  await page.locator('.camera-main').click();
+  await page.keyboard.press('Shift+KeyA');
+  await expect(robot.locator('.robot-keyboard-title .status')).toHaveText('Armed');
+  await expect(robot.locator('.robot-keyboard-part', { hasText: 'Left arm' })).toContainText('Armed');
 });

@@ -6,6 +6,12 @@ import {
   type BoundCapability,
 } from '../teleop/position-adapter';
 import type { PositionCapability, SimulationPolicy } from './types';
+import {
+  driveAdapters,
+  driveProfiles,
+  validateDriveCapability,
+  type BoundDrive,
+} from './drive-adapter';
 import { object, parseJson } from '../teleop/validation';
 import { racingAdapters } from './racing-adapter';
 import { vacuumAdapters } from './vacuum-adapter';
@@ -39,6 +45,7 @@ export function simulationAdapters(policy: SimulationPolicy): Map<string, Profil
     throw new Error('Unsupported simulation control policy.');
   const legacy = !('version' in policy);
   const capabilities: BoundCapability[] = [];
+  const drives: BoundDrive[] = [];
   if (legacy) {
     if (policy.profile !== 'joints.trajectory.v1')
       throw new Error('Unsupported simulation control policy.');
@@ -63,6 +70,15 @@ export function simulationAdapters(policy: SimulationPolicy): Map<string, Profil
       for (const [operationId, rawCapability] of Object.entries(
         object(raw, 'Interface capabilities'),
       )) {
+        if (
+          (driveProfiles as readonly unknown[]).includes(
+            object(rawCapability, 'Capability').profile,
+          )
+        ) {
+          // A wheeled base, such as the Dexmate Vega's, drives with Twist commands.
+          drives.push({ interfaceId, operationId, value: validateDriveCapability(rawCapability) });
+          continue;
+        }
         const c = object(rawCapability, 'Position capability') as PositionCapability;
         const joints = validateJointLimits(c.joints, 'simulation');
         validatePositionBinding(c, joints);
@@ -88,9 +104,10 @@ export function simulationAdapters(policy: SimulationPolicy): Map<string, Profil
         capabilities.push({ interfaceId, operationId, value: c });
       }
   }
-  if (!capabilities.length) throw new Error('Simulation interfaces are empty.');
-  return positionAdapters(capabilities, policy.max_feedback_age_ms, {
-    source: 'simulation',
-    legacy,
-  });
+  if (!capabilities.length && !drives.length) throw new Error('Simulation interfaces are empty.');
+  const adapters = capabilities.length
+    ? positionAdapters(capabilities, policy.max_feedback_age_ms, { source: 'simulation', legacy })
+    : new Map<string, ProfileAdapter>();
+  for (const [profile, adapter] of driveAdapters(drives)) adapters.set(profile, adapter);
+  return adapters;
 }

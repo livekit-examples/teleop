@@ -17,7 +17,7 @@ import { XrControls } from "./xr-controls";
 import { HandControls } from "./hand-tracking";
 import { ImmersiveVrButton, useImmersiveVr } from "./immersive-vr";
 import { chooseControl } from "@/lib/teleop/control-select";
-import { KeyboardSteering } from "@/lib/teleop/keyboard-steering";
+import { RobotKeyboard } from "./robot-keyboard";
 
 function InputPresentation({ id }: { id: string }) {
   const runtime = useRuntime();
@@ -29,7 +29,6 @@ function InputPresentation({ id }: { id: string }) {
   const driving = operation.profile === "base.ackermann_drive.v1";
   const inputInterval = manager.adapter(id)?.repeatIntervalMs ?? 50;
   const axes = useRef([0, 0, 0]);
-  const held = useRef(new Set<string>());
   const fresh = useRef(false);
   // Axes use the whole pad. The knob follows the pointer but stays inside the rim.
   const steer = (event: PointerEvent<HTMLElement>) => {
@@ -62,8 +61,6 @@ function InputPresentation({ id }: { id: string }) {
     pad.style.setProperty("--knob-y", "0");
   };
   const [waiting, setWaiting] = useState(true);
-  // Keys held now, for the on-screen key display.
-  const [pressed, setPressed] = useState<string[]>([]);
   const [joint, setJoint] = useState(equipment.joint_names?.[0] ?? "");
   const [positions, setPositions] = useState<Record<string, number>>(() => {
     if (operation.profile !== "joints.trajectory.v1")
@@ -99,63 +96,27 @@ function InputPresentation({ id }: { id: string }) {
   useEffect(() => {
     if (
       !session.armed ||
-      ["vr", "hand_tracking", "joint_sliders", "gripper_controls"].includes(
-        session.presentation,
-      )
+      // The robot keymap (RobotKeyboard) owns every keyboard session.
+      [
+        "vr",
+        "hand_tracking",
+        "joint_sliders",
+        "gripper_controls",
+        "keyboard",
+      ].includes(session.presentation)
     )
       return;
     const presentation = session.presentation;
-    const keys = held.current;
-    const keyboardSteering = new KeyboardSteering();
-    let lastSample = performance.now();
-    // Arrow keys do nothing on a button, and the Disarm button keeps focus after arming.
-    const editable = (target: EventTarget | null) =>
-      target instanceof HTMLElement &&
-      (target.isContentEditable ||
-        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
-    const down = (event: KeyboardEvent) => {
-      if (
-        presentation !== "keyboard" ||
-        event.repeat ||
-        editable(event.target) ||
-        !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "q", "e"].includes(
-          event.key,
-        )
-      )
-        return;
-      event.preventDefault();
-      keys.add(event.key);
-      setPressed([...keys]);
-    };
-    const up = (event: KeyboardEvent) => {
-      keys.delete(event.key);
-      setPressed([...keys]);
-    };
     const release = () => {
-      keys.clear();
-      setPressed([]);
       axes.current = [0, 0, 0];
       fresh.current = false;
-      keyboardSteering.reset();
       void manager.stop(id);
       runtime.notify();
     };
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
     window.addEventListener("blur", release);
     const interval = setInterval(() => {
-      const sampledAt = performance.now();
-      const elapsedMs = sampledAt - lastSample;
-      lastSample = sampledAt;
       let values = axes.current;
-      if (presentation === "keyboard") {
-        const pressed = (key: string) => (keys.has(key) ? 1 : 0);
-        values = [
-          pressed("ArrowUp") - pressed("ArrowDown"),
-          pressed("ArrowLeft") - pressed("ArrowRight"),
-          pressed("q") - pressed("e"),
-        ];
-      } else if (presentation === "gamepad") {
+      if (presentation === "gamepad") {
         const pad = navigator.getGamepads().find((p) => p?.connected);
         if (!pad) {
           release();
@@ -180,15 +141,12 @@ function InputPresentation({ id }: { id: string }) {
       if (driving) values = [values[0], values[1], 0];
       // A displaced gamepad or joystick cannot become motion merely by arming.
       if (!fresh.current) {
-        keyboardSteering.reset();
         if (values.every((v) => v === 0)) {
           fresh.current = true;
           setWaiting(false);
         }
         return;
       }
-      if (driving && presentation === "keyboard")
-        values = [values[0], keyboardSteering.sample(values[1], elapsedMs), 0];
       const input: ControlInput =
         operation.profile === "joints.velocity_jog.v1"
           ? { joints: { [joint]: values[0] } }
@@ -197,14 +155,9 @@ function InputPresentation({ id }: { id: string }) {
     }, inputInterval);
     return () => {
       clearInterval(interval);
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
       window.removeEventListener("blur", release);
-      keys.clear();
-      setPressed([]);
       axes.current = [0, 0, 0];
       fresh.current = false;
-      keyboardSteering.reset();
     };
   }, [
     runtime,
@@ -355,50 +308,16 @@ function InputPresentation({ id }: { id: string }) {
             />
           </label>
         )}
-      {session.presentation === "keyboard" && (
-        <div
-          className="key-pad"
-          role="group"
-          aria-label="Keyboard controls"
-          data-armed={session.armed}
-        >
-          {(
-            [
-              ["ArrowUp", "↑", "key-up", "Up arrow"],
-              ["ArrowLeft", "←", "key-left", "Left arrow"],
-              ["ArrowDown", "↓", "key-down", "Down arrow"],
-              ["ArrowRight", "→", "key-right", "Right arrow"],
-              ...(driving
-                ? []
-                : [
-                    ["q", "Q", "key-q", "Q key"],
-                    ["e", "E", "key-e", "E key"],
-                  ]),
-            ] as const
-          ).map(([key, glyph, area, name]) => (
-            <kbd
-              key={key}
-              className={`key-cap ${area}`}
-              data-pressed={pressed.includes(key)}
-              aria-label={name}
-            >
-              {glyph}
-            </kbd>
-          ))}
-        </div>
-      )}
       <p className="muted">
         {session.presentation === "keyboard"
-          ? driving
-            ? "Up/down: target speed; release to brake. Left/right: hold to steer progressively, release to center."
-            : "Arrow keys: forward / turn. Q / E: strafe for holonomic drive."
+          ? "Keyboard input comes from the robot keymap at the top of this panel."
           : session.presentation === "gamepad"
             ? operation.profile.startsWith("base.")
               ? "Right trigger: forward. Left trigger: back. Left stick: turn."
               : "Use the connected gamepad sticks."
             : "Drag from the center. Release to stop."}
       </p>
-      {session.armed && waiting && (
+      {session.armed && waiting && session.presentation !== "keyboard" && (
         <p className="view-reason">Return inputs to neutral before motion.</p>
       )}
     </div>
@@ -551,8 +470,8 @@ export function ControlPanel({ active }: { active: boolean }) {
       ...Object.keys(runtime.layout?.control_channel_preferences ?? {}),
     ]),
   ];
-  return (
-    <div className="control-panel">
+  const advanced = (
+    <>
       <label>
         Control interface
         <select
@@ -573,17 +492,6 @@ export function ControlPanel({ active }: { active: boolean }) {
           ))}
         </select>
       </label>
-      {!ids.length && (
-        <>
-          <p className="muted">
-            This robot advertises no control interfaces. Viewing remains
-            available.
-          </p>
-          <div className="control-actions">
-            <ImmersiveVrButton />
-          </div>
-        </>
-      )}
       {ids.map((equipmentId) => {
         const equipment = interfaces[equipmentId];
         const channels = new Set([
@@ -618,6 +526,37 @@ export function ControlPanel({ active }: { active: boolean }) {
           </section>
         );
       })}
+    </>
+  );
+  return (
+    <div className="control-panel">
+      {ids.length > 0 && <RobotKeyboard active={active} />}
+      {ids.length > 0 && (
+        <section className="control-advanced">
+          <CollapsibleSection
+            heading="h3"
+            title="Advanced · per-interface"
+            defaultOpen={false}
+          >
+            <p className="muted">
+              Pick operations and other input devices (joystick, gamepad, sliders) for one
+              interface at a time.
+            </p>
+            {advanced}
+          </CollapsibleSection>
+        </section>
+      )}
+      {!ids.length && (
+        <>
+          <p className="muted">
+            This robot advertises no control interfaces. Viewing remains
+            available.
+          </p>
+          <div className="control-actions">
+            <ImmersiveVrButton />
+          </div>
+        </>
+      )}
       {Object.values(interfaces).some((equipment) =>
         Object.values(equipment.operations).some((op) =>
           operationPresentations(op).includes("vr"),
@@ -683,8 +622,14 @@ function ControlChannel({
       session.operation,
     ]),
   ];
+  // Arms and grippers reach the keyboard only through the robot keymap above.
   const presentations = [
-    ...new Set([...operationPresentations(op), session.presentation]),
+    ...new Set([
+      ...operationPresentations(op).filter(
+        (p) => p !== "keyboard" || op?.profile.startsWith("base."),
+      ),
+      session.presentation,
+    ]),
   ];
   return (
     <section

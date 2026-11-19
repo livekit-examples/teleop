@@ -1,0 +1,36 @@
+# The wire contract every role loads: tracks, schemas and fps. Identity and
+# room are set in code, so one file serves the robot, teleoperator and observer.
+
+version: 1
+
+fps: 30
+
+videos:
+  - { name: cam1, codec: h264 }
+
+# Mixed-dtype state and action schema. Both peers must declare the same
+# fields in the same order; a fingerprint mismatch drops the packets.
+state:
+  - { name: left_arm.j1, dtype: f32 }
+  - { name: left_arm.j2, dtype: f32 }
+  - { name: left_arm.j3, dtype: f32 }
+  - { name: left_arm.gripper, dtype: bool }
+  - { name: left_arm.mode, dtype: i8 }
+  - { name: base.twist, dtype: f32array, track = "/base/twist"}
+
+action:
+  - { name: left_arm.j1, dtype: f32}
+  - { name: left_arm.j2, dtype: f32}
+  - { name: left_arm.j3, dtype: f32 }
+  - { name: left_arm.gripper, dtype: bool }
+  - { name: left_arm.mode, dtype: i8 }
+  - { name: base.twist, dtype: foxglove_msgs/msg/Twist, track = "/base/twist"}
+
+  
+
+modes: [velocity, trajectory, position, ...]
+
+# what data packet track?
+
+# array = [0.0, 0.0, 0.0, 0.0, base_x, base_y]
+# array = [base_x, base_y]

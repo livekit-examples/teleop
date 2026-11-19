@@ -257,7 +257,7 @@ describe('managed simulation Cartesian pose profile', () => {
     const adapters = simulationAdapters(v2('m · quaternion'));
     expect([...adapters.keys()].sort()).toEqual(['arm.cartesian_pose.v1', 'joints.trajectory.v1']);
     const adapter = adapters.get('arm.cartesian_pose.v1')!;
-    expect(operationPresentations(poseContext().operation)).toEqual(['hand_tracking', 'vr']);
+    expect(operationPresentations(poseContext().operation)).toEqual(['hand_tracking', 'vr', 'keyboard']);
     expect(adapter.encode({ pose }, poseContext())).toEqual({
       header: { frame_id: 'arm_base_link' },
       pose,

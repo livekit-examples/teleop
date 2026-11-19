@@ -156,8 +156,8 @@ describe('app-owned control presentations', () => {
   it('uses command semantics to distinguish an arm from a gripper with the same schema', () => {
     const ops = fixtureConfig.control_interfaces.left_arm.operations;
     expect(ops.position.command.msg_type).toBe(ops.gripper_position.command.msg_type);
-    expect(operationPresentations(ops.position)).toEqual(['joint_sliders']);
-    expect(operationPresentations(ops.gripper_position)).toEqual(['gripper_controls']);
+    expect(operationPresentations(ops.position)).toEqual(['joint_sliders', 'keyboard']);
+    expect(operationPresentations(ops.gripper_position)).toEqual(['gripper_controls', 'keyboard']);
   });
 
   it.each(['unknown-profile', 'wrong-schema', 'wrong-presentation'])(

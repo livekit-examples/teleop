@@ -30,21 +30,24 @@ export const controlProfiles: Record<string, ProfileDefinition> = {
   },
   'joints.velocity_jog.v1': {
     msgType: 'control_msgs/msg/JointJog',
-    presentations: ['joint_sliders', 'gamepad'],
+    presentations: ['joint_sliders', 'gamepad', 'keyboard'],
   },
   'joints.trajectory.v1': {
     msgType: 'trajectory_msgs/msg/JointTrajectory',
-    presentations: ['joint_sliders'],
+    presentations: ['joint_sliders', 'keyboard'],
   },
   'arm.cartesian_pose.v1': {
     msgType: 'geometry_msgs/msg/PoseStamped',
-    presentations: ['hand_tracking', 'vr'],
+    presentations: ['hand_tracking', 'vr', 'keyboard'],
   },
   'gripper.position.v1': {
     msgType: 'trajectory_msgs/msg/JointTrajectory',
-    presentations: ['gripper_controls'],
+    presentations: ['gripper_controls', 'keyboard'],
   },
 };
+
+/* `keyboard` is the robot keymap (see keymap.ts): one router drives every armed keyboard session.
+ * It comes last so that it is never the default presentation of an arm or gripper. */
 
 /** Unknown profiles and incompatible wire schemas never acquire controls by inference. */
 export function operationPresentations(operation?: Operation): readonly string[] {

@@ -6,3 +6,7 @@
 	path = robo-sims
 	url = https://github.com/livekit-examples/robo-sims.git
 	branch = sderosa/general-teleop
+[submodule "agents/hey_ros"]
+	path = agents/hey_ros
+	url = https://github.com/livekit-examples/robot-telemetry-agent.git
+	branch = main

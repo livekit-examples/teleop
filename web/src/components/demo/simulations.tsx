@@ -13,6 +13,7 @@ const cards = [
   ['f1tenth', 'Formula RC', 'f1tenth'],
   ['vacuum', 'Vacuum robot', 'vacuum'],
   ['cluttered-table', 'Cluttered table', 'cluttered-table'],
+  ['dexmate', 'Dexmate Vega', 'dexmate'],
   ['trossen-wxai', 'wxai', 'wxai'],
   ['trossen-wxai-whack', 'wxai whack', 'wxai-whack'],
   ['trossen-workbench', 'workbench', 'workbench'],

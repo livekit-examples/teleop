@@ -1287,6 +1287,261 @@ body:has(.workspace-app) > header {
   transform: translateY(2px);
 }
 
+/* ── Robot controls: one arm, one keymap ─────────────────── */
+.robot-keyboard {
+  border: 1px solid var(--lk-separator1);
+  border-radius: var(--lk-radius-lg);
+  background: var(--lk-bg1);
+  margin-bottom: 12px;
+  transition:
+    border-color 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+.robot-keyboard.armed {
+  border-color: var(--lk-separator-accent);
+  box-shadow: var(--lk-shadow-cyan-glow-sm);
+}
+.robot-keyboard-bar {
+  padding: 14px 16px 6px;
+  border-bottom: 1px solid var(--lk-separator1);
+}
+.robot-keyboard-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lk-fg2);
+}
+.robot-keyboard-title h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--lk-fg0);
+}
+.robot-keyboard-owner {
+  margin: 4px 0 0;
+  font-family: var(--font-lk-mono), ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--lk-fg3);
+  overflow-wrap: anywhere;
+}
+.robot-keyboard .control-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.robot-keyboard .control-actions button.control-arm,
+.robot-keyboard .control-actions button.danger {
+  flex: 1;
+  justify-content: center;
+}
+.key-hint {
+  font-family: var(--font-lk-mono), ui-monospace, monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.7;
+}
+.robot-keyboard-speed {
+  display: grid !important;
+  grid-template-columns: auto 1fr 3.5em;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--lk-fg3);
+}
+.robot-keyboard-speed output {
+  text-align: right;
+  font-family: var(--font-lk-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--lk-fg-accent1);
+}
+.robot-keyboard-focus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px 0;
+}
+.workspace-app .robot-keyboard-focus button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.workspace-app .robot-keyboard-focus button[aria-pressed='true'] {
+  border-color: var(--lk-fg-accent2);
+  background: var(--lk-bg-accent1);
+  color: var(--lk-fg-accent1);
+}
+.robot-keyboard-focus kbd {
+  font-family: var(--font-lk-mono), ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--lk-fg3);
+}
+.robot-keyboard-parts {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.robot-keyboard-part {
+  padding: 10px 16px;
+  transition: background 120ms ease-out;
+}
+.robot-keyboard-part + .robot-keyboard-part {
+  border-top: 1px solid var(--lk-separator1);
+}
+.robot-keyboard-part[data-armed='true'] {
+  background: linear-gradient(90deg, rgb(31 213 249 / 0.05), transparent 60%);
+}
+.robot-keyboard-part[data-included='false'] .robot-keyboard-legend,
+.robot-keyboard-part[data-included='false'] .robot-keyboard-part-name {
+  opacity: 0.4;
+}
+.robot-keyboard-part > .muted {
+  margin: 6px 0 0 34px;
+  font-size: 12px;
+}
+.robot-keyboard-part-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.robot-keyboard-part-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--lk-fg0);
+}
+.robot-keyboard-role {
+  font-family: var(--font-lk-mono), ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lk-fg3);
+  border: 1px solid var(--lk-separator2);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.robot-keyboard-legend {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0 34px;
+}
+.robot-keyboard-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.robot-keyboard-keys {
+  display: inline-flex;
+  gap: 3px;
+  min-width: 64px;
+}
+.robot-keyboard .key-cap {
+  width: 26px;
+  height: 24px;
+  font-size: 11px;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+.robot-keyboard .key-cap.key-wide {
+  width: 22px;
+  color: var(--lk-fg3);
+}
+.robot-keyboard .key-cap[data-pressed='true'] {
+  transform: translateY(1px);
+}
+.robot-keyboard-action {
+  font-size: 12px;
+  color: var(--lk-fg2);
+  overflow-wrap: anywhere;
+}
+.robot-keyboard-hint {
+  margin: 0;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--lk-separator1);
+  font-size: 11px;
+  color: var(--lk-fg3);
+}
+.robot-keyboard-hint kbd {
+  font-family: var(--font-lk-mono), ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--lk-fg2);
+}
+.control-advanced {
+  border: 1px solid var(--lk-separator1);
+  border-radius: var(--lk-radius-lg);
+  background: var(--lk-bg1);
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+.control-advanced h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lk-fg2);
+}
+.control-advanced > div[id] > .muted {
+  font-size: 12px;
+  margin: 10px 0;
+}
+.control-advanced .control-card {
+  background: var(--lk-bg2);
+}
+
+/* Small on/off switch. */
+.lk-switch {
+  position: relative;
+  display: inline-block !important;
+  flex: none;
+  width: 26px;
+  height: 14px;
+  margin: 0 !important;
+}
+.lk-switch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.lk-switch span {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: var(--lk-bg3);
+  border: 1px solid var(--lk-separator2);
+  pointer-events: none;
+  transition: background 120ms ease-out;
+}
+.lk-switch span::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lk-fg3);
+  transition: transform 120ms var(--lk-ease), background 120ms;
+}
+.lk-switch input:checked + span {
+  background: var(--lk-bg-accent2);
+  border-color: var(--lk-fg-accent2);
+}
+.lk-switch input:checked + span::after {
+  transform: translateX(12px);
+  background: var(--lk-fg-accent1);
+}
+.lk-switch input:focus-visible + span {
+  box-shadow: var(--lk-focus-ring);
+}
+.lk-switch input:disabled + span {
+  opacity: 0.4;
+}
+
 /* ── Modal ───────────────────────────────────────────────── */
 .workspace-modal-backdrop {
   position: fixed;
