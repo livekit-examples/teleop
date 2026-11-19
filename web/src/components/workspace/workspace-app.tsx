@@ -141,6 +141,23 @@ function ConnectedWorkspace({
                     )}
                 </select>
               </label>
+              {runtime
+                .robots()
+                .find((r) => r.identity === runtime.selected)
+                ?.attributes['is_simulation'] === 'true' && (
+                <button
+                  title="Put the simulation back to its start"
+                  onClick={() => {
+                    setError('');
+                    // The robot only accepts this from the operator that controls it.
+                    runtime.transport
+                      .rpc(runtime.selected, 'sim.reset', '', 5000)
+                      .catch((problem: Error) => setError(problem.message));
+                  }}
+                >
+                  Reset
+                </button>
+              )}
               <span className={`connection-badge ${runtime.discovery === 'ready' ? 'online' : ''}`}>
                 <span className="connection-dot" aria-hidden="true" />
                 {runtime.connection} · {runtime.discovery}
